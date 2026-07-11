@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="uz" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NormaVault — UI Konsept v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green:#68E78E; --green-soft:rgba(104,231,142,.14); --green-deep:#2FA45B;
+  --bg:#000B1A; --panel:rgba(255,255,255,.045); --panel2:rgba(255,255,255,.08);
+  --glass:rgba(255,255,255,.06); --glass-brd:rgba(255,255,255,.10);
+  --txt:#EDF3F0; --txt2:#8FA0A8; --txt3:#5B6B74;
+  --paper:#F4F7F5; --shadow:0 24px 60px rgba(0,0,0,.5);
+  --amber:#F0C24B; --blue:#6BB4F5; --red:#F07A6B; --violet:#B39CF5;
+  --r:20px;
+}
+[data-theme="light"]{
+  --bg:#EDF2EF; --panel:rgba(255,255,255,.72); --panel2:#fff;
+  --glass:rgba(255,255,255,.68); --glass-brd:rgba(10,30,25,.10);
+  --txt:#0B1A16; --txt2:#5C6E68; --txt3:#93A29C;
+  --paper:#fff; --shadow:0 20px 50px rgba(20,50,40,.13);
+  --green-soft:rgba(47,164,91,.12);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;transition:background .35s,color .35s;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(900px 500px at 85% -10%, rgba(104,231,142,.14), transparent 60%),
+             radial-gradient(700px 500px at -10% 110%, rgba(104,231,142,.08), transparent 55%);}
+h1,h2,h3,.disp{font-family:'Sora',sans-serif}
+svg{flex-shrink:0}
+
+/* ---------- Shell ---------- */
+.shell{display:flex;min-height:100vh;position:relative;z-index:1}
+.rail{width:68px;background:var(--panel);backdrop-filter:blur(18px);border-right:1px solid var(--glass-brd);
+  display:flex;flex-direction:column;align-items:center;padding:18px 0;gap:8px;position:sticky;top:0;height:100vh;z-index:20}
+.logo{width:38px;height:38px;border-radius:12px;background:var(--green);display:grid;place-items:center;margin-bottom:18px;box-shadow:0 6px 18px rgba(104,231,142,.35)}
+.ric{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;color:var(--txt2);cursor:pointer;transition:.2s;position:relative}
+.ric:hover{background:var(--panel2);color:var(--txt)}
+.ric.on{background:var(--green-soft);color:var(--green)}
+[data-theme="light"] .ric.on{color:var(--green-deep)}
+.ric svg{width:19px;height:19px}
+.ric .pip{position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--red);border:2px solid var(--bg)}
+.rail .spacer{flex:1}
+
+.tree{width:242px;background:var(--panel);backdrop-filter:blur(18px);border-right:1px solid var(--glass-brd);
+  padding:20px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+.tree h3{font-size:12.5px;font-weight:600;letter-spacing:.4px;color:var(--txt2);text-transform:uppercase;padding:0 8px;margin:14px 0 10px}
+.tree h3:first-child{margin-top:0}
+.tnode{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--txt2);cursor:pointer;transition:.15s}
+.tnode:hover{background:var(--panel2);color:var(--txt)}
+.tnode.on{background:var(--green-soft);color:var(--green)}
+[data-theme="light"] .tnode.on{color:var(--green-deep)}
+.tnode .cnt{margin-left:auto;font-size:11px;color:var(--txt3);font-weight:700}
+.tnode svg{width:15px;height:15px}
+.tnode .lock{margin-left:auto;width:12px;height:12px;color:var(--txt3)}
+.sub{margin-left:20px;border-left:1.5px solid var(--glass-brd);padding-left:6px}
+.saved{font-size:12px;padding:7px 10px;border-radius:10px;color:var(--txt2);font-weight:700;cursor:pointer;display:flex;gap:8px;align-items:center}
+.saved:hover{background:var(--panel2)}
+.saved i{width:8px;height:8px;border-radius:3px;background:var(--violet);flex-shrink:0}
+.saved:nth-child(3) i{background:var(--blue)}
+
+/* ---------- Main / topbar ---------- */
+.main{flex:1;padding:24px 32px 90px;min-width:0}
+.top{display:flex;align-items:center;gap:13px;margin-bottom:24px}
+.crumb{font-size:13px;color:var(--txt3);font-weight:600;white-space:nowrap}
+.crumb b{color:var(--txt);font-weight:700}
+.search{flex:1;max-width:430px;display:flex;align-items:center;gap:10px;background:var(--glass);border:1px solid var(--glass-brd);
+  border-radius:14px;padding:10px 16px;color:var(--txt3);font-size:13px;backdrop-filter:blur(12px)}
+.search kbd{margin-left:auto;font-size:10px;border:1px solid var(--glass-brd);border-radius:6px;padding:2px 6px}
+.tbtn{display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--glass-brd);border-radius:13px;
+  padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--txt2);cursor:pointer;backdrop-filter:blur(12px);transition:.2s;font-family:'Manrope';white-space:nowrap}
+.tbtn:hover{color:var(--txt);background:var(--panel2)}
+.tbtn.pri{background:var(--green);color:#04240F;border-color:transparent;box-shadow:0 8px 22px rgba(104,231,142,.3)}
+.bell{position:relative}
+.bell .pip{position:absolute;top:7px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--red)}
+.ava{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#68E78E,#2FA45B);display:grid;place-items:center;font-weight:800;font-size:13px;color:#04240F;cursor:pointer}
+
+.htitle{display:flex;align-items:end;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.htitle h1{font-size:25px;font-weight:600;letter-spacing:-.5px}
+.htitle p{font-size:13px;color:var(--txt2);margin-top:4px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.chip{font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px;border:1px solid var(--glass-brd);background:var(--glass);color:var(--txt2);cursor:pointer;backdrop-filter:blur(10px);transition:.15s}
+.chip:hover{color:var(--txt)}
+.chip.on{background:var(--green-soft);border-color:rgba(104,231,142,.4);color:var(--green)}
+[data-theme="light"] .chip.on{color:var(--green-deep)}
+.card{background:var(--glass);border:1px solid var(--glass-brd);border-radius:var(--r);backdrop-filter:blur(16px);overflow:hidden}
+
+/* ---------- DASHBOARD: papka veer (fan) ---------- */
+.fanwrap{position:relative;height:250px;perspective:900px;margin:6px 0 24px;display:flex;align-items:center;justify-content:center;overflow:visible}
+.fan{position:relative;transform-style:preserve-3d;width:100%;max-width:860px;height:100%}
+.ff{position:absolute;top:34px;width:150px;height:172px;border-radius:16px;background:linear-gradient(165deg,rgba(255,255,255,.16),rgba(255,255,255,.05));
+  border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(10px);box-shadow:0 22px 50px rgba(0,0,0,.4);cursor:pointer;
+  transform:rotateY(38deg) skewY(-3deg);transition:transform .35s,box-shadow .35s;padding:14px 13px;display:flex;flex-direction:column;justify-content:flex-end}
+[data-theme="light"] .ff{background:linear-gradient(165deg,rgba(255,255,255,.9),rgba(255,255,255,.5));border-color:rgba(10,40,30,.12);box-shadow:0 18px 40px rgba(20,60,40,.14)}
+.ff::before{content:'';position:absolute;top:-11px;left:0;width:46%;height:22px;border-radius:10px 14px 0 0;background:inherit;border:1px solid rgba(255,255,255,.22);border-bottom:none}
+[data-theme="light"] .ff::before{border-color:rgba(10,40,30,.12)}
+.ff .fp{position:absolute;top:-4px;left:16px;right:16px;height:64px}
+.ff .fp b{position:absolute;bottom:0;width:42%;height:56px;background:var(--paper);border-radius:6px;box-shadow:0 5px 14px rgba(0,0,0,.2)}
+.ff .fp b:nth-child(1){left:4%;transform:rotate(-6deg)}
+.ff .fp b:nth-child(2){left:30%;bottom:5px;z-index:2}
+.ff .fp b:nth-child(3){right:4%;transform:rotate(6deg)}
+.ff h4{font-family:'Sora';font-size:13px;font-weight:600;color:var(--txt)}
+.ff small{font-size:10.5px;font-weight:700;color:var(--txt2)}
+.ff:hover{transform:rotateY(12deg) translateY(-14px) scale(1.06);z-index:10;box-shadow:0 34px 70px rgba(0,0,0,.55)}
+.ff.hot{background:linear-gradient(165deg,rgba(104,231,142,.55),rgba(47,164,91,.3));border-color:rgba(104,231,142,.6)}
+.ff.hot h4{color:#fff}[data-theme="light"] .ff.hot h4{color:#083A1D}
+.ff.hot small{color:rgba(255,255,255,.75)}[data-theme="light"] .ff.hot small{color:#2FA45B}
+.fanhint{position:absolute;top:6px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--glass-brd);
+  border-radius:12px;padding:8px 14px;font-size:11.5px;font-weight:700;color:var(--txt2);backdrop-filter:blur(14px);white-space:nowrap;z-index:12}
+.fanhint b{color:var(--green)}[data-theme="light"] .fanhint b{color:var(--green-deep)}
+
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+.stat{padding:18px 20px}
+.stat .lbl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--txt3);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.stat .lbl i{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.stat .lbl.a i{background:var(--amber)}.stat .lbl.b i{background:var(--blue)}.stat .lbl.r i{background:var(--red)}
+.stat .num{font-family:'Sora';font-size:27px;font-weight:600;letter-spacing:-.5px}
+.stat .sub{font-size:11.5px;color:var(--txt2);font-weight:600;margin-top:4px}
+.stat .sub b{color:var(--green)}[data-theme="light"] .stat .sub b{color:var(--green-deep)}
+
+.dash2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+.act{padding:20px 22px}
+.act h2,.notif h2{font-size:15px;font-weight:600;margin-bottom:14px}
+.arow{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--glass-brd);font-size:12.5px;align-items:center}
+.arow:last-child{border:none}
+.aico{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--green-soft);color:var(--green);flex-shrink:0}
+[data-theme="light"] .aico{color:var(--green-deep)}
+.aico.a{background:rgba(240,194,75,.13);color:var(--amber)}
+.aico.b{background:rgba(107,180,245,.13);color:var(--blue)}
+.aico svg{width:15px;height:15px}
+.arow b{font-weight:700}
+.arow .who{color:var(--txt2);font-weight:600}
+.arow .when{margin-left:auto;font-size:11px;color:var(--txt3);font-weight:700;white-space:nowrap}
+.notif{padding:20px 22px}
+.nrow{padding:12px 14px;border-radius:13px;background:var(--panel);border:1px solid var(--glass-brd);margin-bottom:10px;font-size:12.5px}
+.nrow b{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:3px}
+.nrow b i{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+.nrow.warn b i{background:var(--amber)}
+.nrow small{color:var(--txt2);font-weight:600;line-height:1.5}
+.nrow .go{display:inline-block;margin-top:7px;font-size:11px;font-weight:800;color:var(--green);cursor:pointer}
+[data-theme="light"] .nrow .go{color:var(--green-deep)}
+
+/* ---------- VAULT ---------- */
+.folders{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-bottom:26px}
+.folder{position:relative;border-radius:var(--r);padding:102px 18px 16px;cursor:pointer;isolation:isolate;
+  background:var(--glass);border:1px solid var(--glass-brd);backdrop-filter:blur(16px);transition:transform .25s,box-shadow .25s}
+.folder:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+.folder::before{content:'';position:absolute;top:0;left:0;width:44%;height:26px;border-radius:14px 18px 0 0;
+  background:inherit;border:1px solid var(--glass-brd);border-bottom:none;transform:translateY(-12px);backdrop-filter:blur(16px)}
+.papers{position:absolute;top:-2px;left:14px;right:14px;height:90px;z-index:-1}
+.sheet{position:absolute;bottom:6px;background:var(--paper);border-radius:8px;width:31%;height:74px;box-shadow:0 6px 16px rgba(0,0,0,.18);padding:9px 8px}
+.sheet i{display:block;height:3.5px;border-radius:2px;background:#C9D4CE;margin-bottom:4.5px}
+.sheet i:nth-child(1){width:85%;background:#AEBDB5}.sheet i:nth-child(3){width:60%}.sheet i:nth-child(4){width:72%}
+.sheet.s1{left:2%;transform:rotate(-5deg) translateY(6px)}
+.sheet.s2{left:34%;transform:translateY(-2px);z-index:2}
+.sheet.s3{right:2%;transform:rotate(5deg) translateY(6px)}
+.folder.acc{background:linear-gradient(160deg,rgba(104,231,142,.32),rgba(47,164,91,.18));border-color:rgba(104,231,142,.45)}
+[data-theme="light"] .folder.acc{background:linear-gradient(160deg,rgba(104,231,142,.5),rgba(163,235,188,.35))}
+.fname{font-family:'Sora';font-size:15px;font-weight:600;margin-bottom:3px}
+.fmeta{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--txt2);font-weight:600}
+.fdot{width:5px;height:5px;border-radius:50%;background:var(--green)}
+.fbadge{position:absolute;top:10px;right:12px;font-size:10.5px;font-weight:800;background:var(--glass);border:1px solid var(--glass-brd);
+  padding:4px 9px;border-radius:999px;color:var(--txt2);backdrop-filter:blur(8px)}
+.folder.acc .fbadge{background:rgba(255,255,255,.25);color:#0B3A1E;border-color:transparent}
+[data-theme="dark"] .folder.acc .fbadge{color:#DFFBE9}
+.folder .aclock{position:absolute;top:12px;left:14px;width:13px;height:13px;color:var(--txt2);z-index:3}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--txt3);font-weight:800;text-align:left;padding:12px 22px;border-bottom:1px solid var(--glass-brd)}
+td{padding:13px 22px;border-bottom:1px solid var(--glass-brd);color:var(--txt2);font-weight:600}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--panel2);cursor:pointer}
+td.doc{color:var(--txt);font-weight:700}
+td .num{display:block;font-size:11px;color:var(--txt3);font-weight:600;margin-top:2px}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:5px 11px;border-radius:999px;white-space:nowrap}
+.st i{width:6px;height:6px;border-radius:50%}
+.st.a{background:var(--green-soft);color:var(--green)} .st.a i{background:var(--green)}
+[data-theme="light"] .st.a{color:var(--green-deep)}
+.st.e{background:rgba(140,150,155,.14);color:var(--txt2)} .st.e i{background:var(--txt3)}
+.st.d{background:rgba(240,194,75,.14);color:var(--amber)} .st.d i{background:var(--amber)}
+.st.r{background:rgba(240,122,107,.14);color:var(--red)} .st.r i{background:var(--red)}
+.vtag{font-size:11px;font-weight:800;color:var(--txt3);border:1px solid var(--glass-brd);padding:3px 8px;border-radius:7px}
+.tagm{display:inline-block;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;background:rgba(179,156,245,.14);color:var(--violet);margin-right:4px}
+.tagm.b{background:rgba(107,180,245,.13);color:var(--blue)}
+.cardhead{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 6px}
+.cardhead h2{font-size:15px;font-weight:600}
+.seg{display:flex;background:var(--panel);border:1px solid var(--glass-brd);border-radius:10px;padding:3px;gap:2px}
+.seg span{font-size:11px;font-weight:800;padding:5px 11px;border-radius:8px;color:var(--txt3);cursor:pointer}
+.seg span.on{background:var(--panel2);color:var(--txt)}
+
+/* ---------- HUJJAT ---------- */
+.docwrap{display:grid;grid-template-columns:1fr 320px;gap:18px}
+.dochead{padding:24px;display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.docico{width:56px;height:66px;background:var(--paper);border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.22);padding:10px 9px;flex-shrink:0;position:relative}
+.docico i{display:block;height:4px;border-radius:2px;background:#C9D4CE;margin-bottom:5px}
+.docico i:nth-child(1){width:80%;background:#AEBDB5}.docico i:nth-child(3){width:55%}
+.docico::after{content:'PDF';position:absolute;bottom:6px;left:9px;font-size:8.5px;font-weight:800;color:var(--green-deep);font-family:'Sora'}
+.dochead h1{font-size:19px;font-weight:600;letter-spacing:-.3px;margin-bottom:7px}
+.dmeta{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--txt2);font-weight:600;align-items:center}
+.dacts{margin-left:auto;display:flex;gap:8px}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--glass-brd);overflow-x:auto}
+.tab{padding:12px 16px;font-size:13px;font-weight:700;color:var(--txt3);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--green);border-color:var(--green)}
+[data-theme="light"] .tab.on{color:var(--green-deep);border-color:var(--green-deep)}
+.pv{margin:22px 24px;background:var(--paper);border-radius:14px;min-height:300px;box-shadow:0 14px 34px rgba(0,0,0,.22);padding:34px 40px}
+.pv i{display:block;height:6px;border-radius:3px;background:#D8E1DC;margin-bottom:11px}
+.pv i.t{height:11px;width:55%;background:#B7C6BE;margin-bottom:22px}
+.pv i:nth-child(4){width:88%}.pv i:nth-child(6){width:70%}.pv i:nth-child(8){width:92%}.pv i:nth-child(10){width:64%}
+.side .card{padding:20px;margin-bottom:16px}
+.side h3{font-size:13px;font-weight:600;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.side h3 span{font-size:11px;color:var(--green);cursor:pointer;font-family:'Manrope';font-weight:800}
+[data-theme="light"] .side h3 span{color:var(--green-deep)}
+.vitem{display:flex;gap:12px;position:relative;padding-bottom:18px}
+.vitem::before{content:'';position:absolute;left:7px;top:18px;bottom:0;width:1.5px;background:var(--glass-brd)}
+.vitem:last-child{padding-bottom:0}.vitem:last-child::before{display:none}
+.vdot{width:15px;height:15px;border-radius:50%;border:2px solid var(--txt3);flex-shrink:0;margin-top:2px;background:var(--bg)}
+.vitem.cur .vdot{border-color:var(--green);background:var(--green);box-shadow:0 0 0 4px var(--green-soft)}
+.vitem b{font-size:13px;display:block}
+.vitem small{font-size:11px;color:var(--txt3);font-weight:600;line-height:1.5}
+.vfiles{display:flex;gap:5px;margin-top:5px}
+.vf{font-size:9.5px;font-weight:800;border:1px solid var(--glass-brd);border-radius:6px;padding:2px 7px;color:var(--txt2);cursor:pointer}
+.vf:hover{color:var(--green);border-color:var(--green)}
+.rel{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:12.5px;font-weight:600;color:var(--txt2)}
+.rel .rt{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:3px 8px;border-radius:6px;flex-shrink:0}
+.rt.am{background:rgba(240,194,75,.15);color:var(--amber)}
+.rt.rp{background:rgba(240,122,107,.15);color:var(--red)}
+.rt.bs{background:var(--green-soft);color:var(--green)}
+[data-theme="light"] .rt.bs{color:var(--green-deep)}
+.rt.pc{background:rgba(107,180,245,.15);color:var(--blue)}
+.auditrow{font-size:11.5px;color:var(--txt2);font-weight:600;padding:7px 0;border-bottom:1px dashed var(--glass-brd);display:flex;justify-content:space-between;gap:10px}
+.auditrow:last-child{border:none}
+.auditrow span{color:var(--txt3);white-space:nowrap}
+
+/* ---------- GRAF ---------- */
+.gwrap{position:relative;height:calc(100vh - 200px);min-height:480px;border-radius:var(--r);overflow:hidden;background:var(--glass);border:1px solid var(--glass-brd)}
+#graph{width:100%;height:100%;display:block}
+.glegend{position:absolute;top:14px;left:14px;background:var(--panel2);border:1px solid var(--glass-brd);border-radius:14px;
+  padding:12px 16px;backdrop-filter:blur(16px);font-size:11.5px;font-weight:700;color:var(--txt2)}
+.glegend div{display:flex;align-items:center;gap:8px;padding:3px 0}
+.glegend i{width:9px;height:9px;border-radius:50%}
+.gpanel{position:absolute;top:14px;right:14px;width:250px;background:var(--panel2);border:1px solid var(--glass-brd);border-radius:16px;
+  padding:16px;backdrop-filter:blur(18px);box-shadow:var(--shadow)}
+.gpanel h4{font-family:'Sora';font-size:13.5px;font-weight:600;margin-bottom:4px}
+.gpanel small{font-size:11px;color:var(--txt2);font-weight:600;display:block;margin-bottom:10px}
+.gpanel .tbtn{width:100%;justify-content:center}
+.gmode{position:absolute;bottom:14px;left:14px;display:flex;gap:4px;background:var(--panel2);border:1px solid var(--glass-brd);border-radius:12px;padding:4px;backdrop-filter:blur(16px)}
+.gmode span{font-size:11px;font-weight:800;padding:6px 13px;border-radius:9px;color:var(--txt3);cursor:pointer}
+.gmode span.on{background:var(--green);color:#04240F}
+
+/* ---------- MONITORING ---------- */
+.mrow{display:grid;grid-template-columns:auto 1fr auto;gap:16px;padding:18px 22px;border-bottom:1px solid var(--glass-brd);align-items:start}
+.mrow:last-child{border:none}
+.msrc{font-size:10px;font-weight:800;letter-spacing:.5px;padding:5px 10px;border-radius:8px;margin-top:2px}
+.msrc.cbu{background:rgba(107,180,245,.14);color:var(--blue)}
+.msrc.lex{background:rgba(179,156,245,.14);color:var(--violet)}
+.mrow h4{font-size:14px;font-weight:700;margin-bottom:4px;font-family:'Manrope'}
+.mrow small{font-size:11.5px;color:var(--txt3);font-weight:600}
+.mrel{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.mrel span{font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--green-soft);color:var(--green);cursor:pointer}
+[data-theme="light"] .mrel span{color:var(--green-deep)}
+.mrel span.pct{background:var(--panel);border:1px solid var(--glass-brd);color:var(--txt2)}
+.mtime{font-size:11px;color:var(--txt3);font-weight:700;white-space:nowrap;text-align:right}
+.mtime .st{margin-top:8px}
+
+/* ---------- View & theme ---------- */
+.viewbar{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:4px;background:var(--panel2);
+  border:1px solid var(--glass-brd);border-radius:999px;padding:6px;backdrop-filter:blur(20px);box-shadow:var(--shadow);z-index:50;max-width:94vw;overflow-x:auto}
+.vb{border:none;background:transparent;color:var(--txt2);font-family:'Manrope';font-size:12px;font-weight:800;padding:9px 15px;border-radius:999px;cursor:pointer;transition:.2s;white-space:nowrap}
+.vb.on{background:var(--green);color:#04240F}
+.view{display:none}.view.on{display:block;animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- Overlay & Command Palette (⌘K) ---------- */
+.ovl{position:fixed;inset:0;background:rgba(0,6,14,.55);backdrop-filter:blur(6px);z-index:90;display:none;align-items:flex-start;justify-content:center}
+.ovl.on{display:flex;animation:fade .2s}
+[data-theme="light"] .ovl{background:rgba(20,40,32,.3)}
+.cmdk{margin-top:12vh;width:min(620px,92vw);background:var(--panel2);border:1px solid var(--glass-brd);border-radius:18px;
+  backdrop-filter:blur(24px);box-shadow:var(--shadow);overflow:hidden}
+.cmdk input{width:100%;background:transparent;border:none;outline:none;padding:18px 20px;font-size:15px;color:var(--txt);font-family:'Manrope';font-weight:600;border-bottom:1px solid var(--glass-brd)}
+.cmdk input::placeholder{color:var(--txt3)}
+.ck-sec{font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:var(--txt3);padding:12px 20px 5px}
+.ck-item{display:flex;align-items:center;gap:12px;padding:11px 20px;font-size:13.5px;font-weight:700;color:var(--txt2);cursor:pointer}
+.ck-item:hover,.ck-item.sel{background:var(--green-soft);color:var(--txt)}
+.ck-item svg{width:16px;height:16px;color:var(--txt3)}
+.ck-item:hover svg,.ck-item.sel svg{color:var(--green)}
+.ck-item kbd{margin-left:auto;font-size:10px;border:1px solid var(--glass-brd);border-radius:6px;padding:2px 7px;color:var(--txt3)}
+.ck-item .sub2{font-size:11px;color:var(--txt3);font-weight:600;margin-left:auto}
+.ck-foot{border-top:1px solid var(--glass-brd);padding:10px 20px;font-size:10.5px;color:var(--txt3);font-weight:700;display:flex;gap:16px}
+.ck-foot b{border:1px solid var(--glass-brd);border-radius:5px;padding:1px 6px;font-weight:800}
+
+/* ---------- Notification drawer ---------- */
+.drawer{position:fixed;top:0;right:-380px;width:360px;max-width:92vw;height:100vh;background:var(--panel2);border-left:1px solid var(--glass-brd);
+  backdrop-filter:blur(26px);z-index:95;transition:right .3s ease;padding:22px;overflow:auto;box-shadow:var(--shadow)}
+.drawer.on{right:0}
+.drawer h2{font-size:16px;font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.drawer h2 .x{cursor:pointer;font-size:20px;color:var(--txt3);font-family:'Manrope'}
+.drawer .dsub{font-size:11.5px;color:var(--txt3);font-weight:700;margin-bottom:16px}
+.drawer .dsub span{color:var(--green);cursor:pointer}
+[data-theme="light"] .drawer .dsub span{color:var(--green-deep)}
+
+/* ---------- Bulk action bar ---------- */
+.bulk{position:fixed;bottom:74px;left:50%;transform:translate(-50%,20px);opacity:0;pointer-events:none;display:flex;align-items:center;gap:6px;
+  background:var(--panel2);border:1px solid var(--glass-brd);border-radius:16px;padding:9px 10px 9px 18px;backdrop-filter:blur(22px);
+  box-shadow:var(--shadow);z-index:60;transition:.25s;font-size:12.5px;font-weight:800}
+.bulk.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.bulk b{color:var(--green);margin-right:8px}
+[data-theme="light"] .bulk b{color:var(--green-deep)}
+.bulk .tbtn{padding:7px 12px;font-size:11.5px}
+.chk{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--txt3);cursor:pointer;display:inline-grid;place-items:center;transition:.15s;flex-shrink:0}
+.chk.on{background:var(--green);border-color:var(--green)}
+.chk.on::after{content:'';width:8px;height:5px;border-left:2px solid #04240F;border-bottom:2px solid #04240F;transform:rotate(-45deg) translateY(-1px)}
+td.chkc,th.chkc{width:40px;padding-right:0}
+
+/* ---------- Toast ---------- */
+.toasts{position:fixed;bottom:80px;right:20px;z-index:99;display:flex;flex-direction:column;gap:9px}
+.toast{display:flex;align-items:center;gap:11px;background:var(--panel2);border:1px solid var(--glass-brd);border-radius:14px;
+  padding:12px 16px;font-size:12.5px;font-weight:700;backdrop-filter:blur(20px);box-shadow:var(--shadow);animation:tin .3s ease}
+.toast i{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+@keyframes tin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+
+/* ---------- Upload wizard modal ---------- */
+.modal{width:min(560px,94vw);margin-top:9vh;background:var(--panel2);border:1px solid var(--glass-brd);border-radius:20px;
+  backdrop-filter:blur(26px);box-shadow:var(--shadow);padding:26px}
+.modal h2{font-size:17px;font-weight:600;margin-bottom:3px}
+.modal .msub{font-size:12px;color:var(--txt2);font-weight:600;margin-bottom:18px}
+.steps{display:flex;gap:6px;margin-bottom:20px}
+.stp{flex:1;height:4px;border-radius:2px;background:var(--glass-brd)}
+.stp.on{background:var(--green)}
+.drop{border:1.5px dashed var(--glass-brd);border-radius:16px;padding:30px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:12px}
+.drop:hover{border-color:var(--green);background:var(--green-soft)}
+.drop svg{width:30px;height:30px;color:var(--txt3);margin-bottom:8px}
+.drop b{display:block;font-size:13.5px;margin-bottom:3px}
+.drop small{font-size:11.5px;color:var(--txt3);font-weight:600}
+.frow{margin-bottom:12px}
+.frow label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3);margin-bottom:6px}
+.frow input,.frow select{width:100%;background:var(--glass);border:1px solid var(--glass-brd);border-radius:11px;padding:11px 14px;
+  color:var(--txt);font-family:'Manrope';font-weight:600;font-size:13px;outline:none}
+.frow input:focus,.frow select:focus{border-color:var(--green)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mfoot{display:flex;justify-content:space-between;margin-top:20px}
+.upfile{display:flex;align-items:center;gap:11px;background:var(--glass);border:1px solid var(--glass-brd);border-radius:12px;padding:11px 14px;font-size:12.5px;font-weight:700;margin-bottom:9px}
+.upfile .ok{margin-left:auto;color:var(--green);font-size:11px;font-weight:800}
+[data-theme="light"] .upfile .ok{color:var(--green-deep)}
+
+/* ---------- Diff viewer ---------- */
+.diffw{margin:22px 24px}
+.diffhead{display:flex;gap:10px;align-items:center;margin-bottom:12px;font-size:12px;font-weight:700;color:var(--txt2)}
+.diffhead .st{margin-left:auto}
+.dtable{width:100%;border-collapse:collapse;font-size:12.5px;border-radius:14px;overflow:hidden;border:1px solid var(--glass-brd)}
+.dtable th{background:var(--panel2);padding:11px 16px;font-size:10.5px}
+.dtable td{padding:12px 16px;vertical-align:top;line-height:1.55;font-weight:500;width:47%}
+.dtable td.no{width:6%;color:var(--txt3);font-weight:800;text-align:center}
+.dtable tr.chg td{background:rgba(240,194,75,.07)}
+.dtable tr.chg td.new{background:var(--green-soft)}
+.dtable tr.chg td.no{background:rgba(240,194,75,.12);color:var(--amber)}
+.dtable del{color:var(--red);text-decoration:line-through;text-decoration-thickness:1.5px}
+.dtable ins{color:var(--green);text-decoration:none;font-weight:700}
+[data-theme="light"] .dtable ins{color:var(--green-deep)}
+.dtable .same{color:var(--txt3)}
+@media(max-width:1100px){.dash2{grid-template-columns:1fr}.docwrap{grid-template-columns:1fr}}
+@media(max-width:960px){.tree{display:none}.main{padding:20px 16px 90px}}
+@media(max-width:640px){.rail{display:none}.fanwrap{display:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="rail">
+    <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 8a3 3 0 013-3h3l2 2.5h5a3 3 0 013 3V17a3 3 0 01-3 3H7a3 3 0 01-3-3V8z" fill="#04240F"/></svg></div>
+    <div class="ric" data-nav="dash" title="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg></div>
+    <div class="ric on" data-nav="vault" title="Vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg></div>
+    <div class="ric" data-nav="graph" title="Bog'lanishlar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M8.2 7l7.3.8M7.2 8.2l2 7.6M16.5 10l-5 6.4"/></svg></div>
+    <div class="ric" data-nav="mon" title="Monitoring"><span class="pip"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 13l4-2 4 4 4-8 4 5"/><path d="M3 21h18"/></svg></div>
+    <div class="ric" title="Struktura"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="5" rx="1.5"/><rect x="3" y="16" width="6" height="5" rx="1.5"/><rect x="15" y="16" width="6" height="5" rx="1.5"/><path d="M12 8v4M6 16v-2a2 2 0 012-2h8a2 2 0 012 2v2"/></svg></div>
+    <div class="spacer"></div>
+    <div class="ric" id="themeBtn" title="Rejim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.5 4.5l2 2M17.5 17.5l2 2M19.5 4.5l-2 2M6.5 17.5l-2 2"/></svg></div>
+    <div class="ric" title="Sozlamalar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.2-1.6l2-1.5-2-3.4-2.3 1a7 7 0 00-2.8-1.6L13.3 2h-2.6l-.4 2.9a7 7 0 00-2.8 1.6l-2.3-1-2 3.4 2 1.5A7 7 0 005 12c0 .55.07 1.08.2 1.6l-2 1.5 2 3.4 2.3-1a7 7 0 002.8 1.6l.4 2.9h2.6l.4-2.9a7 7 0 002.8-1.6l2.3 1 2-3.4-2-1.5c.13-.52.2-1.05.2-1.6z"/></svg></div>
+  </aside>
+
+  <aside class="tree">
+    <h3>Papkalar</h3>
+    <div class="tnode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>Boshqaruv<span class="cnt">24</span></div>
+    <div class="tnode on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>Yuridik bo'lim<span class="cnt">112</span></div>
+    <div class="sub">
+      <div class="tnode">Nizomlar<span class="cnt">38</span></div>
+      <div class="tnode">Buyruqlar<span class="cnt">51</span></div>
+      <div class="tnode">Reglamentlar<span class="cnt">23</span></div>
+    </div>
+    <div class="tnode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>Kredit dep.<span class="cnt">67</span></div>
+    <div class="tnode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>Moliyaviy bo'lim
+      <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></div>
+    <div class="tnode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>HR<span class="cnt">31</span></div>
+    <div class="tnode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>Arxiv<span class="cnt">203</span></div>
+    <h3>Saqlangan filtrlar</h3>
+    <div class="saved"><i></i>Yuridik · 2026 · aktivlar</div>
+    <div class="saved"><i></i>CBU'ga bog'liq hujjatlar</div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <span class="crumb" id="crumb">Vault / <b>Yuridik bo'lim</b></span>
+      <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Qidirish: nom, raqam yoki ma'no bo'yicha...<kbd>⌘K</kbd></div>
+      <button class="tbtn bell"><span class="pip"></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 9a6 6 0 10-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10 20a2 2 0 004 0"/></svg></button>
+      <button class="tbtn pri">+ Yangi hujjat</button>
+      <div class="ava">AK</div>
+    </div>
+
+    <!-- ================= DASHBOARD ================= -->
+    <section class="view" id="v-dash">
+      <div class="htitle"><div><h1>Xush kelibsiz, Akmal</h1><p>Bugun: 2 ta yangi tashqi akt, 1 hujjat tasdiq kutmoqda</p></div></div>
+
+      <div class="fanwrap">
+        <div class="fanhint">Jami <b>482 hujjat</b> · 14 papka · surish uchun papka ustiga boring</div>
+        <div class="fan" id="fan"></div>
+      </div>
+
+      <div class="grid3">
+        <div class="card stat"><div class="lbl"><i></i>Aktiv hujjatlar</div><div class="num">396</div><div class="sub"><b>+12</b> shu oyda</div></div>
+        <div class="card stat"><div class="lbl a"><i></i>Tasdiq kutmoqda</div><div class="num">7</div><div class="sub">3 tasi 5 kundan oshdi</div></div>
+        <div class="card stat"><div class="lbl b"><i></i>Yangi tashqi aktlar</div><div class="num">2</div><div class="sub">cbu.uz · lex.uz, bugun</div></div>
+        <div class="card stat"><div class="lbl r"><i></i>Tekshirish tavsiya</div><div class="num">4</div><div class="sub">yangi aktlarga aloqador</div></div>
+      </div>
+
+      <div class="dash2">
+        <div class="card act">
+          <h2>Oxirgi faollik</h2>
+          <div class="arow"><div class="aico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div><div><b>Kredit berish tartibi N-12</b> — v2.0 yangi versiya<div class="who">A. Karimov · taqqoslama biriktirildi</div></div><span class="when">12 daq</span></div>
+          <div class="arow"><div class="aico b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 13l4-2 4 4 4-8 4 5"/></svg></div><div><b>CBU qarori № 145/2026</b> aniqlandi<div class="who">Monitoring · 4 aloqador ichki hujjat</div></div><span class="when">1 soat</span></div>
+          <div class="arow"><div class="aico a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><div><b>Axborot xavfsizligi siyosati S-03</b> tasdiq kutmoqda<div class="who">D. Rahimova yubordi · 6 kun</div></div><span class="when">kecha</span></div>
+          <div class="arow"><div class="aico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 12l3 3 5-6"/><circle cx="12" cy="12" r="9"/></svg></div><div><b>Ichki nazorat reglamenti R-07</b> tasdiqlandi<div class="who">Sh. Tosheva · ACTIVE holatga o'tdi</div></div><span class="when">kecha</span></div>
+        </div>
+        <div class="card notif">
+          <h2>E'tibor talab qiladi</h2>
+          <div class="nrow warn"><b><i></i>Lex.uz: yangi qonun O'RQ-812</b><small>"Elektron hujjat aylanishi to'g'risida"gi qonunga o'zgartirish. 3 ta ichki hujjat bilan yuqori o'xshashlik.</small><span class="go" onclick="go('mon')">Monitoring'da ochish →</span></div>
+          <div class="nrow"><b><i></i>Taqqoslama shablon tayyor</b><small>N-12 v2.0 uchun avtomatik shablon generatsiya qilindi — yuklab olib to'ldirishingiz mumkin.</small><span class="go">Yuklab olish →</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VAULT ================= -->
+    <section class="view on" id="v-vault">
+      <div class="htitle">
+        <div><h1>Yuridik bo'lim</h1><p>112 hujjat · 96 aktiv · oxirgi yangilanish bugun</p></div>
+        <div class="seg"><span class="on">Jadval</span><span>Kartochka</span><span>Timeline</span></div>
+      </div>
+      <div class="chips">
+        <span class="chip on">Barchasi</span><span class="chip">Aktiv</span><span class="chip">Kuchini yo'qotgan</span><span class="chip">Loyiha</span>
+        <span class="chip">2026</span><span class="chip">2025</span><span class="chip">Nizom</span><span class="chip">Buyruq</span><span class="chip">Teg: CBU</span>
+      </div>
+
+      <div class="folders">
+        <div class="folder acc">
+          <span class="fbadge">38 hujjat</span>
+          <div class="papers"><div class="sheet s1"><i></i><i></i><i></i><i></i></div><div class="sheet s2"><i></i><i></i><i></i><i></i></div><div class="sheet s3"><i></i><i></i><i></i><i></i></div></div>
+          <div class="fname">Nizomlar</div><div class="fmeta"><span class="fdot"></span>34 aktiv · Yuridik bo'lim</div>
+        </div>
+        <div class="folder">
+          <span class="fbadge">51 hujjat</span>
+          <div class="papers"><div class="sheet s1"><i></i><i></i><i></i><i></i></div><div class="sheet s2"><i></i><i></i><i></i><i></i></div><div class="sheet s3"><i></i><i></i><i></i><i></i></div></div>
+          <div class="fname">Buyruqlar</div><div class="fmeta"><span class="fdot"></span>47 aktiv · 2024–2026</div>
+        </div>
+        <div class="folder">
+          <svg class="aclock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+          <span class="fbadge">23 hujjat</span>
+          <div class="papers"><div class="sheet s1"><i></i><i></i><i></i><i></i></div><div class="sheet s2"><i></i><i></i><i></i><i></i></div><div class="sheet s3"><i></i><i></i><i></i><i></i></div></div>
+          <div class="fname">Reglamentlar</div><div class="fmeta"><span class="fdot"></span>Kirish cheklangan · ACL</div>
+        </div>
+        <div class="folder">
+          <span class="fbadge">14 hujjat</span>
+          <div class="papers"><div class="sheet s1"><i></i><i></i><i></i><i></i></div><div class="sheet s2"><i></i><i></i><i></i><i></i></div><div class="sheet s3"><i></i><i></i><i></i><i></i></div></div>
+          <div class="fname">Siyosatlar</div><div class="fmeta"><span class="fdot"></span>12 aktiv · CBU bilan bog'liq</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cardhead"><h2>Hujjatlar</h2><span style="font-size:11.5px;color:var(--txt3);font-weight:700">Saralash: tasdiqlangan sana ↓</span></div>
+        <table>
+          <thead><tr><th class="chkc"><span class="chk" onclick="chkAll(this)"></span></th><th>Hujjat</th><th>Teglar</th><th>Holat</th><th>Versiya</th><th>Tasdiqlangan</th><th>Bo'lim</th></tr></thead>
+          <tbody>
+          <tr onclick="go('doc')"><td class="chkc" onclick="event.stopPropagation()"><span class="chk" onclick="chk(this)"></span></td><td class="doc">Kredit berish tartibi to'g'risidagi Nizom<span class="num">№ N-12 · A. Karimov</span></td><td><span class="tagm">CBU</span><span class="tagm b">kredit</span></td><td><span class="st a"><i></i>Aktiv</span></td><td><span class="vtag">v2.0</span></td><td>15.03.2026</td><td>Kredit dep.</td></tr>
+          <tr><td class="chkc" onclick="event.stopPropagation()"><span class="chk" onclick="chk(this)"></span></td><td class="doc">Ichki nazorat reglamenti<span class="num">№ R-07 · Sh. Tosheva</span></td><td><span class="tagm b">nazorat</span></td><td><span class="st a"><i></i>Aktiv</span></td><td><span class="vtag">v1.1</span></td><td>02.02.2026</td><td>Yuridik</td></tr>
+          <tr><td class="chkc" onclick="event.stopPropagation()"><span class="chk" onclick="chk(this)"></span></td><td class="doc">Axborot xavfsizligi siyosati<span class="num">№ S-03 · D. Rahimova</span></td><td><span class="tagm b">IT</span></td><td><span class="st d"><i></i>Ko'rib chiqilmoqda</span></td><td><span class="vtag">v3.0</span></td><td>—</td><td>IT</td></tr>
+          <tr><td class="chkc" onclick="event.stopPropagation()"><span class="chk" onclick="chk(this)"></span></td><td class="doc">Valyuta operatsiyalari yo'riqnomasi<span class="num">№ Y-21</span></td><td><span class="tagm">CBU</span></td><td><span class="st e"><i></i>Kuchini yo'qotgan</span></td><td><span class="vtag">v1.0</span></td><td>11.06.2024</td><td>Moliyaviy</td></tr>
+          <tr><td class="chkc" onclick="event.stopPropagation()"><span class="chk" onclick="chk(this)"></span></td><td class="doc">Xodimlarni rag'batlantirish nizomi<span class="num">№ N-19 · M. Aliyev</span></td><td><span class="tagm b">HR</span></td><td><span class="st a"><i></i>Aktiv</span></td><td><span class="vtag">v1.0</span></td><td>20.01.2026</td><td>HR</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= HUJJAT ================= -->
+    <section class="view" id="v-doc">
+      <div class="docwrap">
+        <div class="card">
+          <div class="dochead">
+            <div class="docico"><i></i><i></i><i></i><i></i></div>
+            <div style="min-width:200px;flex:1">
+              <h1>Kredit berish tartibi to'g'risidagi Nizom</h1>
+              <div class="dmeta">
+                <span>№ N-12</span><span>Tasdiqlangan: 15.03.2026</span><span>A. Karimov</span><span>Kredit departamenti</span>
+                <span class="st a"><i></i>Aktiv</span><span class="tagm">CBU</span><span class="tagm b">kredit</span>
+              </div>
+            </div>
+            <div class="dacts"><button class="tbtn">Yuklab olish</button><button class="tbtn pri">Yangi versiya</button></div>
+          </div>
+          <div class="tabs">
+            <div class="tab on" onclick="dtab(this,'pdf')">PDF</div><div class="tab" onclick="dtab(this,'pdf')">Word</div><div class="tab" onclick="dtab(this,'diff')">Taqqoslama v1.1→v2.0</div><div class="tab" onclick="dtab(this,'pdf')">Tarix</div>
+          </div>
+          <div class="pv" id="dt-pdf"><i class="t"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="diffw" id="dt-diff" style="display:none">
+            <div class="diffhead">
+              <span class="vtag">v1.1 · 20.08.2025</span> → <span class="vtag" style="color:var(--green);border-color:var(--green)">v2.0 · 15.03.2026</span>
+              <span class="st a"><i></i>2 band o'zgargan · 4 o'zgarishsiz</span>
+            </div>
+            <table class="dtable">
+              <tr><th class="no">№</th><th>Eski tahrir</th><th>Yangi tahrir</th></tr>
+              <tr><td class="no">1</td><td class="same">1.1. Ushbu Nizom korxonada kredit berish tartibini, kredit qo'mitasi vakolatlarini belgilaydi.</td><td class="same">— o'zgarishsiz —</td></tr>
+              <tr class="chg"><td class="no">2</td><td>2.1. Kredit arizasi yozma shaklda qabul qilinadi va <del>10 (o'n) ish kuni</del> ichida ko'rib chiqiladi.</td><td class="new">2.1. Kredit arizasi yozma yoki elektron shaklda qabul qilinadi va <ins>5 (besh) ish kuni</ins> ichida ko'rib chiqiladi.</td></tr>
+              <tr><td class="no">3</td><td class="same">2.2. Kredit qo'mitasi haftada bir marta yig'iladi va qarorlar oddiy ko'pchilik ovoz bilan qabul qilinadi.</td><td class="same">— o'zgarishsiz —</td></tr>
+              <tr class="chg"><td class="no">4</td><td>3.2. Ta'minot sifatida <del>ko'chmas mulk yoki transport vositasi</del> qabul qilinadi.</td><td class="new">3.2. Ta'minot sifatida ko'chmas mulk, transport vositasi <ins>yoki bank kafolati (CBU № 145/2026 talablariga muvofiq)</ins> qabul qilinadi.</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="side">
+          <div class="card">
+            <h3>Versiyalar <span>+ Yangi versiya</span></h3>
+            <div class="vitem cur"><div class="vdot"></div><div><b>v2.0 — joriy</b><small>15.03.2026 · A. Karimov</small><div class="vfiles"><span class="vf">PDF</span><span class="vf">DOCX</span><span class="vf">Taqqoslama</span></div></div></div>
+            <div class="vitem"><div class="vdot"></div><div><b>v1.1</b><small>20.08.2025 · o'zgartirish, 2.1-band</small><div class="vfiles"><span class="vf">PDF</span><span class="vf">DOCX</span><span class="vf">Taqqoslama</span></div></div></div>
+            <div class="vitem"><div class="vdot"></div><div><b>v1.0</b><small>15.03.2024 · dastlabki tahrir</small><div class="vfiles"><span class="vf">PDF</span><span class="vf">DOCX</span></div></div></div>
+          </div>
+          <div class="card">
+            <h3>Bog'lanishlar <span>+ Qo'shish</span></h3>
+            <div class="rel"><span class="rt bs">asos</span>CBU qarori № 145/2026</div>
+            <div class="rel"><span class="rt pc">bola</span>Kredit qo'mitasi yo'riqnomasi Y-30</div>
+            <div class="rel"><span class="rt am">o'zgartiradi</span>Kredit qo'mitasi nizomi N-08</div>
+            <div class="rel"><span class="rt rp">o'rnini bosadi</span>Eski tartib N-05 (2022)</div>
+          </div>
+          <div class="card">
+            <h3>Audit</h3>
+            <div class="auditrow">A. Karimov v2.0 yukladi<span>bugun 11:42</span></div>
+            <div class="auditrow">S. Nazarov PDF yuklab oldi<span>bugun 09:15</span></div>
+            <div class="auditrow">Sh. Tosheva ochib ko'rdi<span>kecha</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= GRAF ================= -->
+    <section class="view" id="v-graph">
+      <div class="htitle">
+        <div><h1>Bog'lanishlar grafi</h1><p>Hujjatlar orasidagi munosabatlar · nuqta ustiga boring, bosing</p></div>
+      </div>
+      <div class="gwrap">
+        <canvas id="graph"></canvas>
+        <div class="glegend">
+          <div><i style="background:#68E78E"></i>Nizom</div>
+          <div><i style="background:#6BB4F5"></i>Buyruq</div>
+          <div><i style="background:#B39CF5"></i>Reglament</div>
+          <div><i style="background:#F0C24B"></i>Tashqi akt (CBU/Lex)</div>
+        </div>
+        <div class="gpanel" id="gpanel" style="display:none">
+          <h4 id="gp-t">—</h4><small id="gp-s">—</small>
+          <button class="tbtn" onclick="go('doc')">Hujjatni ochish</button>
+        </div>
+        <div class="gmode"><span class="on">Graf</span><span>Workflow</span></div>
+      </div>
+    </section>
+
+    <!-- ================= MONITORING ================= -->
+    <section class="view" id="v-mon">
+      <div class="htitle">
+        <div><h1>Tashqi aktlar monitoringi</h1><p>cbu.uz va lex.uz · har 2 soatda tekshiriladi · oxirgi skan: 14:00</p></div>
+        <button class="tbtn">Manba sozlamalari</button>
+      </div>
+      <div class="chips">
+        <span class="chip on">Barchasi</span><span class="chip">CBU</span><span class="chip">Lex.uz</span><span class="chip">Yangi</span><span class="chip">Ko'rib chiqilgan</span>
+      </div>
+      <div class="card">
+        <div class="mrow">
+          <span class="msrc cbu">CBU.UZ</span>
+          <div>
+            <h4>Markaziy bank Boshqaruvining qarori № 145/2026 — kreditlash talablarini yangilash</h4>
+            <small>Qabul qilingan: 10.07.2026 · aniqlandi: bugun 12:03</small>
+            <div class="mrel">
+              <span class="pct">Aloqador ichki hujjatlar:</span>
+              <span>Kredit berish tartibi N-12 · 91%</span>
+              <span>Kredit qo'mitasi nizomi N-08 · 84%</span>
+              <span>Yo'riqnoma Y-30 · 79%</span>
+            </div>
+          </div>
+          <div class="mtime">bugun<br><span class="st d"><i></i>Tekshirish tavsiya</span></div>
+        </div>
+        <div class="mrow">
+          <span class="msrc lex">LEX.UZ</span>
+          <div>
+            <h4>O'RQ-812 — "Elektron hujjat aylanishi to'g'risida"gi qonunga o'zgartirishlar</h4>
+            <small>Qabul qilingan: 08.07.2026 · aniqlandi: bugun 08:11</small>
+            <div class="mrel">
+              <span class="pct">Aloqador ichki hujjatlar:</span>
+              <span>Axborot xavfsizligi siyosati S-03 · 88%</span>
+              <span>Ichki nazorat reglamenti R-07 · 76%</span>
+            </div>
+          </div>
+          <div class="mtime">bugun<br><span class="st d"><i></i>Tekshirish tavsiya</span></div>
+        </div>
+        <div class="mrow">
+          <span class="msrc cbu">CBU.UZ</span>
+          <div>
+            <h4>Press-reliz: majburiy zaxira normativlari o'zgarishi to'g'risida</h4>
+            <small>05.07.2026 · S. Nazarov ko'rib chiqdi, ta'sir yo'q deb belgiladi</small>
+            <div class="mrel"><span class="pct">Aloqadorlik topilmadi (threshold 82%)</span></div>
+          </div>
+          <div class="mtime">3 kun oldin<br><span class="st a"><i></i>Ko'rib chiqilgan</span></div>
+        </div>
+      </div>
+      <p style="font-size:11.5px;color:var(--txt3);font-weight:600;margin-top:12px;padding:0 4px">
+        O'xshashlik foizi hujjatlar mazmunan yaqinligini bildiradi, ziddiyat hukmi emas — yakuniy xulosani mas'ul xodim beradi.
+      </p>
+    </section>
+  </main>
+</div>
+
+<!-- Command Palette -->
+<div class="ovl" id="cmdk-ovl" onclick="if(event.target===this)togCmdk(0)">
+  <div class="cmdk">
+    <input id="ck-in" placeholder="Hujjat, papka yoki amal qidiring..." oninput="ckFilter(this.value)">
+    <div id="ck-list">
+      <div class="ck-sec">Amallar</div>
+      <div class="ck-item" data-k="yangi hujjat yuklash" onclick="togCmdk(0);openWiz()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Yangi hujjat yuklash<kbd>N</kbd></div>
+      <div class="ck-item" data-k="yangi versiya taqqoslama" onclick="togCmdk(0);go('doc')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h11M4 12h16M4 17h9"/></svg>Yangi versiya yaratish (shablon)<kbd>V</kbd></div>
+      <div class="ck-item" data-k="graf bog'lanish" onclick="togCmdk(0);go('graph')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M8.2 7l7.3.8M7.2 8.2l2 7.6"/></svg>Grafni ochish<kbd>G</kbd></div>
+      <div class="ck-sec">Hujjatlar</div>
+      <div class="ck-item" data-k="kredit berish tartibi n-12 nizom" onclick="togCmdk(0);go('doc')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z"/></svg>Kredit berish tartibi to'g'risidagi Nizom<span class="sub2">N-12 · Aktiv</span></div>
+      <div class="ck-item" data-k="ichki nazorat reglamenti r-07" onclick="togCmdk(0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z"/></svg>Ichki nazorat reglamenti<span class="sub2">R-07 · Aktiv</span></div>
+      <div class="ck-item" data-k="axborot xavfsizligi siyosati s-03" onclick="togCmdk(0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z"/></svg>Axborot xavfsizligi siyosati<span class="sub2">S-03 · Loyiha</span></div>
+      <div class="ck-item" data-k="cbu 145 qaror tashqi akt" onclick="togCmdk(0);go('mon')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 13l4-2 4 4 4-8 4 5"/></svg>CBU qarori № 145/2026<span class="sub2">Tashqi akt</span></div>
+    </div>
+    <div class="ck-foot"><span><b>↑↓</b> tanlash</span><span><b>↵</b> ochish</span><span><b>esc</b> yopish</span><span style="margin-left:auto">Semantik qidiruv: "ma'no:" bilan boshlang</span></div>
+  </div>
+</div>
+
+<!-- Notification drawer -->
+<div class="drawer" id="drawer">
+  <h2>Xabarnomalar <span class="x" onclick="togDrawer(0)">✕</span></h2>
+  <div class="dsub">2 o'qilmagan · <span>hammasini o'qilgan qilish</span></div>
+  <div class="nrow warn"><b><i></i>CBU qarori № 145/2026 aniqlandi</b><small>4 ta ichki hujjat bilan yuqori o'xshashlik. N-12 (91%) birinchi o'rinda.</small><span class="go" onclick="togDrawer(0);go('mon')">Monitoring'da ochish →</span></div>
+  <div class="nrow warn"><b><i></i>Lex.uz: O'RQ-812 o'zgartirishlar</b><small>S-03 va R-07 hujjatlaringizga aloqador bo'lishi mumkin.</small><span class="go" onclick="togDrawer(0);go('mon')">Ko'rish →</span></div>
+  <div class="nrow"><b><i></i>Taqqoslama shablon tayyor</b><small>N-12 v2.0 uchun shablon generatsiya qilindi (14 band).</small><span class="go" onclick="togDrawer(0);toast('Shablon yuklab olinmoqda...')">Yuklab olish →</span></div>
+  <div class="nrow"><b><i></i>S-03 tasdiq kutmoqda</b><small>D. Rahimova 6 kun oldin yuborgan. Siz tasdiqlovchisiz.</small><span class="go">Ko'rib chiqish →</span></div>
+  <div class="nrow"><b><i></i>R-07 tasdiqlandi</b><small>Sh. Tosheva tasdiqladi, hujjat ACTIVE holatga o'tdi.</small></div>
+</div>
+
+<!-- Upload wizard -->
+<div class="ovl" id="wiz-ovl" onclick="if(event.target===this)closeWiz()">
+  <div class="modal">
+    <h2>Yangi hujjat</h2>
+    <div class="msub" id="wiz-sub">1-qadam · Fayllarni yuklang</div>
+    <div class="steps"><div class="stp on" id="s1"></div><div class="stp" id="s2"></div><div class="stp" id="s3"></div></div>
+
+    <div id="wstep1">
+      <div class="drop" onclick="pickFile(this,'Nizom_N-24_tasdiqlangan.pdf','PDF · 2.4 MB')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <b>Tasdiqlangan PDF (majburiy)</b><small>Bosing yoki faylni tashlang · maks. 50 MB</small>
+      </div>
+      <div class="drop" onclick="pickFile(this,'Nizom_N-24.docx','DOCX · 84 KB')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <b>Word versiyasi (tavsiya)</b><small>Kelajakda avtomatik taqqoslama uchun kerak bo'ladi</small>
+      </div>
+      <div id="picked"></div>
+    </div>
+
+    <div id="wstep2" style="display:none">
+      <div class="frow"><label>Hujjat nomi</label><input value="Ta'minotni baholash tartibi to'g'risidagi Nizom"></div>
+      <div class="f2">
+        <div class="frow"><label>Raqami</label><input value="N-24"></div>
+        <div class="frow"><label>Turi</label><select><option>Nizom</option><option>Buyruq</option><option>Reglament</option><option>Siyosat</option></select></div>
+      </div>
+      <div class="f2">
+        <div class="frow"><label>Tasdiqlangan sana</label><input value="11.07.2026"></div>
+        <div class="frow"><label>Podrazdeleniye</label><select><option>Kredit departamenti</option><option>Yuridik bo'lim</option></select></div>
+      </div>
+      <div class="frow"><label>Teglar</label><input placeholder="CBU, kredit, ta'minot..." value="CBU, ta'minot"></div>
+    </div>
+
+    <div id="wstep3" style="display:none">
+      <div class="frow"><label>Bog'lanishlar (ixtiyoriy)</label></div>
+      <div class="rel"><span class="rt bs">asos</span>CBU qarori № 145/2026 <span style="margin-left:auto;cursor:pointer;color:var(--txt3)">✕</span></div>
+      <div class="rel"><span class="rt pc">ota</span>Kredit berish tartibi N-12 <span style="margin-left:auto;cursor:pointer;color:var(--txt3)">✕</span></div>
+      <button class="tbtn" style="margin-top:8px">+ Bog'lanish qo'shish</button>
+      <div class="nrow" style="margin-top:16px"><b><i></i>Tayyor</b><small>N-24 · Nizom · Kredit departamenti · 2 fayl · 2 bog'lanish. Saqlangach hujjat DRAFT holatida yaratiladi.</small></div>
+    </div>
+
+    <div class="mfoot">
+      <button class="tbtn" onclick="wizBack()" id="wiz-back" style="visibility:hidden">← Orqaga</button>
+      <button class="tbtn pri" onclick="wizNext()" id="wiz-next">Davom etish →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk bar & toasts -->
+<div class="bulk" id="bulk"><b id="bulk-n">0</b> hujjat tanlandi
+  <button class="tbtn" onclick="toast('ZIP arxiv tayyorlanmoqda...')">Yuklab olish</button>
+  <button class="tbtn" onclick="toast('Teg qo\'shildi')">Teg</button>
+  <button class="tbtn" onclick="toast('Papkaga ko\'chirildi')">Ko'chirish</button>
+  <button class="tbtn" style="color:var(--red)" onclick="toast('Chiqindi qutisiga o\'tkazildi · 30 kun ichida tiklash mumkin')">O'chirish</button>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<div class="viewbar">
+  <button class="vb" data-v="dash" onclick="go('dash')">Dashboard</button>
+  <button class="vb on" data-v="vault" onclick="go('vault')">Vault</button>
+  <button class="vb" data-v="doc" onclick="go('doc')">Hujjat</button>
+  <button class="vb" data-v="graph" onclick="go('graph')">Graf</button>
+  <button class="vb" data-v="mon" onclick="go('mon')">Monitoring</button>
+</div>
+
+<script>
+/* Theme */
+document.getElementById('themeBtn').onclick=()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';};
+
+/* Command palette */
+function togCmdk(on){const o=document.getElementById('cmdk-ovl');o.classList.toggle('on',on);if(on){document.getElementById('ck-in').value='';ckFilter('');setTimeout(()=>document.getElementById('ck-in').focus(),50);}}
+function ckFilter(q){q=q.toLowerCase();document.querySelectorAll('.ck-item').forEach(i=>i.style.display=i.dataset.k.includes(q)?'flex':'none');}
+document.querySelector('.search').onclick=()=>togCmdk(1);
+addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();togCmdk(1);}
+  if(e.key==='Escape'){togCmdk(0);togDrawer(0);closeWiz();}
+});
+
+/* Drawer */
+function togDrawer(on){document.getElementById('drawer').classList.toggle('on',on);}
+document.querySelector('.bell').onclick=()=>togDrawer(!document.getElementById('drawer').classList.contains('on'));
+
+/* Toast */
+function toast(msg){const t=document.createElement('div');t.className='toast';t.innerHTML='<i></i>'+msg;
+  document.getElementById('toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='.3s';setTimeout(()=>t.remove(),300);},3200);}
+
+/* Bulk selection */
+function chk(el){el.classList.toggle('on');bulkSync();}
+function chkAll(el){el.classList.toggle('on');const on=el.classList.contains('on');
+  document.querySelectorAll('tbody .chk').forEach(c=>c.classList.toggle('on',on));bulkSync();}
+function bulkSync(){const n=document.querySelectorAll('tbody .chk.on').length;
+  document.getElementById('bulk-n').textContent=n;document.getElementById('bulk').classList.toggle('on',n>0);}
+
+/* Doc tabs */
+function dtab(el,view){document.querySelectorAll('#v-doc .tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');
+  document.getElementById('dt-pdf').style.display=view==='pdf'?'block':'none';
+  document.getElementById('dt-diff').style.display=view==='diff'?'block':'none';}
+
+/* Upload wizard */
+let wstep=1;
+function openWiz(){wstep=1;wizPaint();document.getElementById('wiz-ovl').classList.add('on');}
+function closeWiz(){document.getElementById('wiz-ovl').classList.remove('on');}
+function wizNext(){if(wstep<3){wstep++;wizPaint();}else{closeWiz();toast('N-24 saqlandi · DRAFT holatida yaratildi');}}
+function wizBack(){if(wstep>1){wstep--;wizPaint();}}
+function wizPaint(){
+  ['wstep1','wstep2','wstep3'].forEach((id,i)=>document.getElementById(id).style.display=i+1===wstep?'block':'none');
+  ['s1','s2','s3'].forEach((id,i)=>document.getElementById(id).classList.toggle('on',i+1<=wstep));
+  document.getElementById('wiz-sub').textContent=['1-qadam · Fayllarni yuklang','2-qadam · Metadata','3-qadam · Bog\'lanishlar va ko\'rib chiqish'][wstep-1];
+  document.getElementById('wiz-back').style.visibility=wstep>1?'visible':'hidden';
+  document.getElementById('wiz-next').textContent=wstep<3?'Davom etish →':'Saqlash ✓';
+}
+function pickFile(el,name,meta){el.style.display='none';
+  const d=document.createElement('div');d.className='upfile';
+  d.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z"/></svg>${name}<span style="color:var(--txt3);font-weight:600">· ${meta}</span><span class="ok">✓ hash tekshirildi</span>`;
+  document.getElementById('picked').appendChild(d);}
+document.querySelector('.tbtn.pri').onclick=openWiz;
+
+/* Navigation */
+const crumbs={dash:'Bosh sahifa',vault:'Vault / <b>Yuridik bo\'lim</b>',doc:'Vault / Yuridik / <b>N-12</b>',graph:'<b>Bog\'lanishlar</b>',mon:'<b>Monitoring</b>'};
+function go(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.remove('on'));
+  document.getElementById('v-'+v).classList.add('on');
+  document.querySelectorAll('.vb').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.querySelectorAll('.ric[data-nav]').forEach(r=>r.classList.toggle('on',r.dataset.nav===v||(v==='doc'&&r.dataset.nav==='vault')));
+  document.getElementById('crumb').innerHTML=crumbs[v];
+  window.scrollTo({top:0});
+  if(v==='graph')initGraph();
+}
+document.querySelectorAll('.ric[data-nav]').forEach(r=>r.onclick=()=>go(r.dataset.nav));
+
+/* Dashboard fan */
+const fanData=[['Nizomlar','38 hujjat',0],['Buyruqlar','51 hujjat',0],['Kredit','67 hujjat',1],['Reglamentlar','23 hujjat',0],['Siyosatlar','14 hujjat',0],['HR','31 hujjat',0],['Moliyaviy','45 hujjat',0],['Arxiv','203 hujjat',0]];
+const fan=document.getElementById('fan');
+fanData.forEach((f,i)=>{
+  const d=document.createElement('div');d.className='ff'+(f[2]?' hot':'');
+  d.style.left=(i*11+2)+'%';d.style.zIndex=i;d.style.transform=`rotateY(42deg) skewY(-2deg) translateZ(${-i*6}px)`;
+  d.innerHTML=`<div class="fp"><b></b><b></b><b></b></div><h4>${f[0]}</h4><small>${f[1]}</small>`;
+  d.onclick=()=>go('vault');
+  fan.appendChild(d);
+});
+
+/* Graf: sodda force simulyatsiya */
+let ginit=false;
+function initGraph(){
+  if(ginit)return;ginit=true;
+  const cv=document.getElementById('graph'),cx=cv.getContext('2d');
+  const wrap=cv.parentElement;
+  function size(){cv.width=wrap.clientWidth*devicePixelRatio;cv.height=wrap.clientHeight*devicePixelRatio;cx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}
+  size();addEventListener('resize',size);
+  const C={nizom:'#68E78E',buyruq:'#6BB4F5',reg:'#B39CF5',ext:'#F0C24B'};
+  const N=[
+    {id:'N-12',t:'nizom',l:'N-12 Kredit tartibi',big:1},{id:'N-08',t:'nizom',l:'N-08 Kredit qo\'mitasi'},
+    {id:'R-07',t:'reg',l:'R-07 Ichki nazorat'},{id:'S-03',t:'nizom',l:'S-03 Axb. xavfsizligi'},
+    {id:'Y-30',t:'buyruq',l:'Y-30 Yo\'riqnoma'},{id:'Y-21',t:'buyruq',l:'Y-21 Valyuta'},
+    {id:'B-44',t:'buyruq',l:'B-44 Buyruq'},{id:'B-51',t:'buyruq',l:'B-51 Buyruq'},
+    {id:'CBU145',t:'ext',l:'CBU 145/2026',big:1},{id:'ORQ812',t:'ext',l:'Lex O\'RQ-812'},
+    {id:'N-19',t:'nizom',l:'N-19 HR nizomi'},{id:'R-11',t:'reg',l:'R-11 Reglament'}
+  ];
+  const L=[['CBU145','N-12'],['CBU145','N-08'],['CBU145','Y-30'],['N-12','N-08'],['N-12','Y-30'],['ORQ812','S-03'],['ORQ812','R-07'],['R-07','S-03'],['N-12','B-44'],['N-08','B-51'],['N-19','R-11'],['R-07','R-11']];
+  const W=()=>wrap.clientWidth,H=()=>wrap.clientHeight;
+  N.forEach(n=>{n.x=W()/2+(Math.random()-0.5)*300;n.y=H()/2+(Math.random()-0.5)*260;n.vx=0;n.vy=0;n.r=n.big?13:9});
+  const byId=Object.fromEntries(N.map(n=>[n.id,n]));
+  let hover=null;
+  cv.onmousemove=e=>{
+    const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;
+    hover=N.find(n=>Math.hypot(n.x-mx,n.y-my)<n.r+6)||null;
+    cv.style.cursor=hover?'pointer':'default';
+  };
+  cv.onclick=()=>{
+    const p=document.getElementById('gpanel');
+    if(hover){p.style.display='block';document.getElementById('gp-t').textContent=hover.l;
+      document.getElementById('gp-s').textContent=(hover.t==='ext'?'Tashqi akt · monitoring':'Ichki hujjat')+' · '+L.filter(l=>l.includes(hover.id)).length+' bog\'lanish';}
+    else p.style.display='none';
+  };
+  function tick(){
+    /* kuchlar */
+    for(let i=0;i<N.length;i++)for(let j=i+1;j<N.length;j++){
+      const a=N[i],b=N[j];let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,f=1400/(d*d);
+      dx/=d;dy/=d;a.vx-=dx*f;a.vy-=dy*f;b.vx+=dx*f;b.vy+=dy*f;
+    }
+    L.forEach(([s,t])=>{const a=byId[s],b=byId[t];let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,f=(d-110)*0.004;
+      dx/=d;dy/=d;a.vx+=dx*f*d;a.vy+=dy*f*d;b.vx-=dx*f*d;b.vy-=dy*f*d;});
+    N.forEach(n=>{n.vx+=(W()/2-n.x)*0.0012;n.vy+=(H()/2-n.y)*0.0012;n.vx*=0.86;n.vy*=0.86;n.x+=n.vx;n.y+=n.vy;});
+    /* chizish */
+    cx.clearRect(0,0,W(),H());
+    const dark=document.documentElement.dataset.theme==='dark';
+    L.forEach(([s,t])=>{const a=byId[s],b=byId[t];
+      const lit=hover&&(hover.id===s||hover.id===t);
+      cx.strokeStyle=lit?'rgba(104,231,142,.8)':(dark?'rgba(255,255,255,.14)':'rgba(10,40,30,.14)');
+      cx.lineWidth=lit?1.8:1;cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke();});
+    N.forEach(n=>{
+      const dim=hover&&hover!==n&&!L.some(l=>l.includes(hover.id)&&l.includes(n.id));
+      cx.globalAlpha=dim?0.25:1;
+      cx.beginPath();cx.arc(n.x,n.y,n.r,0,7);cx.fillStyle=C[n.t];cx.fill();
+      if(n===hover){cx.strokeStyle=C[n.t];cx.globalAlpha=.35;cx.lineWidth=6;cx.stroke();cx.globalAlpha=1;}
+      cx.fillStyle=dark?'rgba(237,243,240,.85)':'rgba(11,26,22,.85)';
+      cx.font='700 10.5px Manrope';cx.textAlign='center';cx.fillText(n.l,n.x,n.y+n.r+14);
+      cx.globalAlpha=1;
+    });
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+</script>
+</body>
+</html>

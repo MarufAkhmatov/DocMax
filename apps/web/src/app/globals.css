@@ -1,0 +1,158 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * NormaVault dizayn tokenlari — manba: docs/DESIGN.md §1 (etalon: design/normavault-ui-v3.html).
+ * Dark — default (:root), light `.light` class orqali (next-themes, attribute="class").
+ */
+:root {
+  --green: #68e78e;
+  --green-deep: #2fa45b;
+  --green-soft: rgba(104, 231, 142, 0.14);
+  --bg: #000b1a; /* Blue Charcoal */
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-brd: rgba(255, 255, 255, 0.1);
+  --txt: #edf3f0;
+  --txt2: #8fa0a8;
+  --txt3: #5b6b74;
+  --paper: #f4f7f5;
+  --amber: #f0c24b;
+  --blue: #6bb4f5;
+  --red: #f07a6b;
+  --violet: #b39cf5;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  /* Yashil matn dark'da --green (DESIGN.md §1 qoidasi) */
+  --green-text: var(--green);
+
+  /* shadcn/ui tokenlarini palitramizga remap qilamiz (DESIGN.md §6 — slate ishlatilmaydi) */
+  --radius: 0.875rem; /* ichki element 14px */
+  --background: var(--bg);
+  --foreground: var(--txt);
+  --card: var(--glass);
+  --card-foreground: var(--txt);
+  --popover: #0a1626;
+  --popover-foreground: var(--txt);
+  --primary: var(--green);
+  --primary-foreground: #0b3a1e;
+  --secondary: var(--glass);
+  --secondary-foreground: var(--txt);
+  --muted: rgba(255, 255, 255, 0.04);
+  --muted-foreground: var(--txt2);
+  --accent: var(--green-soft);
+  --accent-foreground: var(--txt);
+  --destructive: var(--red);
+  --destructive-foreground: #ffffff;
+  --border: var(--glass-brd);
+  --input: var(--glass-brd);
+  --ring: var(--green);
+}
+
+.light {
+  --green-soft: rgba(47, 164, 91, 0.12);
+  --bg: #edf2ef;
+  --glass: rgba(255, 255, 255, 0.68);
+  --glass-brd: rgba(10, 30, 25, 0.1);
+  --txt: #0b1a16;
+  --txt2: #5c6e68;
+  --txt3: #93a29c;
+  --paper: #ffffff;
+  --shadow: 0 20px 50px rgba(20, 50, 40, 0.13);
+  /* Light rejimda yashil matn --green-deep (oq fonda och yashil o'qilmaydi) */
+  --green-text: var(--green-deep);
+
+  --popover: #ffffff;
+  --primary: var(--green-deep);
+  --primary-foreground: #ffffff;
+  --muted: rgba(10, 30, 25, 0.04);
+}
+
+@theme inline {
+  /* Ranglar → Tailwind utility'lar (bg-green, text-txt2, border-glass-brd ...) */
+  --color-green: var(--green);
+  --color-green-deep: var(--green-deep);
+  --color-green-soft: var(--green-soft);
+  --color-green-text: var(--green-text);
+  --color-bg: var(--bg);
+  --color-glass: var(--glass);
+  --color-glass-brd: var(--glass-brd);
+  --color-txt: var(--txt);
+  --color-txt2: var(--txt2);
+  --color-txt3: var(--txt3);
+  --color-paper: var(--paper);
+  --color-amber: var(--amber);
+  --color-blue: var(--blue);
+  --color-red: var(--red);
+  --color-violet: var(--violet);
+
+  /* shadcn tokenlari */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Tipografika (DESIGN.md §2): Sora — sarlavha, Manrope — matn */
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+
+  /* Radiuslar (DESIGN.md §3): karta 20px, ichki 12–14px, pill 999px */
+  --radius-card: 20px;
+  --radius-inner: 14px;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-lifted: var(--shadow);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-bg text-txt font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-heading font-semibold;
+  }
+}
+
+@layer components {
+  /* Shisha effekt (DESIGN.md §3) — barcha karta/panellarning asosi */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-brd);
+    backdrop-filter: blur(16px);
+  }
+}
+
+/* Fon nafasi: sahifa orqasida 2 ta harakatsiz radial yashil dog' (DESIGN.md §3) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(600px 400px at 15% 10%, rgba(104, 231, 142, 0.07), transparent 70%),
+    radial-gradient(700px 500px at 85% 90%, rgba(104, 231, 142, 0.05), transparent 70%);
+}

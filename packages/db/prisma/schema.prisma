@@ -1,0 +1,11 @@
+// NormaVault ma'lumotlar bazasi sxemasi.
+// To'liq jadval tavsifi: docs/tz-0-umumiy.md §3 (2-milestone'da to'ldiriladi).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

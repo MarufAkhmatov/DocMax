@@ -1,0 +1,24 @@
+{
+  "name": "normavault",
+  "private": true,
+  "packageManager": "pnpm@11.11.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:migrate": "pnpm --filter @normavault/db db:migrate",
+    "db:seed": "pnpm --filter @normavault/db db:seed",
+    "db:generate": "pnpm --filter @normavault/db db:generate",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,css}\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "prettier": "^3.5.0",
+    "turbo": "^2.5.0",
+    "typescript-eslint": "^8.30.0"
+  }
+}
