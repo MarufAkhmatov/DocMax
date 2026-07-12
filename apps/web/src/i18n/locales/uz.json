@@ -46,6 +46,9 @@
     "filterDraft": "Loyiha",
     "emptySubfolder": "Bu papkada pastki papkalar yo'q.",
     "emptyDocuments": "Bu papkada hujjatlar yo'q.",
+    "newFolder": "+ Yangi papka",
+    "folderNameLabel": "NOMI",
+    "folderNamePlaceholder": "masalan: Yuridik bo'lim",
     "folderMetaWithChildren": "{{count}} hujjat · ichki papkalar bor",
     "folderMetaPlain": "{{count}} hujjat",
     "colDocument": "Hujjat",
@@ -167,7 +170,8 @@
     "expireDateLabel": "Kuchga to'xtash sanasi",
     "cancel": "Bekor qilish",
     "confirm": "Tasdiqlash",
-    "download": "Yuklab olish"
+    "download": "Yuklab olish",
+    "save": "Saqlash"
   },
   "bulkBar": {
     "selectedSuffix": "hujjat tanlandi",

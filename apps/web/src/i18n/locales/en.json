@@ -46,6 +46,9 @@
     "filterDraft": "Draft",
     "emptySubfolder": "This folder has no subfolders.",
     "emptyDocuments": "This folder has no documents.",
+    "newFolder": "+ New folder",
+    "folderNameLabel": "NAME",
+    "folderNamePlaceholder": "e.g. Legal department",
     "folderMetaWithChildren": "{{count}} documents · has subfolders",
     "folderMetaPlain": "{{count}} documents",
     "colDocument": "Document",
@@ -167,7 +170,8 @@
     "expireDateLabel": "Effective-to date",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "download": "Download"
+    "download": "Download",
+    "save": "Save"
   },
   "bulkBar": {
     "selectedSuffix": "documents selected",

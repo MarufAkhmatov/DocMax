@@ -46,6 +46,9 @@
     "filterDraft": "Черновик",
     "emptySubfolder": "В этой папке нет вложенных папок.",
     "emptyDocuments": "В этой папке нет документов.",
+    "newFolder": "+ Новая папка",
+    "folderNameLabel": "НАЗВАНИЕ",
+    "folderNamePlaceholder": "например: Юридический отдел",
     "folderMetaWithChildren": "{{count}} документов · есть вложенные папки",
     "folderMetaPlain": "{{count}} документов",
     "colDocument": "Документ",
@@ -167,7 +170,8 @@
     "expireDateLabel": "Дата утраты силы",
     "cancel": "Отмена",
     "confirm": "Подтвердить",
-    "download": "Скачать"
+    "download": "Скачать",
+    "save": "Сохранить"
   },
   "bulkBar": {
     "selectedSuffix": "документов выбрано",

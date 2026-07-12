@@ -411,6 +411,11 @@ export default function App() {
   const [foldersError, setFoldersError] = useState<string | null>(null);
   const currentFolder = folderStack[folderStack.length - 1];
 
+  // Yangi papka yaratish (faqat ADMIN/SUPER_ADMIN, backend @Roles('ADMIN') bilan mos)
+  const [folderCreateOpen, setFolderCreateOpen] = useState(false);
+  const [folderCreateName, setFolderCreateName] = useState("");
+  const [folderCreateSaving, setFolderCreateSaving] = useState(false);
+
   // ── Hujjatlar (real backend — TZ-1 §1.3, documentsApi) ─────────────────────
   const [docFilters, setDocFilters] = useState<{ status?: string; docTypeId?: string; year?: number; tag?: string }>(
     () => {
@@ -527,6 +532,11 @@ export default function App() {
     return () => { cancelled = true; };
   }, [user, currentFolder.id]);
 
+  // Yaratishdan keyin ro'yxatni jimgina yangilaydi (to'liq skeleton'siz)
+  const refetchFolders = useCallback(() => {
+    foldersApi.tree({ parentId: currentFolder.id ?? undefined }).then(setFolders).catch(() => {});
+  }, [currentFolder.id]);
+
   // Joriy papkadagi hujjatlar — faqat haqiqiy papka ichiga kirilganda (ildiz darajada folderId yo'q)
   useEffect(() => {
     if (!user || !currentFolder.id) {
@@ -609,6 +619,22 @@ export default function App() {
     setToasts(t => [...t, { id, msg }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3400);
   }, []);
+
+  const handleCreateFolder = useCallback(async () => {
+    const name = folderCreateName.trim();
+    if (!name) return;
+    setFolderCreateSaving(true);
+    try {
+      await foldersApi.create({ name, parentId: currentFolder.id });
+      setFolderCreateOpen(false);
+      setFolderCreateName("");
+      refetchFolders();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Papka yaratishda xato yuz berdi");
+    } finally {
+      setFolderCreateSaving(false);
+    }
+  }, [folderCreateName, currentFolder.id, refetchFolders, toast]);
 
   const goView = (v: View) => { setView(v); window.scrollTo({ top: 0 }); };
 
@@ -1152,6 +1178,43 @@ export default function App() {
               </span>
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Yangi papka yaratish — faqat ADMIN/SUPER_ADMIN (backend @Roles('ADMIN') bilan mos) */}
+      {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
+        <div className="mb-4">
+          {folderCreateOpen ? (
+            <div className="rounded-[14px] p-4" style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}`, maxWidth: 340 }}>
+              <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>
+                {t("vault.folderNameLabel")}
+              </label>
+              <input autoFocus value={folderCreateName} onChange={e => setFolderCreateName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleCreateFolder(); }}
+                placeholder={t("vault.folderNamePlaceholder")}
+                className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3 mb-3"
+                style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => { setFolderCreateOpen(false); setFolderCreateName(""); }}
+                  className="text-[12.5px] font-bold px-3.5 py-2 rounded-xl cursor-pointer"
+                  style={{ background: "transparent", border: `1px solid ${panelBorder}`, color: txt2 }}>
+                  {t("common.cancel")}
+                </button>
+                <button onClick={handleCreateFolder} disabled={!folderCreateName.trim() || folderCreateSaving}
+                  className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-xl cursor-pointer disabled:opacity-50"
+                  style={{ background: lime, color: "#0A1600", border: "none" }}>
+                  {folderCreateSaving && <Loader2 size={13} className="animate-spin" />}
+                  {t("common.save")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setFolderCreateOpen(true)}
+              className="flex items-center gap-1.5 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
+              style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+              <Plus size={14} /> {t("vault.newFolder")}
+            </button>
+          )}
         </div>
       )}
 
