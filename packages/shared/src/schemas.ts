@@ -32,6 +32,7 @@ export const apiErrorSchema = z.object({
       'FORBIDDEN',
       'UNAUTHORIZED',
       'CONFLICT',
+      'EXPIRED',
       'RATE_LIMITED',
       'INTERNAL',
     ]),

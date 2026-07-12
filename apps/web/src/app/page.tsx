@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { HomeAuthLinks } from '@/components/home-auth-links';
 
 export default async function HomePage() {
   const t = await getTranslations('Home');
@@ -41,6 +42,8 @@ export default async function HomePage() {
         <p className="mt-6 text-[11.5px] font-semibold leading-relaxed text-txt3">
           {t('nextStep')}
         </p>
+
+        <HomeAuthLinks />
       </div>
     </main>
   );

@@ -55,13 +55,21 @@ Servislar:
 
 ## Demo login (seed)
 
-`pnpm db:seed` dan keyin (auth 3-milestone'da qo'shiladi, hozircha faqat DB'da):
+`pnpm db:seed` dan keyin http://localhost:3000/login orqali kirish mumkin:
 
 | Rol | Email | Parol |
 |---|---|---|
 | ADMIN | admin@demo.docmax.local | Password123! |
 | EDITOR | editor@demo.docmax.local | Password123! |
 | VIEWER | viewer@demo.docmax.local | Password123! |
+
+## Auth (TZ-1 §1.1)
+
+- `/setup` — birinchi org + ADMIN akkaunt (faqat bo'sh bazada, 409 aks holda)
+- `/login`, `/settings/profile` (chiqish shu yerda) — JWT access 15 daqiqa (xotirada) + refresh httpOnly cookie 14 kun, rotation + reuse-detection (o'g'irlangan token aniqlansa butun sessiya oilasi bekor qilinadi)
+- `/invite/[token]` — ADMIN taklifi, 72 soat amal qiladi (`POST /api/v1/auth/invite`)
+- `/forgot-password`, `/reset-password/[token]` — mailpit orqali (http://localhost:8025), 1 soat amal qiladi
+- Login 5/min/IP bilan cheklangan (TZ-0 §7)
 
 ## Buyruqlar
 
@@ -81,7 +89,7 @@ pnpm lint         # eslint
 
 - [x] **1-milestone** — monorepo skelet (web, api, worker, db, shared, docker compose)
 - [x] **2-milestone** — to'liq DB sxema, tenant-izolyatsiya, seed
-- [ ] **3-milestone** — auth (TZ-1 §1.1)
+- [x] **3-milestone** — auth (TZ-1 §1.1)
 - [ ] **4-milestone** — papkalar (TZ-1 §1.2)
 - [ ] **5-milestone** — hujjatlar (TZ-1 §1.3)
 - [ ] **6-milestone** — versiyalash + taqqoslama shablon (TZ-1 §1.4)
