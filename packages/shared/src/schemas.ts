@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DOC_STATUSES, DOC_TYPES, LOCALES, ROLES, THEMES } from './enums';
+import { DOC_STATUSES, LOCALES, ROLES, THEMES } from './enums';
 
 // Baza zod sxemalar (CLAUDE.md 4-qoida: validatsiya faqat zod, front+back bitta manba).
 // Endpoint'larga bog'liq DTO'lar tegishli milestone'larda shu yerga qo'shiladi.
@@ -15,7 +15,6 @@ export const paginationSchema = z.object({
 export type PaginationQuery = z.infer<typeof paginationSchema>;
 
 export const roleSchema = z.enum(ROLES);
-export const docTypeSchema = z.enum(DOC_TYPES);
 export const docStatusSchema = z.enum(DOC_STATUSES);
 export const localeSchema = z.enum(LOCALES);
 export const themeSchema = z.enum(THEMES);

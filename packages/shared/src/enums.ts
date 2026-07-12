@@ -4,15 +4,8 @@
 export const ROLES = ['SUPER_ADMIN', 'ADMIN', 'EDITOR', 'CONTRIBUTOR', 'VIEWER'] as const;
 export type Role = (typeof ROLES)[number];
 
-export const DOC_TYPES = [
-  'ORDER',
-  'REGULATION',
-  'POLICY',
-  'INSTRUCTION',
-  'PROTOCOL',
-  'OTHER',
-] as const;
-export type DocType = (typeof DOC_TYPES)[number];
+// Hujjat turlari endi qattiq enum emas — har bir tashkilot Admin Panel orqali
+// o'zining turlarini yaratadi (packages/db/prisma/schema.prisma — DocumentType modeli).
 
 export const DOC_STATUSES = ['DRAFT', 'IN_REVIEW', 'ACTIVE', 'EXPIRED'] as const;
 export type DocStatus = (typeof DOC_STATUSES)[number];
