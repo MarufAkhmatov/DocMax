@@ -1,0 +1,179 @@
+{
+  "login": {
+    "subtitle": "Вход в систему",
+    "emailLabel": "Email",
+    "passwordLabel": "Пароль",
+    "emailPlaceholder": "email@organizatsiya.uz",
+    "submit": "Войти",
+    "submitting": "Выполняется вход...",
+    "genericError": "Ошибка при входе в систему"
+  },
+  "viewbar": {
+    "dashboard": "Дашборд",
+    "vault": "Хранилище",
+    "doc": "Документ",
+    "graph": "Граф",
+    "mon": "Мониторинг"
+  },
+  "breadcrumb": {
+    "dash": "Главная",
+    "graph": "Связи",
+    "mon": "Мониторинг",
+    "vaultRoot": "Хранилище"
+  },
+  "topbar": {
+    "searchPlaceholder": "Поиск: по названию, номеру или смыслу...",
+    "newDocument": "Новый документ",
+    "logout": "Выйти"
+  },
+  "dashboard": {
+    "welcome": "Добро пожаловать",
+    "statActiveDocs": "Активные документы",
+    "statThisMonth": "в этом месяце",
+    "statPendingApproval": "Ожидают согласования",
+    "statNewExternalActs": "Новые внешние акты",
+    "statReviewSuggested": "Рекомендуется проверить",
+    "recentActivity": "Последняя активность",
+    "needsAttention": "Требует внимания"
+  },
+  "vault": {
+    "segmentTable": "Таблица",
+    "segmentCard": "Карточки",
+    "segmentTimeline": "Хронология",
+    "filterAll": "Все",
+    "filterActive": "Активные",
+    "filterExpired": "Утратившие силу",
+    "filterDraft": "Черновик",
+    "emptySubfolder": "В этой папке нет вложенных папок.",
+    "emptyDocuments": "В этой папке нет документов.",
+    "folderMetaWithChildren": "{{count}} документов · есть вложенные папки",
+    "folderMetaPlain": "{{count}} документов",
+    "colDocument": "Документ",
+    "colType": "Тип",
+    "colTags": "Теги",
+    "colStatus": "Статус",
+    "colVersion": "Версия",
+    "colApproved": "Утверждён",
+    "colDept": "Отдел",
+    "sortLabel": "Сортировка: дата утверждения",
+    "tableTitle": "Документы",
+    "treeFolders": "Папки",
+    "savedFilters": "Сохранённые фильтры"
+  },
+  "status": {
+    "active": "Активен",
+    "review": "На рассмотрении",
+    "expired": "Утратил силу",
+    "draft": "Черновик"
+  },
+  "docDetail": {
+    "download": "Скачать",
+    "newVersion": "Новая версия",
+    "tabDiff": "Сравнение",
+    "tabHistory": "История",
+    "versions": "Версии",
+    "addVersion": "+ Новая версия",
+    "relations": "Связи",
+    "addRelation": "+ Добавить",
+    "audit": "Аудит",
+    "comingSoon": "Эта функция появится на следующем этапе",
+    "current": "текущая"
+  },
+  "graph": {
+    "title": "Граф связей",
+    "subtitle": "Взаимосвязи между документами · наведите на точку, нажмите",
+    "legendRegulation": "Положение",
+    "legendOrder": "Приказ",
+    "legendRegulationDoc": "Регламент",
+    "legendExternal": "Внешний акт (ЦБ/Lex)",
+    "internalDoc": "Внутренний документ",
+    "externalDoc": "Внешний акт · мониторинг",
+    "relationsSuffix": "связей",
+    "openDoc": "Открыть документ",
+    "modeGraph": "Граф",
+    "modeWorkflow": "Процесс"
+  },
+  "monitoring": {
+    "title": "Мониторинг внешних актов",
+    "sourceSettings": "Настройки источников",
+    "filterAll": "Все",
+    "filterNew": "Новые",
+    "filterReviewed": "Просмотренные",
+    "relatedDocsLabel": "Связанные внутренние документы:",
+    "disclaimer": "Процент схожести отражает смысловую близость документов, а не наличие конфликта — окончательное решение принимает ответственный сотрудник."
+  },
+  "cmdk": {
+    "placeholder": "Найти документ, папку или действие...",
+    "sectionActions": "Действия",
+    "sectionDocuments": "Документы",
+    "actionUpload": "Загрузить новый документ",
+    "actionNewVersion": "Создать новую версию (шаблон)",
+    "actionOpenGraph": "Открыть граф",
+    "hintSelect": "выбор",
+    "hintOpen": "открыть",
+    "hintClose": "закрыть",
+    "semanticHint": "Семантический поиск: начните с «значение:»"
+  },
+  "drawer": {
+    "title": "Уведомления",
+    "markAllRead": "отметить все как прочитанные"
+  },
+  "wizard": {
+    "title": "Новый документ",
+    "step1": "Шаг 1 · Загрузите файлы",
+    "step2": "Шаг 2 · Метаданные",
+    "step3": "Шаг 3 · Связи и проверка",
+    "uploadPdfLabel": "Утверждённый PDF (обязательно)",
+    "uploadWordLabel": "Версия Word (рекомендуется)",
+    "uploadPdfHint": "Нажмите или перетащите файл · макс. 50 МБ",
+    "uploadWordHint": "Понадобится для автоматического сравнения версий",
+    "hashVerified": "✓ хеш проверен",
+    "fieldDocName": "Название документа",
+    "fieldNumber": "Номер",
+    "fieldType": "Тип",
+    "fieldApprovedDate": "Дата утверждения",
+    "fieldDept": "Отдел",
+    "fieldTags": "Теги",
+    "relationsOptional": "Связи (необязательно)",
+    "addRelationBtn": "+ Добавить связь",
+    "noFolderSelected": "Сначала выберите папку",
+    "noDocumentTypes": "Сначала создайте тип документа в Админ-панели",
+    "ready": "Готово",
+    "back": "← Назад",
+    "next": "Далее →",
+    "save": "Сохранить ✓"
+  },
+  "admin": {
+    "title": "Админ-панель",
+    "documentTypes": "Типы документов",
+    "documentTypesHint": "При создании каждого документа тип выбирается из этого списка — используется для группировки, поиска и связей.",
+    "newType": "+ Новый тип",
+    "typeName": "Название",
+    "typeNamePlaceholder": "например: Положение, Протокол, Акт",
+    "noTypesYet": "Типы документов ещё не созданы.",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "edit": "Изменить",
+    "delete": "Удалить",
+    "deleteConfirm": "Действительно удалить этот тип?",
+    "accessDenied": "Эта страница только для администраторов"
+  },
+  "common": {
+    "uploading": "Загрузка...",
+    "wordMissing": "Версия Word не загружена",
+    "noComparisonYet": "Для этого документа пока нет сравнения",
+    "changeStatus": "Изменить статус",
+    "expireReasonLabel": "Причина утраты силы",
+    "expireDateLabel": "Дата утраты силы",
+    "cancel": "Отмена",
+    "confirm": "Подтвердить",
+    "download": "Скачать"
+  },
+  "bulkBar": {
+    "selectedSuffix": "документов выбрано",
+    "download": "Скачать",
+    "tag": "Тег",
+    "move": "Переместить",
+    "delete": "Удалить"
+  }
+}

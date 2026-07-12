@@ -4,20 +4,29 @@ import {
   Sun, Moon, Bell, Search, Plus, Download, Upload, X, Lock,
   FileText, Check, Eye, Clock, Shield, Tag, Move, Trash2,
   ChevronRight, ChevronDown, GitBranch, Globe, BookOpen,
-  ArrowRight, MoreHorizontal, Zap, Command
+  ArrowRight, MoreHorizontal, Zap, Command, Loader2
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import * as mammoth from "mammoth";
+import type { DocumentDetail, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode } from "@docmax/shared";
+import { authApi, foldersApi, documentsApi, documentTypesApi, filesApi, ApiRequestError } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth";
+import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
+import Login from "./Login";
+import AdminPanel from "./AdminPanel";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-type View = "dash" | "vault" | "doc" | "graph" | "mon";
+type View = "dash" | "vault" | "doc" | "graph" | "mon" | "admin";
 type DocTab = "pdf" | "word" | "diff" | "history";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
-const VAULT_FOLDERS = [
-  { name: "Nizomlar", count: 38, meta: "34 aktiv · Yuridik bo'lim", accent: true, locked: false },
-  { name: "Buyruqlar", count: 51, meta: "47 aktiv · 2024–2026", accent: false, locked: false },
-  { name: "Reglamentlar", count: 23, meta: "Kirish cheklangan · ACL", accent: false, locked: true },
-  { name: "Siyosatlar", count: 14, meta: "12 aktiv · CBU bilan bog'liq", accent: false, locked: false },
-];
+interface FolderCardData {
+  name: string;
+  count: number;
+  meta: string;
+  accent: boolean;
+  locked: boolean;
+}
 
 const FAN_DATA = [
   { name: "Nizomlar", count: "38 hujjat", hot: false },
@@ -28,14 +37,6 @@ const FAN_DATA = [
   { name: "HR", count: "31 hujjat", hot: false },
   { name: "Moliyaviy", count: "45 hujjat", hot: false },
   { name: "Arxiv", count: "203 hujjat", hot: false },
-];
-
-const DOCS = [
-  { id: 0, name: "Kredit berish tartibi to'g'risidagi Nizom", num: "N-12", author: "A. Karimov", tags: [{ l: "CBU", v: true }, { l: "kredit", v: false }], status: "active", ver: "v2.0", date: "15.03.2026", dept: "Kredit dep." },
-  { id: 1, name: "Ichki nazorat reglamenti", num: "R-07", author: "Sh. Tosheva", tags: [{ l: "nazorat", v: false }], status: "active", ver: "v1.1", date: "02.02.2026", dept: "Yuridik" },
-  { id: 2, name: "Axborot xavfsizligi siyosati", num: "S-03", author: "D. Rahimova", tags: [{ l: "IT", v: false }], status: "review", ver: "v3.0", date: "—", dept: "IT" },
-  { id: 3, name: "Valyuta operatsiyalari yo'riqnomasi", num: "Y-21", author: "", tags: [{ l: "CBU", v: true }], status: "expired", ver: "v1.0", date: "11.06.2024", dept: "Moliyaviy" },
-  { id: 4, name: "Xodimlarni rag'batlantirish nizomi", num: "N-19", author: "M. Aliyev", tags: [{ l: "HR", v: false }], status: "active", ver: "v1.0", date: "20.01.2026", dept: "HR" },
 ];
 
 const GRAPH_NODES = [
@@ -64,27 +65,27 @@ const NODE_COLOR: Record<string, string> = {
   nizom: "#C6F24E", buyruq: "#6BB4F5", reg: "#B39CF5", ext: "#F0C24B",
 };
 
-const CMDK_ITEMS = [
-  { section: "Amallar", items: [
-    { key: "yangi hujjat yuklash", icon: <Plus size={15} />, label: "Yangi hujjat yuklash", kbd: "N", action: "wiz" },
-    { key: "yangi versiya shablon", icon: <FileText size={15} />, label: "Yangi versiya yaratish (shablon)", kbd: "V", action: "doc" },
-    { key: "graf boglanish", icon: <Network size={15} />, label: "Grafni ochish", kbd: "G", action: "graph" },
-  ]},
-  { section: "Hujjatlar", items: [
-    { key: "kredit berish tartibi n-12 nizom", icon: <FileText size={15} />, label: "Kredit berish tartibi to'g'risidagi Nizom", sub: "N-12 · Aktiv", action: "doc" },
-    { key: "ichki nazorat reglamenti r-07", icon: <FileText size={15} />, label: "Ichki nazorat reglamenti", sub: "R-07 · Aktiv", action: "vault" },
-    { key: "axborot xavfsizligi s-03", icon: <FileText size={15} />, label: "Axborot xavfsizligi siyosati", sub: "S-03 · Loyiha", action: "vault" },
-    { key: "cbu 145 qaror tashqi akt", icon: <Activity size={15} />, label: "CBU qarori № 145/2026", sub: "Tashqi akt", action: "mon" },
-  ]},
-];
+// ─── Real hujjat ma'lumotlari uchun yordamchi funksiyalar ─────────────────────
+/** Backend DocStatus (DRAFT/IN_REVIEW/ACTIVE/EXPIRED) → StatusBadge kaliti. */
+function docStatusToBadgeKey(status: string): string {
+  return status === "IN_REVIEW" ? "review" : status.toLowerCase();
+}
+
+/** ISO sana → DD.MM.YYYY (CLAUDE.md sana formati). */
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+}
 
 // ─── Helper Components ────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   const M: Record<string, { label: string; bg: string; text: string; dot: string }> = {
-    active:  { label: "Aktiv", bg: "rgba(198,242,78,.14)", text: "#C6F24E", dot: "#C6F24E" },
-    review:  { label: "Ko'rib chiqilmoqda", bg: "rgba(240,194,75,.14)", text: "#F0C24B", dot: "#F0C24B" },
-    expired: { label: "Kuchini yo'qotgan", bg: "rgba(140,150,155,.14)", text: "#8FA0A8", dot: "#8FA0A8" },
-    draft:   { label: "Loyiha", bg: "rgba(240,122,107,.14)", text: "#F07A6B", dot: "#F07A6B" },
+    active:  { label: t("status.active"), bg: "rgba(198,242,78,.14)", text: "#C6F24E", dot: "#C6F24E" },
+    review:  { label: t("status.review"), bg: "rgba(240,194,75,.14)", text: "#F0C24B", dot: "#F0C24B" },
+    expired: { label: t("status.expired"), bg: "rgba(140,150,155,.14)", text: "#8FA0A8", dot: "#8FA0A8" },
+    draft:   { label: t("status.draft"), bg: "rgba(240,122,107,.14)", text: "#F07A6B", dot: "#F07A6B" },
   };
   const s = M[status] || M.draft;
   return (
@@ -109,7 +110,8 @@ function TagBadge({ label, violet }: { label: string; violet?: boolean }) {
 }
 
 // ─── Folder Card (macOS stacked-sheets style) ────────────────────────────────
-function FolderCard({ folder, onClick }: { folder: typeof VAULT_FOLDERS[0]; onClick: () => void }) {
+function FolderCard({ folder, onClick }: { folder: FolderCardData; onClick: () => void }) {
+  const { t } = useTranslation();
   const { name, count, meta, accent, locked } = folder;
   return (
     <div onClick={onClick} className="relative cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
@@ -159,7 +161,7 @@ function FolderCard({ folder, onClick }: { folder: typeof VAULT_FOLDERS[0]; onCl
             color: accent ? "#0A1600" : "#8FA0A8",
             backdropFilter: "blur(8px)",
           }}>
-          {count} hujjat
+          {t("vault.folderMetaPlain", { count })}
         </span>
 
         {locked && <Lock className="absolute top-3 left-4" size={13} style={{ color: "#8FA0A8" }} />}
@@ -179,6 +181,7 @@ function FolderCard({ folder, onClick }: { folder: typeof VAULT_FOLDERS[0]; onCl
 
 // ─── Graph View ───────────────────────────────────────────────────────────────
 function GraphView({ onNavigate }: { onNavigate: (v: View) => void }) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const nodesRef = useRef<Array<{ id: string; type: string; label: string; big: boolean; x: number; y: number; vx: number; vy: number; r: number }>>([]);
   const hoverRef = useRef<string | null>(null);
@@ -310,10 +313,10 @@ function GraphView({ onNavigate }: { onNavigate: (v: View) => void }) {
       <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="font-['Sora'] text-2xl font-semibold tracking-tight" style={{ color: "#EDF3F0" }}>
-            Bog'lanishlar grafi
+            {t("graph.title")}
           </h1>
           <p className="text-sm mt-1" style={{ color: "#8FA0A8" }}>
-            Hujjatlar orasidagi munosabatlar · nuqta ustiga boring, bosing
+            {t("graph.subtitle")}
           </p>
         </div>
       </div>
@@ -330,10 +333,15 @@ function GraphView({ onNavigate }: { onNavigate: (v: View) => void }) {
         {/* Legend */}
         <div className="absolute top-3.5 left-3.5 text-[11.5px] font-bold space-y-1"
           style={{ background: "rgba(26,26,26,.9)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 14, padding: "12px 16px", backdropFilter: "blur(16px)" }}>
-          {[["nizom", "Nizom"], ["buyruq", "Buyruq"], ["reg", "Reglament"], ["ext", "Tashqi akt (CBU/Lex)"]].map(([t, l]) => (
-            <div key={t} className="flex items-center gap-2" style={{ color: "#8FA0A8" }}>
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: NODE_COLOR[t] }} />
-              {l}
+          {[
+            ["nizom", t("graph.legendRegulation")],
+            ["buyruq", t("graph.legendOrder")],
+            ["reg", t("graph.legendRegulationDoc")],
+            ["ext", t("graph.legendExternal")],
+          ].map(([type, label]) => (
+            <div key={type} className="flex items-center gap-2" style={{ color: "#8FA0A8" }}>
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: NODE_COLOR[type] }} />
+              {label}
             </div>
           ))}
         </div>
@@ -344,12 +352,12 @@ function GraphView({ onNavigate }: { onNavigate: (v: View) => void }) {
             style={{ background: "rgba(26,26,26,.95)", border: "1px solid rgba(255,255,255,.10)", borderRadius: 16, padding: 16, backdropFilter: "blur(18px)" }}>
             <p className="font-['Sora'] font-semibold mb-1" style={{ color: "#EDF3F0" }}>{selNode.label}</p>
             <p className="text-[11px] font-semibold mb-3" style={{ color: "#8FA0A8" }}>
-              {selNode.type === "ext" ? "Tashqi akt · monitoring" : "Ichki hujjat"} · {selLinks} bog'lanish
+              {selNode.type === "ext" ? t("graph.externalDoc") : t("graph.internalDoc")} · {selLinks} {t("graph.relationsSuffix")}
             </p>
             <button onClick={() => onNavigate(selNode.type === "ext" ? "mon" : "doc")}
               className="w-full text-center text-[12.5px] font-bold py-2 rounded-xl transition-colors"
               style={{ background: "rgba(255,255,255,.07)", color: "#EDF3F0", border: "1px solid rgba(255,255,255,.09)" }}>
-              Hujjatni ochish
+              {t("graph.openDoc")}
             </button>
           </div>
         )}
@@ -357,7 +365,7 @@ function GraphView({ onNavigate }: { onNavigate: (v: View) => void }) {
         {/* Mode selector */}
         <div className="absolute bottom-3.5 left-3.5 flex gap-1 text-[11px] font-bold"
           style={{ background: "rgba(26,26,26,.9)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 12, padding: 4, backdropFilter: "blur(16px)" }}>
-          {["Graf", "Workflow"].map((m, i) => (
+          {[t("graph.modeGraph"), t("graph.modeWorkflow")].map((m, i) => (
             <span key={m} className="px-3 py-1.5 rounded-[9px] cursor-pointer"
               style={i === 0
                 ? { background: "#C6F24E", color: "#0A1600" }
@@ -373,6 +381,10 @@ function GraphView({ onNavigate }: { onNavigate: (v: View) => void }) {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
+  const { t, i18n } = useTranslation();
+  const user = useAuthStore((s) => s.user);
+  const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
+
   const [isDark, setIsDark] = useState(true);
   const [view, setView] = useState<View>("dash");
   const [cmdkOpen, setCmdkOpen] = useState(false);
@@ -380,15 +392,62 @@ export default function App() {
   const [wizOpen, setWizOpen] = useState(false);
   const [wizStep, setWizStep] = useState(1);
   const [docTab, setDocTab] = useState<DocTab>("pdf");
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<{ id: number; msg: string }[]>([]);
   const [cmdkQuery, setCmdkQuery] = useState("");
   const [vaultSeg, setVaultSeg] = useState<"table" | "card" | "timeline">("table");
-  const [vaultFilter, setVaultFilter] = useState("Barchasi");
-  const [monFilter, setMonFilter] = useState("Barchasi");
+  const [monFilter, setMonFilter] = useState("all");
   const [treeOpen, setTreeOpen] = useState(true);
-  const [pickedFiles, setPickedFiles] = useState<string[]>([]);
   const [treeExpanded, setTreeExpanded] = useState(true);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  // ── Papkalar (real backend — TZ-1 §1.2, foldersApi.tree) ──────────────────
+  // name: null → ildiz daraja, breadcrumb'da t('breadcrumb.vaultRoot') orqali reaktiv tarjima qilinadi
+  const [folderStack, setFolderStack] = useState<{ id: string | null; name: string | null }[]>([
+    { id: null, name: null },
+  ]);
+  const [folders, setFolders] = useState<FolderNode[]>([]);
+  const [foldersLoading, setFoldersLoading] = useState(false);
+  const [foldersError, setFoldersError] = useState<string | null>(null);
+  const currentFolder = folderStack[folderStack.length - 1];
+
+  // ── Hujjatlar (real backend — TZ-1 §1.3, documentsApi) ─────────────────────
+  const [docFilters, setDocFilters] = useState<{ status?: string; docTypeId?: string; year?: number; tag?: string }>(
+    () => {
+      const p = new URLSearchParams(window.location.search);
+      return {
+        status: p.get("status") ?? undefined,
+        docTypeId: p.get("docTypeId") ?? undefined,
+        year: p.get("year") ? Number(p.get("year")) : undefined,
+        tag: p.get("tag") ?? undefined,
+      };
+    },
+  );
+  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [documentsTotal, setDocumentsTotal] = useState(0);
+
+  // Admin Panel orqali yaratiladigan hujjat turlari (enum o'rniga) — wizard va filtrlar shundan foydalanadi
+  const [documentTypes, setDocumentTypes] = useState<DocumentTypeSummary[]>([]);
+
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [docDetail, setDocDetail] = useState<DocumentDetail | null>(null);
+  const [docDetailLoading, setDocDetailLoading] = useState(false);
+  const [docDetailError, setDocDetailError] = useState<string | null>(null);
+  const [statusChangeOpen, setStatusChangeOpen] = useState(false);
+  const [statusChangeNote, setStatusChangeNote] = useState("");
+  const [statusChangeDate, setStatusChangeDate] = useState("");
+  const [statusChangeSaving, setStatusChangeSaving] = useState(false);
+
+  // Yuklash wizard'i — haqiqiy fayl/hujjat holati
+  const [pdfUpload, setPdfUpload] = useState<FileSummary | null>(null);
+  const [docxUpload, setDocxUpload] = useState<FileSummary | null>(null);
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const [docxUploading, setDocxUploading] = useState(false);
+  const [wizError, setWizError] = useState<string | null>(null);
+  const [wizSaving, setWizSaving] = useState(false);
+  const [docForm, setDocForm] = useState({ title: "", docNumber: "", docTypeId: "", approvedAt: "", tagsRaw: "" });
 
   const lime = isDark ? "#C6F24E" : "#2FA45B";
   const bg = isDark ? "#0D0D0D" : "#EFF2EE";
@@ -412,6 +471,139 @@ export default function App() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Sahifa yuklanganda refresh cookie orqali sessiyani tiklashga urinish (FOUC'siz)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const token = await authApi.refresh();
+      if (!token) {
+        if (!cancelled) useAuthStore.getState().clearSession();
+        return;
+      }
+      try {
+        const me = await authApi.me();
+        if (!cancelled) {
+          useAuthStore.getState().setSession(me, token);
+          if ((SUPPORTED_LOCALES as readonly string[]).includes(me.locale)) {
+            i18n.changeLanguage(me.locale);
+          }
+        }
+      } catch {
+        if (!cancelled) useAuthStore.getState().clearSession();
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [i18n]);
+
+  // Til almashtirilganda profilida saqlanadi (login qilingan bo'lsa)
+  const handleLocaleChange = useCallback((locale: SupportedLocale) => {
+    i18n.changeLanguage(locale);
+    if (useAuthStore.getState().user) {
+      authApi.updateProfile({ locale }).catch(() => {});
+    }
+  }, [i18n]);
+
+  // Hujjat turlari (Admin Panel orqali boshqariladi) — login qilingach bir marta yuklanadi
+  useEffect(() => {
+    if (!user) { setDocumentTypes([]); return; }
+    documentTypesApi.list().then(setDocumentTypes).catch(() => {});
+  }, [user]);
+
+  // Joriy papka (folderStack oxiri) o'zgarganda bolalarini yuklaydi
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setFoldersLoading(true);
+    setFoldersError(null);
+    foldersApi
+      .tree({ parentId: currentFolder.id ?? undefined })
+      .then((data) => { if (!cancelled) setFolders(data); })
+      .catch((err) => {
+        if (!cancelled) {
+          setFoldersError(err instanceof ApiRequestError ? err.body.message : "Papkalarni yuklashda xato yuz berdi");
+        }
+      })
+      .finally(() => { if (!cancelled) setFoldersLoading(false); });
+    return () => { cancelled = true; };
+  }, [user, currentFolder.id]);
+
+  // Joriy papkadagi hujjatlar — faqat haqiqiy papka ichiga kirilganda (ildiz darajada folderId yo'q)
+  useEffect(() => {
+    if (!user || !currentFolder.id) {
+      setDocuments([]);
+      setDocumentsTotal(0);
+      return;
+    }
+    let cancelled = false;
+    setDocumentsLoading(true);
+    setDocumentsError(null);
+    documentsApi
+      .list({ folderId: currentFolder.id, ...docFilters, limit: 50 })
+      .then((res) => { if (!cancelled) { setDocuments(res.items); setDocumentsTotal(res.total); } })
+      .catch((err) => {
+        if (!cancelled) {
+          setDocumentsError(err instanceof ApiRequestError ? err.body.message : "Hujjatlarni yuklashda xato yuz berdi");
+        }
+      })
+      .finally(() => { if (!cancelled) setDocumentsLoading(false); });
+    return () => { cancelled = true; };
+  }, [user, currentFolder.id, docFilters]);
+
+  // Filtrlar URL'da saqlanadi va tiklanadi (TZ-1 §1.3 qabul mezoni)
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    (["status", "docTypeId", "year", "tag"] as const).forEach((key) => {
+      const value = docFilters[key];
+      if (value) p.set(key, String(value)); else p.delete(key);
+    });
+    const qs = p.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [docFilters]);
+
+  /** docFilters'dagi bitta o'lchamni bosilganda yoqadi/o'chiradi (kombinatsiyalanadigan filtrlar). */
+  const toggleDocFilter = useCallback(
+    <K extends keyof typeof docFilters>(key: K, value: (typeof docFilters)[K]) => {
+      setDocFilters((prev) => ({ ...prev, [key]: prev[key] === value ? undefined : value }));
+    },
+    [],
+  );
+
+  const refetchDocuments = useCallback(() => {
+    if (!currentFolder.id) return;
+    documentsApi
+      .list({ folderId: currentFolder.id, ...docFilters, limit: 50 })
+      .then((res) => { setDocuments(res.items); setDocumentsTotal(res.total); })
+      .catch(() => {});
+  }, [currentFolder.id, docFilters]);
+
+  // Tanlangan hujjat detali
+  useEffect(() => {
+    if (!selectedDocId) { setDocDetail(null); return; }
+    let cancelled = false;
+    setDocDetailLoading(true);
+    setDocDetailError(null);
+    documentsApi
+      .get(selectedDocId)
+      .then((data) => { if (!cancelled) setDocDetail(data); })
+      .catch((err) => {
+        if (!cancelled) {
+          setDocDetailError(err instanceof ApiRequestError ? err.body.message : "Hujjatni yuklashda xato yuz berdi");
+        }
+      })
+      .finally(() => { if (!cancelled) setDocDetailLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedDocId]);
+
+  const handleLogout = useCallback(async () => {
+    setUserMenuOpen(false);
+    try {
+      await authApi.logout();
+    } catch {
+      // token allaqachon yaroqsiz bo'lishi mumkin — baribir sessiyani lokal tozalaymiz
+    }
+    useAuthStore.getState().clearSession();
+  }, []);
+
   const toast = useCallback((msg: string) => {
     const id = Date.now();
     setToasts(t => [...t, { id, msg }]);
@@ -420,19 +612,141 @@ export default function App() {
 
   const goView = (v: View) => { setView(v); window.scrollTo({ top: 0 }); };
 
-  const toggleDoc = (id: number) =>
+  const toggleDoc = (id: string) =>
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
   const toggleAll = () =>
-    setSelected(selected.size === DOCS.length ? new Set() : new Set(DOCS.map(d => d.id)));
+    setSelected(selected.size === documents.length ? new Set() : new Set(documents.map(d => d.id)));
 
-  // Breadcrumb map
+  const openDocument = (id: string) => { setSelectedDocId(id); goView("doc"); };
+
+  // ── Wizard handlerlari (real upload + hujjat yaratish, TZ-1 §1.3) ─────────
+  const openWizard = useCallback(() => {
+    if (!currentFolder.id) {
+      toast(t("wizard.noFolderSelected"));
+      return;
+    }
+    if (documentTypes.length === 0) {
+      toast(t("wizard.noDocumentTypes"));
+      return;
+    }
+    setPdfUpload(null);
+    setDocxUpload(null);
+    setWizError(null);
+    setDocForm({ title: "", docNumber: "", docTypeId: documentTypes[0].id, approvedAt: "", tagsRaw: "" });
+    setWizStep(1);
+    setWizOpen(true);
+  }, [currentFolder.id, documentTypes, t, toast]);
+
+  const handlePickFile = useCallback(async (kind: "pdf" | "docx", file: File) => {
+    const expectedMime = kind === "pdf"
+      ? "application/pdf"
+      : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    if (file.type !== expectedMime) {
+      setWizError(kind === "pdf" ? "Faqat PDF fayl qabul qilinadi" : "Faqat DOCX fayl qabul qilinadi");
+      return;
+    }
+    const setUploading = kind === "pdf" ? setPdfUploading : setDocxUploading;
+    const setUpload = kind === "pdf" ? setPdfUpload : setDocxUpload;
+    setUploading(true);
+    setWizError(null);
+    try {
+      const result = await filesApi.upload(file);
+      setUpload(result);
+    } catch (err) {
+      setWizError(err instanceof ApiRequestError ? err.body.message : "Faylni yuklashda xato yuz berdi");
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  const handleWizardSave = useCallback(async () => {
+    if (!currentFolder.id || !pdfUpload) return;
+    setWizSaving(true);
+    setWizError(null);
+    try {
+      const created = await documentsApi.create({
+        folderId: currentFolder.id,
+        title: docForm.title,
+        docNumber: docForm.docNumber || null,
+        docTypeId: docForm.docTypeId,
+        approvedAt: docForm.approvedAt ? new Date(docForm.approvedAt) : null,
+        pdfFileId: pdfUpload.id,
+        docxFileId: docxUpload?.id ?? null,
+        tagNames: docForm.tagsRaw.split(",").map(s => s.trim()).filter(Boolean),
+      });
+      setWizOpen(false);
+      refetchDocuments();
+      openDocument(created.id);
+    } catch (err) {
+      setWizError(err instanceof ApiRequestError ? err.body.message : "Hujjatni saqlashda xato yuz berdi");
+    } finally {
+      setWizSaving(false);
+    }
+  }, [currentFolder.id, pdfUpload, docxUpload, docForm, refetchDocuments]);
+
+  // ── Holat o'zgartirish (TZ-1 §1.3 — EXPIRED qilishda sabab so'raladi) ──────
+  const handleStatusChange = useCallback(async (newStatus: string) => {
+    if (!docDetail) return;
+    if (newStatus === "EXPIRED") {
+      setStatusChangeOpen(true);
+      return;
+    }
+    try {
+      const updated = await documentsApi.update(docDetail.id, { status: newStatus as never });
+      setDocDetail(updated);
+      refetchDocuments();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+    }
+  }, [docDetail, refetchDocuments, toast]);
+
+  const confirmExpire = useCallback(async () => {
+    if (!docDetail || !statusChangeDate || !statusChangeNote) return;
+    setStatusChangeSaving(true);
+    try {
+      const updated = await documentsApi.update(docDetail.id, {
+        status: "EXPIRED" as never,
+        effectiveTo: new Date(statusChangeDate),
+        statusChangeNote,
+      });
+      setDocDetail(updated);
+      refetchDocuments();
+      setStatusChangeOpen(false);
+      setStatusChangeNote("");
+      setStatusChangeDate("");
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+    } finally {
+      setStatusChangeSaving(false);
+    }
+  }, [docDetail, statusChangeDate, statusChangeNote, refetchDocuments, toast]);
+
+  // Word (.docx) preview — mammoth orqali client-side HTML'ga o'giriladi
+  const [wordHtml, setWordHtml] = useState<string | null>(null);
+  const [wordLoading, setWordLoading] = useState(false);
+  const currentVersion = docDetail?.versions[0] ?? null;
+  useEffect(() => {
+    if (docTab !== "word" || !currentVersion?.docx) { setWordHtml(null); return; }
+    let cancelled = false;
+    setWordLoading(true);
+    fetch(currentVersion.docx.downloadUrl)
+      .then(res => res.arrayBuffer())
+      .then(buf => mammoth.convertToHtml({ arrayBuffer: buf }))
+      .then(result => { if (!cancelled) setWordHtml(result.value); })
+      .catch(() => { if (!cancelled) setWordHtml(null); })
+      .finally(() => { if (!cancelled) setWordLoading(false); });
+    return () => { cancelled = true; };
+  }, [docTab, currentVersion]);
+
+  // Breadcrumb map — vault/doc joriy papka/hujjat nomi bilan dinamik, boshqalari sof chrome
   const crumbs: Record<View, string> = {
-    dash: "Bosh sahifa",
-    vault: "Vault / Yuridik bo'lim",
-    doc: "Vault / Yuridik / N-12",
-    graph: "Bog'lanishlar",
-    mon: "Monitoring",
+    dash: t("breadcrumb.dash"),
+    vault: currentFolder.name ? `${t("breadcrumb.vaultRoot")} / ${currentFolder.name}` : t("breadcrumb.vaultRoot"),
+    doc: docDetail ? `${t("breadcrumb.vaultRoot")} / ${docDetail.title}` : t("breadcrumb.vaultRoot"),
+    graph: t("breadcrumb.graph"),
+    mon: t("breadcrumb.mon"),
+    admin: t("admin.title"),
   };
 
   // Glass card style helper
@@ -488,18 +802,33 @@ export default function App() {
 
       <div style={{ flex: 1 }} />
 
+      <div onClick={() => {
+        const cur = i18n.language as SupportedLocale;
+        const idx = SUPPORTED_LOCALES.indexOf(cur);
+        handleLocaleChange(SUPPORTED_LOCALES[(idx + 1) % SUPPORTED_LOCALES.length]);
+      }} title={i18n.language.toUpperCase()} style={{
+        width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
+        cursor: "pointer", color: txt2, transition: ".2s", fontSize: 11, fontWeight: 800,
+      }}>
+        {i18n.language.toUpperCase()}
+      </div>
+
       <div onClick={() => setIsDark(d => !d)} style={{
         width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
         cursor: "pointer", color: txt2, transition: ".2s",
       }}>
         {isDark ? <Sun size={19} /> : <Moon size={19} />}
       </div>
-      <div style={{
-        width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
-        cursor: "pointer", color: txt2,
-      }}>
-        <Settings size={19} />
-      </div>
+      {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
+        <div onClick={() => goView("admin")} style={{
+          width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
+          cursor: "pointer", transition: ".2s",
+          background: view === "admin" ? `${lime}22` : "transparent",
+          color: view === "admin" ? lime : txt2,
+        }}>
+          <Settings size={19} />
+        </div>
+      )}
     </aside>
   );
 
@@ -510,7 +839,7 @@ export default function App() {
       borderRight: `1px solid ${panelBorder}`,
       padding: "20px 14px", position: "sticky", top: 0, height: "100vh", overflowY: "auto", flexShrink: 0,
     }}>
-      <p className="text-[12.5px] font-semibold uppercase tracking-wide mb-2.5 px-2 mt-0" style={{ color: txt3, letterSpacing: ".4px" }}>Papkalar</p>
+      <p className="text-[12.5px] font-semibold uppercase tracking-wide mb-2.5 px-2 mt-0" style={{ color: txt3, letterSpacing: ".4px" }}>{t("vault.treeFolders")}</p>
 
       {[
         { label: "Boshqaruv", count: 24, id: "boshqaruv" },
@@ -551,7 +880,7 @@ export default function App() {
         </div>
       ))}
 
-      <p className="text-[12.5px] font-semibold uppercase tracking-wide mt-4 mb-2.5 px-2" style={{ color: txt3, letterSpacing: ".4px" }}>Saqlangan filtrlar</p>
+      <p className="text-[12.5px] font-semibold uppercase tracking-wide mt-4 mb-2.5 px-2" style={{ color: txt3, letterSpacing: ".4px" }}>{t("vault.savedFilters")}</p>
       {[
         { color: "#B39CF5", label: "Yuridik · 2026 · aktivlar" },
         { color: "#6BB4F5", label: "CBU'ga bog'liq hujjatlar" },
@@ -584,7 +913,7 @@ export default function App() {
           border: `1px solid ${panelBorder}`, borderRadius: 999, padding: "9px 16px", color: txt3, fontSize: 13,
         }}>
         <Search size={14} />
-        <span className="flex-1">Qidirish: nom, raqam yoki ma'no bo'yicha...</span>
+        <span className="flex-1">{t("topbar.searchPlaceholder")}</span>
         <kbd className="text-[10px] font-bold px-1.5 py-0.5 rounded-[5px]"
           style={{ border: `1px solid ${panelBorder}`, color: txt3 }}>⌘K</kbd>
       </div>
@@ -596,15 +925,33 @@ export default function App() {
         <Bell size={16} />
       </button>
 
-      <button onClick={() => setWizOpen(true)}
+      <button onClick={openWizard}
         className="flex items-center gap-2 font-bold text-[12.5px] cursor-pointer transition-all"
         style={{ background: lime, color: "#0A1600", border: "none", borderRadius: 13, padding: "9px 14px", boxShadow: `0 8px 22px ${lime}44` }}>
-        <Plus size={15} /> Yangi hujjat
+        <Plus size={15} /> {t("topbar.newDocument")}
       </button>
 
-      <div className="w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-[13px] cursor-pointer flex-shrink-0"
-        style={{ background: `linear-gradient(135deg, ${lime}, #2FA45B)`, color: "#0A1600" }}>
-        AK
+      <div className="relative flex-shrink-0">
+        <button onClick={() => setUserMenuOpen(o => !o)}
+          className="w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-[13px] cursor-pointer border-none"
+          style={{ background: `linear-gradient(135deg, ${lime}, #2FA45B)`, color: "#0A1600" }}>
+          {user ? user.fullName.trim().split(/\s+/).map(p => p[0]).join("").slice(0, 2).toUpperCase() : ""}
+        </button>
+        {userMenuOpen && (
+          <>
+            <div className="fixed inset-0 z-[85]" onClick={() => setUserMenuOpen(false)} />
+            <div className="absolute right-0 top-full mt-2 z-[86] text-[12.5px]"
+              style={{ width: 220, background: isDark ? "#1E1E1E" : "#fff", border: `1px solid ${panelBorder}`, borderRadius: 14, padding: 12, boxShadow: "0 20px 50px rgba(0,0,0,.45)" }}>
+              <p className="font-bold truncate" style={{ color: txt }}>{user?.fullName}</p>
+              <p className="font-semibold mb-2.5 truncate" style={{ color: txt3, fontSize: 11.5 }}>{user?.email}</p>
+              <button onClick={handleLogout}
+                className="w-full text-left font-bold px-2.5 py-2 rounded-[10px] cursor-pointer border-none"
+                style={{ color: "#F07A6B", background: "transparent" }}>
+                {t("topbar.logout")}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -615,7 +962,7 @@ export default function App() {
       <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="font-['Sora'] text-2xl font-semibold tracking-tight" style={{ color: txt }}>
-            Xush kelibsiz, Akmal
+            {t("dashboard.welcome")}{user ? `, ${user.fullName}` : ""}
           </h1>
           <p className="text-sm mt-1" style={{ color: txt2 }}>
             Bugun: 2 ta yangi tashqi akt, 1 hujjat tasdiq kutmoqda
@@ -665,10 +1012,10 @@ export default function App() {
       {/* Stat cards grid */}
       <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
         {[
-          { label: "Aktiv hujjatlar", num: "396", sub: "+12 shu oyda", dotColor: lime, subAccent: true },
-          { label: "Tasdiq kutmoqda", num: "7", sub: "3 tasi 5 kundan oshdi", dotColor: "#F0C24B" },
-          { label: "Yangi tashqi aktlar", num: "2", sub: "cbu.uz · lex.uz, bugun", dotColor: "#6BB4F5" },
-          { label: "Tekshirish tavsiya", num: "4", sub: "yangi aktlarga aloqador", dotColor: "#F07A6B" },
+          { label: t("dashboard.statActiveDocs"), num: "396", sub: "+12 shu oyda", dotColor: lime, subAccent: true },
+          { label: t("dashboard.statPendingApproval"), num: "7", sub: "3 tasi 5 kundan oshdi", dotColor: "#F0C24B" },
+          { label: t("dashboard.statNewExternalActs"), num: "2", sub: "cbu.uz · lex.uz, bugun", dotColor: "#6BB4F5" },
+          { label: t("dashboard.statReviewSuggested"), num: "4", sub: "yangi aktlarga aloqador", dotColor: "#F07A6B" },
         ].map((stat, i) => (
           <div key={i} style={{ ...glass(), padding: "18px 20px" }}>
             <div className="flex items-center gap-2 mb-2">
@@ -677,7 +1024,7 @@ export default function App() {
             </div>
             <p className="font-['Sora'] text-[28px] font-semibold tracking-tight" style={{ color: txt }}>{stat.num}</p>
             <p className="text-[11.5px] font-semibold mt-1" style={{ color: txt2 }}>
-              {stat.subAccent ? <><strong style={{ color: lime }}>+12</strong> shu oyda</> : stat.sub}
+              {stat.subAccent ? <><strong style={{ color: lime }}>+12</strong> {t("dashboard.statThisMonth")}</> : stat.sub}
             </p>
           </div>
         ))}
@@ -687,7 +1034,7 @@ export default function App() {
       <div className="grid gap-4" style={{ gridTemplateColumns: "1.5fr 1fr" }}>
         {/* Activity feed */}
         <div style={{ ...glass(), padding: "20px 22px" }}>
-          <h2 className="font-['Sora'] text-[15px] font-semibold mb-4" style={{ color: txt }}>Oxirgi faollik</h2>
+          <h2 className="font-['Sora'] text-[15px] font-semibold mb-4" style={{ color: txt }}>{t("dashboard.recentActivity")}</h2>
           {[
             { icon: <Plus size={15} />, iconBg: `${lime}22`, iconColor: lime, bold: "Kredit berish tartibi N-12", rest: " — v2.0 yangi versiya", who: "A. Karimov · taqqoslama biriktirildi", when: "12 daq" },
             { icon: <Activity size={15} />, iconBg: "rgba(107,180,245,.13)", iconColor: "#6BB4F5", bold: "CBU qarori № 145/2026", rest: " aniqlandi", who: "Monitoring · 4 aloqador ichki hujjat", when: "1 soat" },
@@ -710,7 +1057,7 @@ export default function App() {
 
         {/* Attention cards */}
         <div style={{ ...glass(), padding: "20px 22px" }}>
-          <h2 className="font-['Sora'] text-[15px] font-semibold mb-4" style={{ color: txt }}>E'tibor talab qiladi</h2>
+          <h2 className="font-['Sora'] text-[15px] font-semibold mb-4" style={{ color: txt }}>{t("dashboard.needsAttention")}</h2>
           {[
             { warn: true, title: "Lex.uz: yangi qonun O'RQ-812", body: '"Elektron hujjat aylanishi to\'g\'risida"gi qonunga o\'zgartirishlar. 3 ta ichki hujjat bilan yuqori o\'xshashlik.', go: "Monitoring'da ochish →", goAction: () => goView("mon") },
             { warn: false, title: "Taqqoslama shablon tayyor", body: "N-12 v2.0 uchun avtomatik shablon generatsiya qilindi — yuklab olib to'ldirishingiz mumkin.", go: "Yuklab olish →", goAction: () => toast("Shablon yuklab olinmoqda...") },
@@ -737,102 +1084,193 @@ export default function App() {
     <div>
       <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h1 className="font-['Sora'] text-2xl font-semibold tracking-tight" style={{ color: txt }}>Yuridik bo'lim</h1>
-          <p className="text-sm mt-1" style={{ color: txt2 }}>112 hujjat · 96 aktiv · oxirgi yangilanish bugun</p>
+          <h1 className="font-['Sora'] text-2xl font-semibold tracking-tight" style={{ color: txt }}>
+            {currentFolder.name ?? t("breadcrumb.vaultRoot")}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: txt2 }}>
+            {currentFolder.id ? t("vault.folderMetaPlain", { count: documentsTotal }) : ""}
+          </p>
         </div>
         <div className="flex p-1 gap-0.5" style={{ background: panel, border: `1px solid ${panelBorder}`, borderRadius: 10 }}>
-          {["Jadval", "Kartochka", "Timeline"].map(s => (
-            <span key={s} onClick={() => setVaultSeg(s === "Jadval" ? "table" : s === "Kartochka" ? "card" : "timeline")}
+          {[
+            { value: "table" as const, label: t("vault.segmentTable") },
+            { value: "card" as const, label: t("vault.segmentCard") },
+            { value: "timeline" as const, label: t("vault.segmentTimeline") },
+          ].map(s => (
+            <span key={s.value} onClick={() => setVaultSeg(s.value)}
               className="text-[11px] font-extrabold px-3 py-[5px] rounded-lg cursor-pointer"
-              style={vaultSeg === (s === "Jadval" ? "table" : s === "Kartochka" ? "card" : "timeline")
+              style={vaultSeg === s.value
                 ? { background: isDark ? "rgba(255,255,255,.12)" : "#fff", color: txt }
                 : { color: txt3 }}>
-              {s}
+              {s.label}
             </span>
           ))}
         </div>
       </div>
 
-      {/* Filter chips */}
-      <div className="flex gap-2 flex-wrap mb-5">
-        {["Barchasi", "Aktiv", "Kuchini yo'qotgan", "Loyiha", "2026", "2025", "Nizom", "Buyruq", "Teg: CBU"].map(c => (
-          <button key={c} onClick={() => setVaultFilter(c)}
+      {/* Filter chips — har biri mustaqil o'lcham, kombinatsiyalanadi va URL'da saqlanadi */}
+      <div className="flex gap-2 flex-wrap items-center mb-5">
+        {[
+          { active: !docFilters.status && !docFilters.docTypeId && !docFilters.year && !docFilters.tag, label: t("vault.filterAll"), onClick: () => setDocFilters({}) },
+          { active: docFilters.status === "ACTIVE", label: t("vault.filterActive"), onClick: () => toggleDocFilter("status", "ACTIVE") },
+          { active: docFilters.status === "EXPIRED", label: t("vault.filterExpired"), onClick: () => toggleDocFilter("status", "EXPIRED") },
+          { active: docFilters.status === "DRAFT", label: t("vault.filterDraft"), onClick: () => toggleDocFilter("status", "DRAFT") },
+          { active: docFilters.year === 2026, label: "2026", onClick: () => toggleDocFilter("year", 2026) },
+          { active: docFilters.year === 2025, label: "2025", onClick: () => toggleDocFilter("year", 2025) },
+          { active: docFilters.tag === "CBU", label: "Teg: CBU", onClick: () => toggleDocFilter("tag", "CBU") },
+        ].map(c => (
+          <button key={c.label} onClick={c.onClick}
             className="text-[12px] font-bold px-3.5 py-1.5 rounded-full cursor-pointer transition-all"
-            style={vaultFilter === c
+            style={c.active
               ? { background: `${lime}22`, border: `1px solid ${lime}55`, color: lime }
               : { background: panel, border: `1px solid ${panelBorder}`, color: txt2, backdropFilter: "blur(10px)" }}>
-            {c}
+            {c.label}
           </button>
         ))}
+        {documentTypes.length > 0 && (
+          <select value={docFilters.docTypeId ?? ""} onChange={e => setDocFilters(f => ({ ...f, docTypeId: e.target.value || undefined }))}
+            className="text-[12px] font-bold px-3 py-1.5 rounded-full cursor-pointer"
+            style={docFilters.docTypeId
+              ? { background: `${lime}22`, border: `1px solid ${lime}55`, color: lime }
+              : { background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+            <option value="">{t("vault.colType")}</option>
+            {documentTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.name}</option>)}
+          </select>
+        )}
       </div>
+
+      {/* Papka breadcrumb (real backend) */}
+      {folderStack.length > 1 && (
+        <div className="flex items-center gap-1.5 mb-3 text-[12px] font-bold flex-wrap">
+          {folderStack.map((crumb, i) => (
+            <span key={crumb.id ?? "root"} className="flex items-center gap-1.5">
+              {i > 0 && <ChevronRight size={12} style={{ color: txt3 }} />}
+              <span onClick={() => setFolderStack(s => s.slice(0, i + 1))}
+                className="cursor-pointer"
+                style={{ color: i === folderStack.length - 1 ? txt : txt3 }}>
+                {crumb.name ?? t("breadcrumb.vaultRoot")}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Folder grid */}
-      <div className="grid gap-4 mb-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-        {VAULT_FOLDERS.map(f => <FolderCard key={f.name} folder={f} onClick={() => goView("vault")} />)}
-      </div>
+      {foldersError ? (
+        <div className="mb-6 text-[13px] font-semibold" style={{ ...glass(), padding: 20, color: "#F07A6B" }}>
+          {foldersError}
+        </div>
+      ) : foldersLoading ? (
+        <div className="grid gap-4 mb-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} style={{ height: 148, borderRadius: 20, background: panel, border: `1px solid ${panelBorder}` }} />
+          ))}
+        </div>
+      ) : folders.length === 0 ? (
+        <p className="text-[12.5px] font-semibold mb-6" style={{ color: txt3 }}>
+          {t("vault.emptySubfolder")}
+        </p>
+      ) : (
+        <div className="grid gap-4 mb-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+          {folders.map(f => (
+            <FolderCard key={f.id} folder={{
+              name: f.name,
+              count: f.documentCount,
+              meta: f.hasChildren
+                ? t("vault.folderMetaWithChildren", { count: f.documentCount })
+                : t("vault.folderMetaPlain", { count: f.documentCount }),
+              accent: false,
+              locked: false,
+            }} onClick={() => setFolderStack(s => [...s, { id: f.id, name: f.name }])} />
+          ))}
+        </div>
+      )}
 
-      {/* Document table */}
-      <div style={{ ...glass() }}>
-        <div className="flex items-center justify-between px-5 py-4">
-          <h2 className="font-['Sora'] text-[15px] font-semibold" style={{ color: txt }}>Hujjatlar</h2>
-          <span className="text-[11.5px] font-bold" style={{ color: txt3 }}>Saralash: tasdiqlangan sana ↓</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr>
-                <th style={{ width: 40, padding: "11px 12px 11px 22px", borderBottom: `1px solid ${panelBorder}`, textAlign: "left" }}>
-                  <span onClick={toggleAll} className="w-4 h-4 rounded-[5px] inline-grid place-items-center cursor-pointer"
-                    style={{ border: `1.5px solid ${txt3}`, background: selected.size === DOCS.length ? lime : "transparent" }}>
-                    {selected.size === DOCS.length && <Check size={10} color="#0A1600" />}
-                  </span>
-                </th>
-                {["Hujjat", "Teglar", "Holat", "Versiya", "Tasdiqlangan", "Bo'lim"].map(h => (
-                  <th key={h} style={{ padding: "11px 18px", borderBottom: `1px solid ${panelBorder}`, textAlign: "left", fontSize: 10.5, fontWeight: 800, letterSpacing: ".7px", textTransform: "uppercase", color: txt3 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {DOCS.map(doc => (
-                <tr key={doc.id} onClick={() => goView("doc")} className="cursor-pointer" style={{ transition: ".15s" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                  <td style={{ padding: "13px 12px 13px 22px" }} onClick={e => { e.stopPropagation(); toggleDoc(doc.id); }}>
-                    <span className="w-4 h-4 rounded-[5px] inline-grid place-items-center cursor-pointer"
-                      style={{ border: `1.5px solid ${selected.has(doc.id) ? lime : txt3}`, background: selected.has(doc.id) ? lime : "transparent" }}>
-                      {selected.has(doc.id) && <Check size={10} color="#0A1600" />}
-                    </span>
-                  </td>
-                  <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}`, color: txt, fontWeight: 700 }}>
-                    {doc.name}
-                    <span className="block text-[11px] font-semibold mt-0.5" style={{ color: txt3 }}>
-                      № {doc.num}{doc.author ? ` · ${doc.author}` : ""}
-                    </span>
-                  </td>
-                  <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}` }}>
-                    {doc.tags.map(t => <TagBadge key={t.l} label={t.l} violet={t.v} />)}
-                  </td>
-                  <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}` }}>
-                    <StatusBadge status={doc.status} />
-                  </td>
-                  <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}` }}>
-                    <span className="text-[11px] font-extrabold px-2 py-1 rounded-[7px]"
-                      style={{ border: `1px solid ${panelBorder}`, color: txt3 }}>{doc.ver}</span>
-                  </td>
-                  <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}`, color: txt2, fontWeight: 600 }}>{doc.date}</td>
-                  <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}`, color: txt2, fontWeight: 600 }}>{doc.dept}</td>
-                </tr>
+      {/* Document table — faqat haqiqiy papka ichida (root darajada folderId yo'q) */}
+      {currentFolder.id && (
+        <div style={{ ...glass() }}>
+          <div className="flex items-center justify-between px-5 py-4">
+            <h2 className="font-['Sora'] text-[15px] font-semibold" style={{ color: txt }}>{t("vault.tableTitle")}</h2>
+            <span className="text-[11.5px] font-bold" style={{ color: txt3 }}>{t("vault.sortLabel")} ↓</span>
+          </div>
+          {documentsError ? (
+            <p className="px-5 pb-5 text-[13px] font-semibold" style={{ color: "#F07A6B" }}>{documentsError}</p>
+          ) : documentsLoading ? (
+            <div className="px-5 pb-5 space-y-2">
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{ height: 44, borderRadius: 12, background: panel }} />
               ))}
-            </tbody>
-          </table>
+            </div>
+          ) : documents.length === 0 ? (
+            <p className="px-5 pb-5 text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("vault.emptyDocuments")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40, padding: "11px 12px 11px 22px", borderBottom: `1px solid ${panelBorder}`, textAlign: "left" }}>
+                      <span onClick={toggleAll} className="w-4 h-4 rounded-[5px] inline-grid place-items-center cursor-pointer"
+                        style={{ border: `1.5px solid ${txt3}`, background: selected.size === documents.length ? lime : "transparent" }}>
+                        {selected.size === documents.length && <Check size={10} color="#0A1600" />}
+                      </span>
+                    </th>
+                    {[t("vault.colDocument"), t("vault.colType"), t("vault.colTags"), t("vault.colStatus"), t("vault.colVersion"), t("vault.colApproved"), t("vault.colDept")].map(h => (
+                      <th key={h} style={{ padding: "11px 18px", borderBottom: `1px solid ${panelBorder}`, textAlign: "left", fontSize: 10.5, fontWeight: 800, letterSpacing: ".7px", textTransform: "uppercase", color: txt3 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map(doc => (
+                    <tr key={doc.id} onClick={() => openDocument(doc.id)} className="cursor-pointer" style={{ transition: ".15s" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                      <td style={{ padding: "13px 12px 13px 22px" }} onClick={e => { e.stopPropagation(); toggleDoc(doc.id); }}>
+                        <span className="w-4 h-4 rounded-[5px] inline-grid place-items-center cursor-pointer"
+                          style={{ border: `1.5px solid ${selected.has(doc.id) ? lime : txt3}`, background: selected.has(doc.id) ? lime : "transparent" }}>
+                          {selected.has(doc.id) && <Check size={10} color="#0A1600" />}
+                        </span>
+                      </td>
+                      <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}`, color: txt, fontWeight: 700 }}>
+                        {doc.title}
+                        <span className="block text-[11px] font-semibold mt-0.5" style={{ color: txt3 }}>
+                          {doc.docNumber ? `№ ${doc.docNumber}` : ""}{doc.authorName ? ` · ${doc.authorName}` : ""}
+                        </span>
+                      </td>
+                      <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}`, color: txt2, fontWeight: 600 }}>{doc.docTypeName}</td>
+                      <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}` }}>
+                        {doc.tags.map(tag => <TagBadge key={tag} label={tag} />)}
+                      </td>
+                      <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}` }}>
+                        <StatusBadge status={docStatusToBadgeKey(doc.status)} />
+                      </td>
+                      <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}` }}>
+                        <span className="text-[11px] font-extrabold px-2 py-1 rounded-[7px]"
+                          style={{ border: `1px solid ${panelBorder}`, color: txt3 }}>{doc.currentVersionLabel ?? "—"}</span>
+                      </td>
+                      <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}`, color: txt2, fontWeight: 600 }}>{formatDate(doc.approvedAt)}</td>
+                      <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}`, color: txt2, fontWeight: 600 }}>{doc.orgUnitName ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 
-  // ── DOCUMENT DETAIL ───────────────────────────────────────────────────────
+  // ── DOCUMENT DETAIL (real backend — TZ-1 §1.3) ────────────────────────────
+  const canEditDocuments = user?.role === "ADMIN" || user?.role === "EDITOR";
   const DocDetail = (
     <div>
+      {docDetailLoading ? (
+        <div style={{ ...glass(), padding: 40, textAlign: "center" }}>
+          <Loader2 size={24} className="animate-spin mx-auto" style={{ color: txt3 }} />
+        </div>
+      ) : docDetailError ? (
+        <div style={{ ...glass(), padding: 20, color: "#F07A6B" }}>{docDetailError}</div>
+      ) : !docDetail ? null : (
       <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 316px" }}>
         {/* Main card */}
         <div style={glass()}>
@@ -848,150 +1286,169 @@ export default function App() {
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="font-['Sora'] text-[19px] font-semibold tracking-tight mb-1.5" style={{ color: txt }}>
-                Kredit berish tartibi to'g'risidagi Nizom
+                {docDetail.title}
               </h1>
               <div className="flex flex-wrap gap-3 items-center text-[12px] font-semibold" style={{ color: txt2 }}>
-                <span>№ N-12</span><span>Tasdiqlangan: 15.03.2026</span><span>A. Karimov</span><span>Kredit departamenti</span>
-                <StatusBadge status="active" /><TagBadge label="CBU" violet /><TagBadge label="kredit" />
+                {docDetail.docNumber && <span>№ {docDetail.docNumber}</span>}
+                <span>{formatDate(docDetail.approvedAt)}</span>
+                <span>{docDetail.authorName}</span>
+                {docDetail.orgUnitName && <span>{docDetail.orgUnitName}</span>}
+                {canEditDocuments ? (
+                  <select value={docDetail.status} onChange={e => handleStatusChange(e.target.value)}
+                    className="text-[11px] font-bold rounded-full px-2.5 py-[5px] cursor-pointer"
+                    style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                    {["DRAFT", "IN_REVIEW", "ACTIVE", "EXPIRED"].map(s => (
+                      <option key={s} value={s}>{t(`status.${docStatusToBadgeKey(s)}`)}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <StatusBadge status={docStatusToBadgeKey(docDetail.status)} />
+                )}
+                {docDetail.tags.map(tag => <TagBadge key={tag} label={tag} />)}
               </div>
+
+              {statusChangeOpen && (
+                <div className="mt-3 space-y-2 rounded-xl p-3.5" style={{ background: panel, border: `1px solid ${panelBorder}` }}>
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t("common.expireDateLabel")}</label>
+                    <input type="date" value={statusChangeDate} onChange={e => setStatusChangeDate(e.target.value)}
+                      className="w-full outline-none rounded-lg text-[13px] font-semibold px-3 py-2"
+                      style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t("common.expireReasonLabel")}</label>
+                    <textarea value={statusChangeNote} onChange={e => setStatusChangeNote(e.target.value)} rows={2}
+                      className="w-full outline-none rounded-lg text-[13px] font-semibold px-3 py-2"
+                      style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setStatusChangeOpen(false)}
+                      className="text-[11.5px] font-bold px-3 py-1.5 rounded-lg cursor-pointer"
+                      style={{ background: "transparent", border: `1px solid ${panelBorder}`, color: txt2 }}>
+                      {t("common.cancel")}
+                    </button>
+                    <button onClick={confirmExpire} disabled={!statusChangeDate || !statusChangeNote || statusChangeSaving}
+                      className="text-[11.5px] font-bold px-3 py-1.5 rounded-lg cursor-pointer disabled:opacity-50"
+                      style={{ background: lime, color: "#0A1600", border: "none" }}>
+                      {t("common.confirm")}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
-              <button className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
+              <button onClick={() => currentVersion && window.open(currentVersion.pdf.downloadUrl, "_blank")}
+                className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
                 style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
-                <Download size={14} /> Yuklab olish
+                <Download size={14} /> {t("docDetail.download")}
               </button>
-              <button className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
-                style={{ background: lime, color: "#0A1600", border: "none", boxShadow: `0 6px 18px ${lime}44` }}>
-                <Plus size={14} /> Yangi versiya
-              </button>
+              {canEditDocuments && (
+                <button onClick={() => toast(t("docDetail.comingSoon"))}
+                  className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
+                  style={{ background: lime, color: "#0A1600", border: "none", boxShadow: `0 6px 18px ${lime}44` }}>
+                  <Plus size={14} /> {t("docDetail.newVersion")}
+                </button>
+              )}
             </div>
           </div>
 
           {/* Tabs */}
           <div className="flex gap-1 px-6 overflow-x-auto" style={{ borderBottom: `1px solid ${panelBorder}` }}>
-            {(["pdf", "word", "diff", "history"] as DocTab[]).map(t => {
-              const labels: Record<DocTab, string> = { pdf: "PDF", word: "Word", diff: "Taqqoslama v1.1→v2.0", history: "Tarix" };
+            {(["pdf", "word", "diff", "history"] as DocTab[]).map(dt => {
+              const labels: Record<DocTab, string> = {
+                pdf: "PDF",
+                word: "Word",
+                diff: t("docDetail.tabDiff"),
+                history: t("docDetail.tabHistory"),
+              };
               return (
-                <div key={t} onClick={() => setDocTab(t)}
+                <div key={dt} onClick={() => setDocTab(dt)}
                   className="px-4 py-3 text-[13px] font-bold cursor-pointer whitespace-nowrap"
                   style={{
-                    color: docTab === t ? lime : txt3,
-                    borderBottom: `2px solid ${docTab === t ? lime : "transparent"}`,
+                    color: docTab === dt ? lime : txt3,
+                    borderBottom: `2px solid ${docTab === dt ? lime : "transparent"}`,
                   }}>
-                  {labels[t]}
+                  {labels[dt]}
                 </div>
               );
             })}
           </div>
 
-          {/* PDF preview */}
-          {docTab !== "diff" && (
-            <div className="mx-6 my-5 rounded-xl shadow-xl p-8 min-h-[280px]"
-              style={{ background: "#F4F7F5" }}>
-              <div className="mb-5 h-3 rounded-full" style={{ width: "55%", background: "#B7C6BE" }} />
-              {[88, 100, 70, 92, 64, 80, 100, 75].map((w, i) => (
-                <div key={i} className="h-[6px] rounded-full mb-3" style={{ width: `${w}%`, background: "#D8E1DC" }} />
-              ))}
+          {/* PDF preview — brauzer native PDF renderi orqali */}
+          {docTab === "pdf" && currentVersion && (
+            <div className="mx-6 my-5 rounded-xl overflow-hidden" style={{ height: 600, border: `1px solid ${panelBorder}` }}>
+              <iframe src={currentVersion.pdf.downloadUrl} title="PDF" style={{ width: "100%", height: "100%", border: "none" }} />
             </div>
           )}
 
-          {/* Diff view */}
+          {/* Word preview — mammoth orqali client-side HTML */}
+          {docTab === "word" && (
+            !currentVersion?.docx ? (
+              <p className="mx-6 my-5 text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("common.wordMissing")}</p>
+            ) : wordLoading ? (
+              <div className="mx-6 my-5" style={{ height: 200, borderRadius: 12, background: panel }} />
+            ) : (
+              <div className="mx-6 my-5 rounded-xl p-6 text-[13px]"
+                style={{ background: "#F4F7F5", color: "#1a1a1a", maxHeight: 600, overflowY: "auto" }}
+                dangerouslySetInnerHTML={{ __html: wordHtml ?? "" }} />
+            )
+          )}
+
+          {/* Diff — versiyalash (TZ-1 §1.4) keyingi bosqichda */}
           {docTab === "diff" && (
-            <div className="mx-6 my-5">
-              <div className="flex gap-2.5 items-center mb-3 text-[12px] font-bold" style={{ color: txt2 }}>
-                <span className="px-2 py-1 rounded-[7px] text-[11px] font-extrabold" style={{ border: `1px solid ${panelBorder}`, color: txt3 }}>v1.1 · 20.08.2025</span>
-                <ArrowRight size={14} style={{ color: txt3 }} />
-                <span className="px-2 py-1 rounded-[7px] text-[11px] font-extrabold" style={{ border: `1px solid ${lime}`, color: lime }}>v2.0 · 15.03.2026</span>
-                <StatusBadge status="active" />
-                <span className="ml-auto text-[11px]" style={{ color: txt3 }}>2 band o'zgargan · 4 o'zgarishsiz</span>
-              </div>
-              <div className="overflow-hidden rounded-xl text-[12.5px]" style={{ border: `1px solid ${panelBorder}` }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.03)" }}>
-                      {["№", "Eski tahrir", "Yangi tahrir"].map(h => (
-                        <th key={h} style={{ padding: "11px 16px", textAlign: "left", fontSize: 10.5, fontWeight: 800, letterSpacing: ".6px", textTransform: "uppercase", color: txt3 }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style={{ padding: "12px 16px", color: txt3, fontWeight: 800, width: "5%" }}>1</td>
-                      <td style={{ padding: "12px 16px", color: txt3, lineHeight: 1.55, width: "47.5%" }}>1.1. Ushbu Nizom korxonada kredit berish tartibini, kredit qo'mitasi vakolatlarini belgilaydi.</td>
-                      <td style={{ padding: "12px 16px", color: txt3, lineHeight: 1.55 }}>— o'zgarishsiz —</td>
-                    </tr>
-                    <tr style={{ background: isDark ? "rgba(240,194,75,.05)" : "rgba(240,194,75,.06)" }}>
-                      <td style={{ padding: "12px 16px", color: "#F0C24B", fontWeight: 800 }}>2</td>
-                      <td style={{ padding: "12px 16px", color: txt2, lineHeight: 1.55 }}>
-                        2.1. Kredit arizasi yozma shaklda qabul qilinadi va <del style={{ color: "#F07A6B", textDecoration: "line-through" }}>10 (o'n) ish kuni</del> ichida ko'rib chiqiladi.
-                      </td>
-                      <td style={{ padding: "12px 16px", lineHeight: 1.55, background: isDark ? `${lime}12` : `${lime}18` }}>
-                        <span style={{ color: txt2 }}>2.1. Kredit arizasi yozma yoki elektron shaklda qabul qilinadi va </span>
-                        <ins style={{ color: lime, textDecoration: "none", fontWeight: 700 }}>5 (besh) ish kuni</ins>
-                        <span style={{ color: txt2 }}> ichida ko'rib chiqiladi.</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: "12px 16px", color: txt3, fontWeight: 800 }}>3</td>
-                      <td style={{ padding: "12px 16px", color: txt3, lineHeight: 1.55 }}>2.2. Kredit qo'mitasi haftada bir marta yig'iladi va qarorlar oddiy ko'pchilik ovoz bilan qabul qilinadi.</td>
-                      <td style={{ padding: "12px 16px", color: txt3, lineHeight: 1.55 }}>— o'zgarishsiz —</td>
-                    </tr>
-                    <tr style={{ background: isDark ? "rgba(240,194,75,.05)" : "rgba(240,194,75,.06)" }}>
-                      <td style={{ padding: "12px 16px", color: "#F0C24B", fontWeight: 800 }}>4</td>
-                      <td style={{ padding: "12px 16px", color: txt2, lineHeight: 1.55 }}>
-                        3.2. Ta'minot sifatida <del style={{ color: "#F07A6B", textDecoration: "line-through" }}>ko'chmas mulk yoki transport vositasi</del> qabul qilinadi.
-                      </td>
-                      <td style={{ padding: "12px 16px", lineHeight: 1.55, background: isDark ? `${lime}12` : `${lime}18` }}>
-                        <span style={{ color: txt2 }}>3.2. Ta'minot sifatida ko'chmas mulk, transport vositasi </span>
-                        <ins style={{ color: lime, textDecoration: "none", fontWeight: 700 }}>yoki bank kafolati (CBU № 145/2026 talablariga muvofiq)</ins>
-                        <span style={{ color: txt2 }}> qabul qilinadi.</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <p className="mx-6 my-5 text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("common.noComparisonYet")}</p>
+          )}
+
+          {/* History — bitta versiyadan ortig'i bo'lganda keyingi bosqichda kengaytiriladi */}
+          {docTab === "history" && (
+            <p className="mx-6 my-5 text-[12.5px] font-semibold" style={{ color: txt3 }}>
+              {t("docDetail.versions")}: {docDetail.versions.length}
+            </p>
           )}
         </div>
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Versions */}
+          {/* Versions — real ma'lumot */}
           <div style={{ ...glass(), padding: 20 }}>
-            <h3 className="font-['Sora'] text-[13px] font-semibold flex justify-between items-center mb-3.5" style={{ color: txt }}>
-              Versiyalar <span className="text-[11px] font-extrabold cursor-pointer" style={{ color: lime, fontFamily: "Manrope" }}>+ Yangi versiya</span>
+            <h3 className="font-['Sora'] text-[13px] font-semibold mb-3.5" style={{ color: txt }}>
+              {t("docDetail.versions")}
             </h3>
-            {[
-              { v: "v2.0 — joriy", when: "15.03.2026 · A. Karimov", files: ["PDF", "DOCX", "Taqqoslama"], cur: true },
-              { v: "v1.1", when: "20.08.2025 · o'zgartirish, 2.1-band", files: ["PDF", "DOCX", "Taqqoslama"], cur: false },
-              { v: "v1.0", when: "15.03.2024 · dastlabki tahrir", files: ["PDF", "DOCX"], cur: false },
-            ].map((item, i, arr) => (
-              <div key={i} className="flex gap-3 relative" style={{ paddingBottom: i < arr.length - 1 ? 18 : 0 }}>
+            {docDetail.versions.map((v, i, arr) => (
+              <div key={v.id} className="flex gap-3 relative" style={{ paddingBottom: i < arr.length - 1 ? 18 : 0 }}>
                 {i < arr.length - 1 && <div className="absolute left-[7px] top-[18px] bottom-0 w-[1.5px]" style={{ background: panelBorder }} />}
                 <div className="w-[15px] h-[15px] rounded-full border-2 flex-shrink-0 mt-0.5"
                   style={{
-                    borderColor: item.cur ? lime : txt3,
-                    background: item.cur ? lime : bg,
-                    boxShadow: item.cur ? `0 0 0 4px ${lime}22` : "none",
+                    borderColor: v.isCurrent ? lime : txt3,
+                    background: v.isCurrent ? lime : bg,
+                    boxShadow: v.isCurrent ? `0 0 0 4px ${lime}22` : "none",
                   }} />
                 <div>
-                  <p className="text-[13px] font-bold" style={{ color: txt }}>{item.v}</p>
-                  <p className="text-[11px] font-semibold mt-0.5 leading-relaxed" style={{ color: txt3 }}>{item.when}</p>
+                  <p className="text-[13px] font-bold" style={{ color: txt }}>
+                    {v.versionLabel}{v.isCurrent ? ` — ${t("common.current")}` : ""}
+                  </p>
+                  <p className="text-[11px] font-semibold mt-0.5 leading-relaxed" style={{ color: txt3 }}>
+                    {formatDate(v.createdAt)} · {v.createdByName}
+                  </p>
                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                    {item.files.map(f => (
-                      <span key={f} className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-[6px] cursor-pointer hover:text-primary"
-                        style={{ border: `1px solid ${panelBorder}`, color: txt2 }}>{f}</span>
-                    ))}
+                    <a href={v.pdf.downloadUrl} target="_blank" rel="noreferrer"
+                      className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-[6px]"
+                      style={{ border: `1px solid ${panelBorder}`, color: txt2 }}>PDF</a>
+                    {v.docx && (
+                      <a href={v.docx.downloadUrl} target="_blank" rel="noreferrer"
+                        className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-[6px]"
+                        style={{ border: `1px solid ${panelBorder}`, color: txt2 }}>DOCX</a>
+                    )}
                   </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Relations */}
+          {/* Relations — mock (TZ-2, keyingi bosqich) */}
           <div style={{ ...glass(), padding: 20 }}>
             <h3 className="font-['Sora'] text-[13px] font-semibold flex justify-between items-center mb-3.5" style={{ color: txt }}>
-              Bog'lanishlar <span className="text-[11px] font-extrabold cursor-pointer" style={{ color: lime, fontFamily: "Manrope" }}>+ Qo'shish</span>
+              {t("docDetail.relations")} <span onClick={() => toast(t("docDetail.comingSoon"))} className="text-[11px] font-extrabold cursor-pointer" style={{ color: lime, fontFamily: "Manrope" }}>{t("docDetail.addRelation")}</span>
             </h3>
             {[
               { type: "asos", typeColor: lime, typeBg: `${lime}18`, label: "CBU qarori № 145/2026" },
@@ -1007,9 +1464,9 @@ export default function App() {
             ))}
           </div>
 
-          {/* Audit */}
+          {/* Audit — mock (audit ko'rish UI'si TZ-1 §1.3 doirasida emas) */}
           <div style={{ ...glass(), padding: 20 }}>
-            <h3 className="font-['Sora'] text-[13px] font-semibold mb-3.5" style={{ color: txt }}>Audit</h3>
+            <h3 className="font-['Sora'] text-[13px] font-semibold mb-3.5" style={{ color: txt }}>{t("docDetail.audit")}</h3>
             {[
               { action: "A. Karimov v2.0 yukladi", when: "bugun 11:42" },
               { action: "S. Nazarov PDF yuklab oldi", when: "bugun 09:15" },
@@ -1024,6 +1481,7 @@ export default function App() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 
@@ -1032,23 +1490,29 @@ export default function App() {
     <div>
       <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h1 className="font-['Sora'] text-2xl font-semibold tracking-tight" style={{ color: txt }}>Tashqi aktlar monitoringi</h1>
+          <h1 className="font-['Sora'] text-2xl font-semibold tracking-tight" style={{ color: txt }}>{t("monitoring.title")}</h1>
           <p className="text-sm mt-1" style={{ color: txt2 }}>cbu.uz va lex.uz · har 2 soatda tekshiriladi · oxirgi skan: 14:00</p>
         </div>
         <button className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
           style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
-          <Settings size={14} /> Manba sozlamalari
+          <Settings size={14} /> {t("monitoring.sourceSettings")}
         </button>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-5">
-        {["Barchasi", "CBU", "Lex.uz", "Yangi", "Ko'rib chiqilgan"].map(c => (
-          <button key={c} onClick={() => setMonFilter(c)}
+        {[
+          { key: "all", label: t("monitoring.filterAll") },
+          { key: "cbu", label: "CBU" },
+          { key: "lex", label: "Lex.uz" },
+          { key: "new", label: t("monitoring.filterNew") },
+          { key: "reviewed", label: t("monitoring.filterReviewed") },
+        ].map(c => (
+          <button key={c.key} onClick={() => setMonFilter(c.key)}
             className="text-[12px] font-bold px-3.5 py-1.5 rounded-full cursor-pointer transition-all"
-            style={monFilter === c
+            style={monFilter === c.key
               ? { background: `${lime}22`, border: `1px solid ${lime}55`, color: lime }
               : { background: panel, border: `1px solid ${panelBorder}`, color: txt2, backdropFilter: "blur(10px)" }}>
-            {c}
+            {c.label}
           </button>
         ))}
       </div>
@@ -1095,7 +1559,7 @@ export default function App() {
                 {row.noMatch
                   ? <span className="text-[10.5px] font-bold px-3 py-1 rounded-full" style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>{row.noMatch}</span>
                   : <>
-                    <span className="text-[10.5px] font-bold px-3 py-1 rounded-full" style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>Aloqador ichki hujjatlar:</span>
+                    <span className="text-[10.5px] font-bold px-3 py-1 rounded-full" style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>{t("monitoring.relatedDocsLabel")}</span>
                     {row.related.map(r => (
                       <span key={r} className="text-[10.5px] font-bold px-3 py-1 rounded-full cursor-pointer"
                         style={{ background: `${lime}18`, color: lime }}>
@@ -1114,12 +1578,26 @@ export default function App() {
         ))}
       </div>
       <p className="text-[11.5px] font-semibold mt-3 px-1 leading-relaxed" style={{ color: txt3 }}>
-        O'xshashlik foizi hujjatlar mazmunan yaqinligini bildiradi, ziddiyat hukmi emas — yakuniy xulosani mas'ul xodim beradi.
+        {t("monitoring.disclaimer")}
       </p>
     </div>
   );
 
   // ── CMD+K ──────────────────────────────────────────────────────────────────
+  const cmdkGroups = [
+    { section: t("cmdk.sectionActions"), items: [
+      { key: "yangi hujjat yuklash", icon: <Plus size={15} />, label: t("cmdk.actionUpload"), kbd: "N", action: "wiz" },
+      { key: "yangi versiya shablon", icon: <FileText size={15} />, label: t("cmdk.actionNewVersion"), kbd: "V", action: "doc" },
+      { key: "graf boglanish", icon: <Network size={15} />, label: t("cmdk.actionOpenGraph"), kbd: "G", action: "graph" },
+    ]},
+    { section: t("cmdk.sectionDocuments"), items: [
+      { key: "kredit berish tartibi n-12 nizom", icon: <FileText size={15} />, label: "Kredit berish tartibi to'g'risidagi Nizom", sub: "N-12 · Aktiv", action: "doc" },
+      { key: "ichki nazorat reglamenti r-07", icon: <FileText size={15} />, label: "Ichki nazorat reglamenti", sub: "R-07 · Aktiv", action: "vault" },
+      { key: "axborot xavfsizligi s-03", icon: <FileText size={15} />, label: "Axborot xavfsizligi siyosati", sub: "S-03 · Loyiha", action: "vault" },
+      { key: "cbu 145 qaror tashqi akt", icon: <Activity size={15} />, label: "CBU qarori № 145/2026", sub: "Tashqi akt", action: "mon" },
+    ]},
+  ];
+
   const CmdK = cmdkOpen && (
     <div className="fixed inset-0 z-[90] flex items-start justify-center"
       style={{ background: isDark ? "rgba(0,6,14,.55)" : "rgba(20,40,32,.3)", backdropFilter: "blur(6px)" }}
@@ -1127,11 +1605,11 @@ export default function App() {
       <div className="mt-[12vh] overflow-hidden"
         style={{ width: "min(620px, 92vw)", background: isDark ? "#1E1E1E" : "#fff", border: `1px solid ${panelBorder}`, borderRadius: 18, backdropFilter: "blur(24px)", boxShadow: "0 32px 80px rgba(0,0,0,.55)" }}>
         <input autoFocus value={cmdkQuery} onChange={e => setCmdkQuery(e.target.value)}
-          placeholder="Hujjat, papka yoki amal qidiring..."
+          placeholder={t("cmdk.placeholder")}
           className="w-full bg-transparent outline-none"
           style={{ padding: "18px 20px", fontSize: 15, color: txt, fontFamily: "Manrope", fontWeight: 600, borderBottom: `1px solid ${panelBorder}` }} />
         <div>
-          {CMDK_ITEMS.map(group => {
+          {cmdkGroups.map(group => {
             const filtered = group.items.filter(it => it.key.includes(cmdkQuery.toLowerCase()) || cmdkQuery === "");
             if (!filtered.length) return null;
             return (
@@ -1141,7 +1619,7 @@ export default function App() {
                   <div key={item.key}
                     onClick={() => {
                       setCmdkOpen(false);
-                      if (item.action === "wiz") { setWizOpen(true); setWizStep(1); }
+                      if (item.action === "wiz") { openWizard(); }
                       else if (item.action === "graph") goView("graph");
                       else if (item.action === "doc") goView("doc");
                       else if (item.action === "vault") goView("vault");
@@ -1162,10 +1640,10 @@ export default function App() {
           })}
         </div>
         <div className="flex gap-4 px-5 py-2.5 text-[10.5px] font-bold" style={{ borderTop: `1px solid ${panelBorder}`, color: txt3 }}>
-          {[["↑↓", "tanlash"], ["↵", "ochish"], ["esc", "yopish"]].map(([k, v]) => (
+          {[["↑↓", t("cmdk.hintSelect")], ["↵", t("cmdk.hintOpen")], ["esc", t("cmdk.hintClose")]].map(([k, v]) => (
             <span key={k}><span className="border rounded px-1.5 py-0.5 mr-1" style={{ borderColor: panelBorder }}>{k}</span>{v}</span>
           ))}
-          <span className="ml-auto">Semantik qidiruv: "ma'no:" bilan boshlang</span>
+          <span className="ml-auto">{t("cmdk.semanticHint")}</span>
         </div>
       </div>
     </div>
@@ -1184,11 +1662,11 @@ export default function App() {
         transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
       }}>
       <div className="flex justify-between items-center mb-1">
-        <h2 className="font-['Sora'] text-[16px] font-semibold" style={{ color: txt }}>Xabarnomalar</h2>
+        <h2 className="font-['Sora'] text-[16px] font-semibold" style={{ color: txt }}>{t("drawer.title")}</h2>
         <button onClick={() => setDrawerOpen(false)} style={{ color: txt3, fontSize: 20, background: "none", border: "none", cursor: "pointer" }}>✕</button>
       </div>
       <p className="text-[11.5px] font-bold mb-4" style={{ color: txt3 }}>
-        2 o'qilmagan · <span className="cursor-pointer" style={{ color: lime }}>hammasini o'qilgan qilish</span>
+        2 o'qilmagan · <span className="cursor-pointer" style={{ color: lime }}>{t("drawer.markAllRead")}</span>
       </p>
       {[
         { warn: true, title: "CBU qarori № 145/2026 aniqlandi", body: "4 ta ichki hujjat bilan yuqori o'xshashlik. N-12 (91%) birinchi o'rinda.", go: "Monitoring'da ochish →", goAction: () => { setDrawerOpen(false); goView("mon"); } },
@@ -1210,6 +1688,7 @@ export default function App() {
     </div>
   );
 
+  // ── Wizard handlerlari (real upload + hujjat yaratish, TZ-1 §1.3) ─────────
   // ── UPLOAD WIZARD ─────────────────────────────────────────────────────────
   const Wizard = wizOpen && (
     <div className="fixed inset-0 z-[90] flex items-start justify-center"
@@ -1217,9 +1696,9 @@ export default function App() {
       onClick={e => e.target === e.currentTarget && setWizOpen(false)}>
       <div className="mt-[9vh] overflow-hidden"
         style={{ width: "min(560px, 94vw)", background: isDark ? "#1E1E1E" : "#fff", border: `1px solid ${panelBorder}`, borderRadius: 20, backdropFilter: "blur(26px)", boxShadow: "0 32px 80px rgba(0,0,0,.55)", padding: 26 }}>
-        <h2 className="font-['Sora'] text-[17px] font-semibold mb-1" style={{ color: txt }}>Yangi hujjat</h2>
+        <h2 className="font-['Sora'] text-[17px] font-semibold mb-1" style={{ color: txt }}>{t("wizard.title")}</h2>
         <p className="text-[12px] font-semibold mb-4" style={{ color: txt2 }}>
-          {["1-qadam · Fayllarni yuklang", "2-qadam · Metadata", "3-qadam · Bog'lanishlar va ko'rib chiqish"][wizStep - 1]}
+          {[t("wizard.step1"), t("wizard.step2"), t("wizard.step3")][wizStep - 1]}
         </p>
         {/* Steps bar */}
         <div className="flex gap-1.5 mb-5">
@@ -1228,81 +1707,76 @@ export default function App() {
           ))}
         </div>
 
+        {wizError && (
+          <p className="mb-3 text-[12px] font-semibold rounded-xl px-3.5 py-2.5"
+            style={{ color: "#F07A6B", background: "rgba(240,122,107,.12)" }}>{wizError}</p>
+        )}
+
         {wizStep === 1 && (
           <div>
-            {["Tasdiqlangan PDF (majburiy)", "Word versiyasi (tavsiya)"].map((label, i) => {
-              const fname = i === 0 ? "Nizom_N-24_tasdiqlangan.pdf" : "Nizom_N-24.docx";
-              const fmeta = i === 0 ? "PDF · 2.4 MB" : "DOCX · 84 KB";
-              return pickedFiles.includes(fname) ? (
-                <div key={i} className="flex items-center gap-3 text-[12.5px] font-bold mb-2.5 rounded-xl px-3.5 py-3"
-                  style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.03)", border: `1px solid ${panelBorder}` }}>
-                  <FileText size={15} style={{ color: txt3 }} />
-                  <span style={{ color: txt }}>{fname}</span>
-                  <span className="font-semibold" style={{ color: txt3 }}>· {fmeta}</span>
-                  <span className="ml-auto text-[11px] font-extrabold" style={{ color: lime }}>✓ hash tekshirildi</span>
-                </div>
-              ) : (
-                <div key={i} onClick={() => setPickedFiles(f => [...f, fname])}
-                  className="rounded-2xl text-center cursor-pointer transition-all mb-3 hover:border-[#C6F24E]"
-                  style={{ border: `1.5px dashed ${panelBorder}`, padding: "28px 20px" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = `${lime}10`)}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                  <Upload size={28} className="mx-auto mb-2" style={{ color: txt3 }} />
-                  <p className="font-bold text-[13.5px] mb-1" style={{ color: txt }}>{label}</p>
-                  <p className="text-[11.5px] font-semibold" style={{ color: txt3 }}>
-                    {i === 0 ? "Bosing yoki faylni tashlang · maks. 50 MB" : "Kelajakda avtomatik taqqoslama uchun kerak bo'ladi"}
-                  </p>
-                </div>
-              );
-            })}
+            {([
+              { kind: "pdf" as const, label: t("wizard.uploadPdfLabel"), hint: t("wizard.uploadPdfHint"), accept: ".pdf", upload: pdfUpload, uploading: pdfUploading },
+              { kind: "docx" as const, label: t("wizard.uploadWordLabel"), hint: t("wizard.uploadWordHint"), accept: ".docx", upload: docxUpload, uploading: docxUploading },
+            ]).map(f => f.upload ? (
+              <div key={f.kind} className="flex items-center gap-3 text-[12.5px] font-bold mb-2.5 rounded-xl px-3.5 py-3"
+                style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.03)", border: `1px solid ${panelBorder}` }}>
+                <FileText size={15} style={{ color: txt3 }} />
+                <span style={{ color: txt }}>{f.upload.originalName}</span>
+                <span className="font-semibold" style={{ color: txt3 }}>· {(f.upload.sizeBytes / 1024).toFixed(0)} KB</span>
+                <span className="ml-auto text-[11px] font-extrabold" style={{ color: lime }}>{t("wizard.hashVerified")}</span>
+              </div>
+            ) : (
+              <label key={f.kind}
+                className="block rounded-2xl text-center cursor-pointer transition-all mb-3 hover:border-[#C6F24E]"
+                style={{ border: `1.5px dashed ${panelBorder}`, padding: "28px 20px" }}>
+                <input type="file" accept={f.accept} className="hidden" disabled={f.uploading}
+                  onChange={e => { const file = e.target.files?.[0]; if (file) handlePickFile(f.kind, file); e.target.value = ""; }} />
+                {f.uploading
+                  ? <Loader2 size={28} className="mx-auto mb-2 animate-spin" style={{ color: txt3 }} />
+                  : <Upload size={28} className="mx-auto mb-2" style={{ color: txt3 }} />}
+                <p className="font-bold text-[13.5px] mb-1" style={{ color: txt }}>{f.label}</p>
+                <p className="text-[11.5px] font-semibold" style={{ color: txt3 }}>
+                  {f.uploading ? t("common.uploading") : f.hint}
+                </p>
+              </label>
+            ))}
           </div>
         )}
 
         {wizStep === 2 && (
           <div className="space-y-3">
-            {[
-              { label: "Hujjat nomi", val: "Ta'minotni baholash tartibi to'g'risidagi Nizom", full: true },
-            ].map(f => (
-              <div key={f.label}>
-                <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{f.label}</label>
-                <input defaultValue={f.val} className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{t("wizard.fieldDocName")}</label>
+              <input value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))}
+                className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
+                style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{t("wizard.fieldNumber")}</label>
+                <input value={docForm.docNumber} onChange={e => setDocForm(f => ({ ...f, docNumber: e.target.value }))}
+                  className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
                   style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />
               </div>
-            ))}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Raqami", val: "N-24" },
-                { label: "Turi", isSelect: true },
-              ].map(f => (
-                <div key={f.label}>
-                  <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{f.label}</label>
-                  {f.isSelect
-                    ? <select className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
-                        style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }}>
-                        {["Nizom", "Buyruq", "Reglament", "Siyosat"].map(o => <option key={o}>{o}</option>)}
-                      </select>
-                    : <input defaultValue={f.val} className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
-                        style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />}
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {[{ label: "Tasdiqlangan sana", val: "11.07.2026" }, { label: "Podrazdeleniye", isSelect: true }].map(f => (
-                <div key={f.label}>
-                  <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{f.label}</label>
-                  {f.isSelect
-                    ? <select className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
-                        style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }}>
-                        <option>Kredit departamenti</option><option>Yuridik bo'lim</option>
-                      </select>
-                    : <input defaultValue={f.val} className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
-                        style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />}
-                </div>
-              ))}
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{t("wizard.fieldType")}</label>
+                <select value={docForm.docTypeId} onChange={e => setDocForm(f => ({ ...f, docTypeId: e.target.value }))}
+                  className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
+                  style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }}>
+                  {documentTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.name}</option>)}
+                </select>
+              </div>
             </div>
             <div>
-              <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>Teglar</label>
-              <input defaultValue="CBU, ta'minot" className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
+              <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{t("wizard.fieldApprovedDate")}</label>
+              <input type="date" value={docForm.approvedAt} onChange={e => setDocForm(f => ({ ...f, approvedAt: e.target.value }))}
+                className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
+                style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{t("wizard.fieldTags")}</label>
+              <input value={docForm.tagsRaw} onChange={e => setDocForm(f => ({ ...f, tagsRaw: e.target.value }))}
+                placeholder="CBU, kredit" className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
                 style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />
             </div>
           </div>
@@ -1310,30 +1784,17 @@ export default function App() {
 
         {wizStep === 3 && (
           <div>
-            <p className="text-[11px] font-extrabold uppercase tracking-wide mb-3" style={{ color: txt3 }}>Bog'lanishlar (ixtiyoriy)</p>
-            {[
-              { type: "asos", typeColor: "#C6F24E", typeBg: "rgba(198,242,78,.15)", label: "CBU qarori № 145/2026" },
-              { type: "ota", typeColor: "#6BB4F5", typeBg: "rgba(107,180,245,.15)", label: "Kredit berish tartibi N-12" },
-            ].map((rel, i) => (
-              <div key={i} className="flex items-center gap-2.5 py-2 text-[12.5px] font-semibold" style={{ color: txt2 }}>
-                <span className="text-[9.5px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-[6px]"
-                  style={{ background: rel.typeBg, color: rel.typeColor }}>{rel.type}</span>
-                <span className="flex-1" style={{ color: txt }}>{rel.label}</span>
-                <span className="cursor-pointer font-bold" style={{ color: txt3 }}>✕</span>
-              </div>
-            ))}
-            <button className="mt-2 text-[12.5px] font-bold px-3.5 py-2 rounded-xl cursor-pointer"
-              style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
-              + Bog'lanish qo'shish
-            </button>
-            <div className="mt-4 rounded-[13px] text-[12.5px]"
+            <div className="rounded-[13px] text-[12.5px]"
               style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}`, padding: "12px 14px" }}>
               <p className="flex items-center gap-2 font-bold mb-1" style={{ color: txt }}>
                 <span className="w-[7px] h-[7px] rounded-full" style={{ background: lime }} />
-                Tayyor
+                {t("wizard.ready")}
               </p>
               <p className="font-semibold leading-relaxed" style={{ color: txt2 }}>
-                N-24 · Nizom · Kredit departamenti · 2 fayl · 2 bog'lanish. Saqlangach hujjat DRAFT holatida yaratiladi.
+                {docForm.title || "—"}
+                {docForm.docNumber ? ` · № ${docForm.docNumber}` : ""}
+                {` · ${docxUpload ? 2 : 1} fayl`}
+                {`. Saqlangach hujjat DRAFT holatida yaratiladi.`}
               </p>
             </div>
           </div>
@@ -1343,15 +1804,18 @@ export default function App() {
           <button onClick={() => setWizStep(s => Math.max(1, s - 1) as 1 | 2 | 3)}
             className="text-[12.5px] font-bold px-4 py-2.5 rounded-[13px] cursor-pointer"
             style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2, visibility: wizStep > 1 ? "visible" : "hidden" }}>
-            ← Orqaga
+            {t("wizard.back")}
           </button>
-          <button onClick={() => {
-            if (wizStep < 3) setWizStep(s => (s + 1) as 1 | 2 | 3);
-            else { setWizOpen(false); setPickedFiles([]); setWizStep(1); toast("N-24 saqlandi · DRAFT holatida yaratildi"); }
-          }}
-            className="text-[12.5px] font-bold px-5 py-2.5 rounded-[13px] cursor-pointer"
+          <button
+            disabled={(wizStep === 1 && !pdfUpload) || (wizStep === 2 && !docForm.title) || wizSaving}
+            onClick={() => {
+              if (wizStep < 3) setWizStep(s => (s + 1) as 1 | 2 | 3);
+              else handleWizardSave();
+            }}
+            className="flex items-center gap-2 text-[12.5px] font-bold px-5 py-2.5 rounded-[13px] cursor-pointer disabled:opacity-50"
             style={{ background: lime, color: "#0A1600", border: "none", boxShadow: `0 6px 18px ${lime}44` }}>
-            {wizStep < 3 ? "Davom etish →" : "Saqlash ✓"}
+            {wizSaving && <Loader2 size={14} className="animate-spin" />}
+            {wizStep < 3 ? t("wizard.next") : t("wizard.save")}
           </button>
         </div>
       </div>
@@ -1374,12 +1838,12 @@ export default function App() {
         boxShadow: "0 24px 60px rgba(0,0,0,.5)",
         fontSize: 12.5, fontWeight: 800, color: txt,
       }}>
-      <strong style={{ color: lime, marginRight: 6 }}>{selected.size}</strong> hujjat tanlandi
+      <strong style={{ color: lime, marginRight: 6 }}>{selected.size}</strong> {t("bulkBar.selectedSuffix")}
       {[
-        { label: "Yuklab olish", icon: <Download size={13} />, action: () => toast("ZIP arxiv tayyorlanmoqda...") },
-        { label: "Teg", icon: <Tag size={13} />, action: () => toast("Teg qo'shildi") },
-        { label: "Ko'chirish", icon: <Move size={13} />, action: () => toast("Papkaga ko'chirildi") },
-        { label: "O'chirish", icon: <Trash2 size={13} />, action: () => toast("Chiqindi qutisiga o'tkazildi · 30 kun ichida tiklash mumkin"), red: true },
+        { label: t("bulkBar.download"), icon: <Download size={13} />, action: () => toast("ZIP arxiv tayyorlanmoqda...") },
+        { label: t("bulkBar.tag"), icon: <Tag size={13} />, action: () => toast("Teg qo'shildi") },
+        { label: t("bulkBar.move"), icon: <Move size={13} />, action: () => toast("Papkaga ko'chirildi") },
+        { label: t("bulkBar.delete"), icon: <Trash2 size={13} />, action: () => toast("Chiqindi qutisiga o'tkazildi · 30 kun ichida tiklash mumkin"), red: true },
       ].map(btn => (
         <button key={btn.label} onClick={btn.action}
           className="flex items-center gap-1.5 text-[11.5px] font-bold px-3 py-1.5 rounded-xl cursor-pointer"
@@ -1422,11 +1886,11 @@ export default function App() {
         maxWidth: "94vw",
       }}>
       {[
-        { v: "dash" as View, label: "Dashboard" },
-        { v: "vault" as View, label: "Vault" },
-        { v: "doc" as View, label: "Hujjat" },
-        { v: "graph" as View, label: "Graf" },
-        { v: "mon" as View, label: "Monitoring" },
+        { v: "dash" as View, label: t("viewbar.dashboard") },
+        { v: "vault" as View, label: t("viewbar.vault") },
+        { v: "doc" as View, label: t("viewbar.doc") },
+        { v: "graph" as View, label: t("viewbar.graph") },
+        { v: "mon" as View, label: t("viewbar.mon") },
       ].map(item => (
         <button key={item.v} onClick={() => goView(item.v)}
           className="text-[12px] font-extrabold px-4 py-2.5 rounded-full cursor-pointer transition-all whitespace-nowrap"
@@ -1440,6 +1904,18 @@ export default function App() {
   );
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
+  if (isBootstrapping) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0D0D0D", display: "grid", placeItems: "center" }}>
+        <Loader2 size={28} color="#C6F24E" className="animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
     <div style={{ background: bg, minHeight: "100vh", position: "relative" }}>
       {/* Background ambient glows */}
@@ -1461,6 +1937,14 @@ export default function App() {
             {view === "doc" && DocDetail}
             {view === "graph" && <GraphView onNavigate={goView} />}
             {view === "mon" && Monitoring}
+            {view === "admin" && (
+              (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") ? (
+                <AdminPanel theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} toast={toast}
+                  onTypesChanged={() => documentTypesApi.list().then(setDocumentTypes).catch(() => {})} />
+              ) : (
+                <div style={{ padding: 48, textAlign: "center", color: txt2 }}>{t("admin.accessDenied")}</div>
+              )
+            )}
           </div>
         </main>
       </div>

@@ -2,14 +2,26 @@ import type {
   AcceptInviteInput,
   ApiError,
   AuthUser,
+  ConfirmFileInput,
+  CreateDocumentInput,
+  CreateDocumentTypeInput,
   CreateFolderInput,
+  DocumentDetail,
+  DocumentTypeSummary,
+  FileSummary,
   FolderNode,
   ForgotPasswordInput,
   InviteInput,
+  ListDocumentsQuery,
   LoginInput,
   MoveFolderInput,
+  PaginatedDocuments,
+  PresignFileInput,
+  PresignResult,
   ResetPasswordInput,
   SetupInput,
+  UpdateDocumentInput,
+  UpdateDocumentTypeInput,
   UpdateFolderInput,
   UpdateProfileInput,
 } from '@docmax/shared';
@@ -171,4 +183,90 @@ export const foldersApi = {
     apiFetch<FolderNode>(`/folders/${id}/move`, { method: 'POST', body: input }),
 
   remove: (id: string) => apiFetch<void>(`/folders/${id}`, { method: 'DELETE' }),
+};
+
+/** Fayl bayt'laridan sha256 hex — dedup uchun (TZ-1 §1.3 qabul mezoni). */
+export async function sha256File(file: File): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+export const filesApi = {
+  presign: (input: PresignFileInput) =>
+    apiFetch<PresignResult>('/files/presign', { method: 'POST', body: input }),
+
+  confirm: (input: ConfirmFileInput) =>
+    apiFetch<FileSummary>('/files/confirm', { method: 'POST', body: input }),
+
+  /** presign → (kerak bo'lsa) to'g'ridan-to'g'ri MinIO'ga PUT → confirm (CLAUDE.md 6-qoida). */
+  upload: async (file: File): Promise<FileSummary> => {
+    const sha256 = await sha256File(file);
+    const presigned = await filesApi.presign({
+      filename: file.name,
+      mime: file.type as PresignFileInput['mime'],
+      sizeBytes: file.size,
+      sha256,
+    });
+
+    if (presigned.dedup && presigned.file) {
+      return presigned.file;
+    }
+    if (!presigned.uploadUrl || !presigned.objectKey) {
+      throw new Error('Presigned URL olinmadi');
+    }
+
+    const putRes = await fetch(presigned.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    if (!putRes.ok) {
+      throw new Error("Faylni MinIO'ga yuklashda xato yuz berdi");
+    }
+
+    return filesApi.confirm({
+      objectKey: presigned.objectKey,
+      sha256,
+      originalName: file.name,
+      mime: file.type as PresignFileInput['mime'],
+      sizeBytes: file.size,
+    });
+  },
+};
+
+export const documentsApi = {
+  list: (query: Partial<ListDocumentsQuery> = {}) => {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, String(value));
+      }
+    }
+    const qs = search.toString();
+    return apiFetch<PaginatedDocuments>(`/documents${qs ? `?${qs}` : ''}`);
+  },
+
+  create: (input: CreateDocumentInput) =>
+    apiFetch<DocumentDetail>('/documents', { method: 'POST', body: input }),
+
+  get: (id: string) => apiFetch<DocumentDetail>(`/documents/${id}`),
+
+  update: (id: string, input: UpdateDocumentInput) =>
+    apiFetch<DocumentDetail>(`/documents/${id}`, { method: 'PATCH', body: input }),
+
+  remove: (id: string) => apiFetch<void>(`/documents/${id}`, { method: 'DELETE' }),
+};
+
+export const documentTypesApi = {
+  list: () => apiFetch<DocumentTypeSummary[]>('/document-types'),
+
+  create: (input: CreateDocumentTypeInput) =>
+    apiFetch<DocumentTypeSummary>('/document-types', { method: 'POST', body: input }),
+
+  update: (id: string, input: UpdateDocumentTypeInput) =>
+    apiFetch<DocumentTypeSummary>(`/document-types/${id}`, { method: 'PATCH', body: input }),
+
+  remove: (id: string) => apiFetch<void>(`/document-types/${id}`, { method: 'DELETE' }),
 };

@@ -1,0 +1,179 @@
+{
+  "login": {
+    "subtitle": "Sign in",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "emailPlaceholder": "email@organization.uz",
+    "submit": "Sign in",
+    "submitting": "Signing in...",
+    "genericError": "Something went wrong while signing in"
+  },
+  "viewbar": {
+    "dashboard": "Dashboard",
+    "vault": "Vault",
+    "doc": "Document",
+    "graph": "Graph",
+    "mon": "Monitoring"
+  },
+  "breadcrumb": {
+    "dash": "Home",
+    "graph": "Relations",
+    "mon": "Monitoring",
+    "vaultRoot": "Vault"
+  },
+  "topbar": {
+    "searchPlaceholder": "Search: by name, number, or meaning...",
+    "newDocument": "New document",
+    "logout": "Sign out"
+  },
+  "dashboard": {
+    "welcome": "Welcome",
+    "statActiveDocs": "Active documents",
+    "statThisMonth": "this month",
+    "statPendingApproval": "Pending approval",
+    "statNewExternalActs": "New external acts",
+    "statReviewSuggested": "Review suggested",
+    "recentActivity": "Recent activity",
+    "needsAttention": "Needs attention"
+  },
+  "vault": {
+    "segmentTable": "Table",
+    "segmentCard": "Cards",
+    "segmentTimeline": "Timeline",
+    "filterAll": "All",
+    "filterActive": "Active",
+    "filterExpired": "Expired",
+    "filterDraft": "Draft",
+    "emptySubfolder": "This folder has no subfolders.",
+    "emptyDocuments": "This folder has no documents.",
+    "folderMetaWithChildren": "{{count}} documents · has subfolders",
+    "folderMetaPlain": "{{count}} documents",
+    "colDocument": "Document",
+    "colType": "Type",
+    "colTags": "Tags",
+    "colStatus": "Status",
+    "colVersion": "Version",
+    "colApproved": "Approved",
+    "colDept": "Department",
+    "sortLabel": "Sort: approval date",
+    "tableTitle": "Documents",
+    "treeFolders": "Folders",
+    "savedFilters": "Saved filters"
+  },
+  "status": {
+    "active": "Active",
+    "review": "Under review",
+    "expired": "Expired",
+    "draft": "Draft"
+  },
+  "docDetail": {
+    "download": "Download",
+    "newVersion": "New version",
+    "tabDiff": "Comparison",
+    "tabHistory": "History",
+    "versions": "Versions",
+    "addVersion": "+ New version",
+    "relations": "Relations",
+    "addRelation": "+ Add",
+    "audit": "Audit",
+    "comingSoon": "This feature will be added in a later stage",
+    "current": "current"
+  },
+  "graph": {
+    "title": "Relations graph",
+    "subtitle": "Relationships between documents · hover over a node, click it",
+    "legendRegulation": "Regulation",
+    "legendOrder": "Order",
+    "legendRegulationDoc": "Bylaw",
+    "legendExternal": "External act (CBU/Lex)",
+    "internalDoc": "Internal document",
+    "externalDoc": "External act · monitoring",
+    "relationsSuffix": "relations",
+    "openDoc": "Open document",
+    "modeGraph": "Graph",
+    "modeWorkflow": "Workflow"
+  },
+  "monitoring": {
+    "title": "External acts monitoring",
+    "sourceSettings": "Source settings",
+    "filterAll": "All",
+    "filterNew": "New",
+    "filterReviewed": "Reviewed",
+    "relatedDocsLabel": "Related internal documents:",
+    "disclaimer": "The similarity percentage reflects how closely documents relate in meaning, not a conflict verdict — the final decision is made by the responsible employee."
+  },
+  "cmdk": {
+    "placeholder": "Search for a document, folder, or action...",
+    "sectionActions": "Actions",
+    "sectionDocuments": "Documents",
+    "actionUpload": "Upload new document",
+    "actionNewVersion": "Create new version (template)",
+    "actionOpenGraph": "Open graph",
+    "hintSelect": "select",
+    "hintOpen": "open",
+    "hintClose": "close",
+    "semanticHint": "Semantic search: start with \"meaning:\""
+  },
+  "drawer": {
+    "title": "Notifications",
+    "markAllRead": "mark all as read"
+  },
+  "wizard": {
+    "title": "New document",
+    "step1": "Step 1 · Upload files",
+    "step2": "Step 2 · Metadata",
+    "step3": "Step 3 · Relations and review",
+    "uploadPdfLabel": "Approved PDF (required)",
+    "uploadWordLabel": "Word version (recommended)",
+    "uploadPdfHint": "Click or drop a file · max 50 MB",
+    "uploadWordHint": "Will be needed for automatic comparison later",
+    "hashVerified": "✓ hash verified",
+    "fieldDocName": "Document name",
+    "fieldNumber": "Number",
+    "fieldType": "Type",
+    "fieldApprovedDate": "Approval date",
+    "fieldDept": "Department",
+    "fieldTags": "Tags",
+    "relationsOptional": "Relations (optional)",
+    "addRelationBtn": "+ Add relation",
+    "noFolderSelected": "Select a folder first",
+    "noDocumentTypes": "Create a document type in the Admin Panel first",
+    "ready": "Ready",
+    "back": "← Back",
+    "next": "Continue →",
+    "save": "Save ✓"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "documentTypes": "Document types",
+    "documentTypesHint": "Every new document picks its type from this list — used for grouping, search, and relations.",
+    "newType": "+ New type",
+    "typeName": "Name",
+    "typeNamePlaceholder": "e.g. Regulation, Protocol, Act",
+    "noTypesYet": "No document types created yet.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Really delete this type?",
+    "accessDenied": "This page is for administrators only"
+  },
+  "common": {
+    "uploading": "Uploading...",
+    "wordMissing": "Word version not uploaded",
+    "noComparisonYet": "No comparison available for this document yet",
+    "changeStatus": "Change status",
+    "expireReasonLabel": "Reason for expiring",
+    "expireDateLabel": "Effective-to date",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "download": "Download"
+  },
+  "bulkBar": {
+    "selectedSuffix": "documents selected",
+    "download": "Download",
+    "tag": "Tag",
+    "move": "Move",
+    "delete": "Delete"
+  }
+}

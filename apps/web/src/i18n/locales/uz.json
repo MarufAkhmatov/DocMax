@@ -1,0 +1,179 @@
+{
+  "login": {
+    "subtitle": "Tizimga kirish",
+    "emailLabel": "Email",
+    "passwordLabel": "Parol",
+    "emailPlaceholder": "email@tashkilot.uz",
+    "submit": "Kirish",
+    "submitting": "Kirilmoqda...",
+    "genericError": "Kirishda xato yuz berdi"
+  },
+  "viewbar": {
+    "dashboard": "Dashboard",
+    "vault": "Vault",
+    "doc": "Hujjat",
+    "graph": "Graf",
+    "mon": "Monitoring"
+  },
+  "breadcrumb": {
+    "dash": "Bosh sahifa",
+    "graph": "Bog'lanishlar",
+    "mon": "Monitoring",
+    "vaultRoot": "Vault"
+  },
+  "topbar": {
+    "searchPlaceholder": "Qidirish: nom, raqam yoki ma'no bo'yicha...",
+    "newDocument": "Yangi hujjat",
+    "logout": "Chiqish"
+  },
+  "dashboard": {
+    "welcome": "Xush kelibsiz",
+    "statActiveDocs": "Aktiv hujjatlar",
+    "statThisMonth": "shu oyda",
+    "statPendingApproval": "Tasdiq kutmoqda",
+    "statNewExternalActs": "Yangi tashqi aktlar",
+    "statReviewSuggested": "Tekshirish tavsiya",
+    "recentActivity": "Oxirgi faollik",
+    "needsAttention": "E'tibor talab qiladi"
+  },
+  "vault": {
+    "segmentTable": "Jadval",
+    "segmentCard": "Kartochka",
+    "segmentTimeline": "Timeline",
+    "filterAll": "Barchasi",
+    "filterActive": "Aktiv",
+    "filterExpired": "Kuchini yo'qotgan",
+    "filterDraft": "Loyiha",
+    "emptySubfolder": "Bu papkada pastki papkalar yo'q.",
+    "emptyDocuments": "Bu papkada hujjatlar yo'q.",
+    "folderMetaWithChildren": "{{count}} hujjat · ichki papkalar bor",
+    "folderMetaPlain": "{{count}} hujjat",
+    "colDocument": "Hujjat",
+    "colType": "Turi",
+    "colTags": "Teglar",
+    "colStatus": "Holat",
+    "colVersion": "Versiya",
+    "colApproved": "Tasdiqlangan",
+    "colDept": "Bo'lim",
+    "sortLabel": "Saralash: tasdiqlangan sana",
+    "tableTitle": "Hujjatlar",
+    "treeFolders": "Papkalar",
+    "savedFilters": "Saqlangan filtrlar"
+  },
+  "status": {
+    "active": "Aktiv",
+    "review": "Ko'rib chiqilmoqda",
+    "expired": "Kuchini yo'qotgan",
+    "draft": "Loyiha"
+  },
+  "docDetail": {
+    "download": "Yuklab olish",
+    "newVersion": "Yangi versiya",
+    "tabDiff": "Taqqoslama",
+    "tabHistory": "Tarix",
+    "versions": "Versiyalar",
+    "addVersion": "+ Yangi versiya",
+    "relations": "Bog'lanishlar",
+    "addRelation": "+ Qo'shish",
+    "audit": "Audit",
+    "comingSoon": "Bu funksiya keyingi bosqichda qo'shiladi",
+    "current": "joriy"
+  },
+  "graph": {
+    "title": "Bog'lanishlar grafi",
+    "subtitle": "Hujjatlar orasidagi munosabatlar · nuqta ustiga boring, bosing",
+    "legendRegulation": "Nizom",
+    "legendOrder": "Buyruq",
+    "legendRegulationDoc": "Reglament",
+    "legendExternal": "Tashqi akt (CBU/Lex)",
+    "internalDoc": "Ichki hujjat",
+    "externalDoc": "Tashqi akt · monitoring",
+    "relationsSuffix": "bog'lanish",
+    "openDoc": "Hujjatni ochish",
+    "modeGraph": "Graf",
+    "modeWorkflow": "Workflow"
+  },
+  "monitoring": {
+    "title": "Tashqi aktlar monitoringi",
+    "sourceSettings": "Manba sozlamalari",
+    "filterAll": "Barchasi",
+    "filterNew": "Yangi",
+    "filterReviewed": "Ko'rib chiqilgan",
+    "relatedDocsLabel": "Aloqador ichki hujjatlar:",
+    "disclaimer": "O'xshashlik foizi hujjatlar mazmunan yaqinligini bildiradi, ziddiyat hukmi emas — yakuniy xulosani mas'ul xodim beradi."
+  },
+  "cmdk": {
+    "placeholder": "Hujjat, papka yoki amal qidiring...",
+    "sectionActions": "Amallar",
+    "sectionDocuments": "Hujjatlar",
+    "actionUpload": "Yangi hujjat yuklash",
+    "actionNewVersion": "Yangi versiya yaratish (shablon)",
+    "actionOpenGraph": "Grafni ochish",
+    "hintSelect": "tanlash",
+    "hintOpen": "ochish",
+    "hintClose": "yopish",
+    "semanticHint": "Semantik qidiruv: \"ma'no:\" bilan boshlang"
+  },
+  "drawer": {
+    "title": "Xabarnomalar",
+    "markAllRead": "hammasini o'qilgan qilish"
+  },
+  "wizard": {
+    "title": "Yangi hujjat",
+    "step1": "1-qadam · Fayllarni yuklang",
+    "step2": "2-qadam · Metadata",
+    "step3": "3-qadam · Bog'lanishlar va ko'rib chiqish",
+    "uploadPdfLabel": "Tasdiqlangan PDF (majburiy)",
+    "uploadWordLabel": "Word versiyasi (tavsiya)",
+    "uploadPdfHint": "Bosing yoki faylni tashlang · maks. 50 MB",
+    "uploadWordHint": "Kelajakda avtomatik taqqoslama uchun kerak bo'ladi",
+    "hashVerified": "✓ hash tekshirildi",
+    "fieldDocName": "Hujjat nomi",
+    "fieldNumber": "Raqami",
+    "fieldType": "Turi",
+    "fieldApprovedDate": "Tasdiqlangan sana",
+    "fieldDept": "Bo'lim",
+    "fieldTags": "Teglar",
+    "relationsOptional": "Bog'lanishlar (ixtiyoriy)",
+    "addRelationBtn": "+ Bog'lanish qo'shish",
+    "noFolderSelected": "Avval papkani tanlang",
+    "noDocumentTypes": "Avval Admin Panelda hujjat turini yarating",
+    "ready": "Tayyor",
+    "back": "← Orqaga",
+    "next": "Davom etish →",
+    "save": "Saqlash ✓"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "documentTypes": "Hujjat turlari",
+    "documentTypesHint": "Har bir hujjat yaratilganda shu ro'yxatdan tur tanlanadi — guruhlash, qidiruv va bog'lash uchun ishlatiladi.",
+    "newType": "+ Yangi tur",
+    "typeName": "Nomi",
+    "typeNamePlaceholder": "masalan: Nizom, Protokol, Akt",
+    "noTypesYet": "Hali hujjat turi yaratilmagan.",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "edit": "Tahrirlash",
+    "delete": "O'chirish",
+    "deleteConfirm": "Rostdan ham shu turni o'chirasizmi?",
+    "accessDenied": "Bu sahifa faqat administratorlar uchun"
+  },
+  "common": {
+    "uploading": "Yuklanmoqda...",
+    "wordMissing": "Word versiyasi yuklanmagan",
+    "noComparisonYet": "Bu hujjat uchun hali taqqoslama mavjud emas",
+    "changeStatus": "Holatni o'zgartirish",
+    "expireReasonLabel": "Kuchga to'xtash sababi",
+    "expireDateLabel": "Kuchga to'xtash sanasi",
+    "cancel": "Bekor qilish",
+    "confirm": "Tasdiqlash",
+    "download": "Yuklab olish"
+  },
+  "bulkBar": {
+    "selectedSuffix": "hujjat tanlandi",
+    "download": "Yuklab olish",
+    "tag": "Teg",
+    "move": "Ko'chirish",
+    "delete": "O'chirish"
+  }
+}
