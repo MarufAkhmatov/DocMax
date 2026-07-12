@@ -16,9 +16,14 @@ export function HomeAuthLinks() {
       {user ? (
         <>
           <span className="text-[12.5px] font-semibold text-txt2">{user.fullName}</span>
-          <Link href="/settings/profile" className="text-[12.5px] font-bold text-green-text hover:underline">
-            Profil →
-          </Link>
+          <span className="flex gap-4">
+            <Link href="/vault" className="text-[12.5px] font-bold text-green-text hover:underline">
+              Vault →
+            </Link>
+            <Link href="/settings/profile" className="text-[12.5px] font-bold text-green-text hover:underline">
+              Profil →
+            </Link>
+          </span>
         </>
       ) : (
         <Link href="/login" className="text-[12.5px] font-bold text-green-text hover:underline">

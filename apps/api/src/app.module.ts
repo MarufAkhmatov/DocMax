@@ -7,6 +7,7 @@ import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { MailerModule } from './mailer/mailer.module';
 import { AuthModule } from './auth/auth.module';
+import { FoldersModule } from './folders/folders.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -26,6 +27,7 @@ import { AllExceptionsFilter } from './common/http-exception.filter';
     PrismaModule,
     MailerModule,
     AuthModule,
+    FoldersModule,
   ],
   controllers: [HealthController],
   providers: [

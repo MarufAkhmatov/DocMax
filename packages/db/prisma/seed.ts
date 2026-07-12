@@ -5,6 +5,8 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const DEMO_PASSWORD = 'Password123!';
+const ADMIN_EMAIL = 'admin@docmax.local';
+const ADMIN_PASSWORD = 'Admin2026';
 
 async function upsertFolder(params: {
   id: string;
@@ -35,14 +37,15 @@ async function main() {
   console.log(`Organization: ${org.name} (${org.id})`);
 
   const passwordHash = await argon2.hash(DEMO_PASSWORD, { type: argon2.argon2id });
+  const adminPasswordHash = await argon2.hash(ADMIN_PASSWORD, { type: argon2.argon2id });
 
   const admin = await prisma.user.upsert({
-    where: { orgId_email: { orgId: org.id, email: 'admin@demo.docmax.local' } },
+    where: { orgId_email: { orgId: org.id, email: ADMIN_EMAIL } },
     update: {},
     create: {
       orgId: org.id,
-      email: 'admin@demo.docmax.local',
-      passwordHash,
+      email: ADMIN_EMAIL,
+      passwordHash: adminPasswordHash,
       fullName: 'Alisher Administrator',
       role: 'ADMIN',
     },
@@ -69,7 +72,7 @@ async function main() {
       role: 'VIEWER',
     },
   });
-  console.log(`Userlar: ${admin.email} / ${editor.email} / ${viewer.email} (parol: ${DEMO_PASSWORD})`);
+  console.log(`Userlar: ${admin.email} (${ADMIN_PASSWORD}) / ${editor.email} / ${viewer.email} (parol: ${DEMO_PASSWORD})`);
 
   // Papka daraxti va hujjatlar: papka id'lari har seed ishga tushganda tasodifiy
   // generatsiya qilingani uchun (ltree path Prisma orqali izlanmaydi), butun blok
@@ -79,7 +82,7 @@ async function main() {
   if (existingFolders > 0) {
     console.log(`Papkalar allaqachon mavjud (${existingFolders} ta) — papka/hujjat seed o'tkazib yuborildi.`);
     console.log('Seed yakunlandi. Login ma\'lumotlari:');
-    console.log(`  ADMIN:  ${admin.email} / ${DEMO_PASSWORD}`);
+    console.log(`  ADMIN:  ${admin.email} / ${ADMIN_PASSWORD}`);
     console.log(`  EDITOR: ${editor.email} / ${DEMO_PASSWORD}`);
     console.log(`  VIEWER: ${viewer.email} / ${DEMO_PASSWORD}`);
     return;
@@ -138,7 +141,7 @@ async function main() {
   console.log(`${documents.length} ta demo hujjat yaratildi.`);
 
   console.log('Seed yakunlandi. Login ma\'lumotlari:');
-  console.log(`  ADMIN:  ${admin.email} / ${DEMO_PASSWORD}`);
+  console.log(`  ADMIN:  ${admin.email} / ${ADMIN_PASSWORD}`);
   console.log(`  EDITOR: ${editor.email} / ${DEMO_PASSWORD}`);
   console.log(`  VIEWER: ${viewer.email} / ${DEMO_PASSWORD}`);
 }

@@ -2,11 +2,15 @@ import type {
   AcceptInviteInput,
   ApiError,
   AuthUser,
+  CreateFolderInput,
+  FolderNode,
   ForgotPasswordInput,
   InviteInput,
   LoginInput,
+  MoveFolderInput,
   ResetPasswordInput,
   SetupInput,
+  UpdateFolderInput,
   UpdateProfileInput,
 } from '@docmax/shared';
 import { useAuthStore } from '@/stores/auth';
@@ -146,4 +150,25 @@ export const authApi = {
       body: input,
       skipAuthRetry: true,
     }),
+};
+
+export const foldersApi = {
+  tree: (params: { parentId?: string | null; q?: string } = {}) => {
+    const search = new URLSearchParams();
+    if (params.parentId) search.set('parentId', params.parentId);
+    if (params.q) search.set('q', params.q);
+    const qs = search.toString();
+    return apiFetch<FolderNode[]>(`/folders/tree${qs ? `?${qs}` : ''}`);
+  },
+
+  create: (input: CreateFolderInput) =>
+    apiFetch<FolderNode>('/folders', { method: 'POST', body: input }),
+
+  update: (id: string, input: UpdateFolderInput) =>
+    apiFetch<FolderNode>(`/folders/${id}`, { method: 'PATCH', body: input }),
+
+  move: (id: string, input: MoveFolderInput) =>
+    apiFetch<FolderNode>(`/folders/${id}/move`, { method: 'POST', body: input }),
+
+  remove: (id: string) => apiFetch<void>(`/folders/${id}`, { method: 'DELETE' }),
 };

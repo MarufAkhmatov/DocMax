@@ -59,7 +59,7 @@ Servislar:
 
 | Rol | Email | Parol |
 |---|---|---|
-| ADMIN | admin@demo.docmax.local | Password123! |
+| ADMIN | admin@docmax.local | Admin2026 |
 | EDITOR | editor@demo.docmax.local | Password123! |
 | VIEWER | viewer@demo.docmax.local | Password123! |
 
@@ -70,6 +70,13 @@ Servislar:
 - `/invite/[token]` — ADMIN taklifi, 72 soat amal qiladi (`POST /api/v1/auth/invite`)
 - `/forgot-password`, `/reset-password/[token]` — mailpit orqali (http://localhost:8025), 1 soat amal qiladi
 - Login 5/min/IP bilan cheklangan (TZ-0 §7)
+
+## Papkalar / Vault (TZ-1 §1.2)
+
+- `/vault` — chap panelda daraxt (lazy-load, qidiruv, drag&drop bilan ko'chirish), o'ngda tanlangan papkaning ichki papkalari `.folder` kartalar setkasida (`design/docmax-ui-v3.html` etalon)
+- `GET /folders/tree` (parentId yoki q bilan), `POST /folders`, `PATCH /folders/:id`, `POST /folders/:id/move`, `DELETE /folders/:id` — CRUD/move/delete faqat ADMIN
+- folders.path — ltree, papka UUID'i segment sifatida ishlatiladi (nomdan mustaqil); ko'chirishda butun subtree bitta tranzaksiyada yangilanadi, o'z avlodiga ko'chirish 409 bilan taqiqlanadi
+- Bo'sh bo'lmagan (bola papka yoki hujjati bor) papka o'chirilmaydi (409)
 
 ## Buyruqlar
 
@@ -90,6 +97,6 @@ pnpm lint         # eslint
 - [x] **1-milestone** — monorepo skelet (web, api, worker, db, shared, docker compose)
 - [x] **2-milestone** — to'liq DB sxema, tenant-izolyatsiya, seed
 - [x] **3-milestone** — auth (TZ-1 §1.1)
-- [ ] **4-milestone** — papkalar (TZ-1 §1.2)
+- [x] **4-milestone** — papkalar (TZ-1 §1.2)
 - [ ] **5-milestone** — hujjatlar (TZ-1 §1.3)
 - [ ] **6-milestone** — versiyalash + taqqoslama shablon (TZ-1 §1.4)

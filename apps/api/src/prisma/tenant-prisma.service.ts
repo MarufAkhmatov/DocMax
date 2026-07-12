@@ -9,17 +9,25 @@ import type { AuthenticatedRequest } from '../auth/types';
 /**
  * So'rov-darajali (request-scoped), joriy foydalanuvchining org_id'i bilan
  * cheklangan Prisma client (CLAUDE.md 1-qoida — packages/db/src/tenant-client.ts).
- * Faqat JwtAuthGuard'dan o'tgan (req.user mavjud) yo'llarda inject qilinadi.
+ *
+ * `.client` LAZY getter sifatida yozilgan: NestJS request-scoped provider'larni
+ * controller uchun konstruktor bosqichida tayyorlaydi — bu global guard'lar
+ * (JwtAuthGuard) `req.user`ni to'ldirishidan OLDIN sodir bo'lishi mumkin. Shuning
+ * uchun `req.user` tekshiruvi konstruktorda emas, faqat `.client` haqiqatan
+ * ishlatilganda (har doim guard'lardan keyin, controller metodi ichida) bajariladi.
  */
 @Injectable({ scope: Scope.REQUEST })
 export class TenantPrismaService {
-  public readonly client: ReturnType<typeof forOrg>;
+  constructor(
+    @Inject(REQUEST) private readonly request: Request,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  constructor(@Inject(REQUEST) request: Request, prisma: PrismaService) {
-    const user = (request as AuthenticatedRequest).user;
+  get client(): ReturnType<typeof forOrg> {
+    const user = (this.request as AuthenticatedRequest).user;
     if (!user) {
       throw unauthorized();
     }
-    this.client = forOrg(prisma, user.orgId);
+    return forOrg(this.prisma, user.orgId);
   }
 }

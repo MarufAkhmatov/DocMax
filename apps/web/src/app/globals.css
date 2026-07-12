@@ -12,6 +12,8 @@
   --green-deep: #2fa45b;
   --green-soft: rgba(104, 231, 142, 0.14);
   --bg: #000b1a; /* Blue Charcoal */
+  --panel: rgba(255, 255, 255, 0.045);
+  --panel2: rgba(255, 255, 255, 0.08);
   --glass: rgba(255, 255, 255, 0.06);
   --glass-brd: rgba(255, 255, 255, 0.1);
   --txt: #edf3f0;
@@ -52,6 +54,8 @@
 .light {
   --green-soft: rgba(47, 164, 91, 0.12);
   --bg: #edf2ef;
+  --panel: rgba(255, 255, 255, 0.72);
+  --panel2: #ffffff;
   --glass: rgba(255, 255, 255, 0.68);
   --glass-brd: rgba(10, 30, 25, 0.1);
   --txt: #0b1a16;
@@ -75,6 +79,8 @@
   --color-green-soft: var(--green-soft);
   --color-green-text: var(--green-text);
   --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel2: var(--panel2);
   --color-glass: var(--glass);
   --color-glass-brd: var(--glass-brd);
   --color-txt: var(--txt);
@@ -143,6 +149,416 @@
     border: 1px solid var(--glass-brd);
     backdrop-filter: blur(16px);
   }
+}
+
+/* ==========================================================================
+ * Etalon komponentlar — design/docmax-ui-v3.html'dan bitmateriyalik ko'chirilgan
+ * (Tailwind utility bilan taxminiy emas, aynan CSS klasslar — DESIGN.md §4).
+ * ========================================================================== */
+
+/* ---------- Shell / rail (chap ikonka-panel) ---------- */
+.shell {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+.rail {
+  width: 68px;
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  border-right: 1px solid var(--glass-brd);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 0;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 20;
+  flex-shrink: 0;
+}
+.logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--green);
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+  box-shadow: 0 6px 18px rgba(104, 231, 142, 0.35);
+}
+.ric {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  color: var(--txt2);
+  cursor: pointer;
+  transition: 0.2s;
+  position: relative;
+}
+.ric:hover {
+  background: var(--panel2);
+  color: var(--txt);
+}
+.ric.on {
+  background: var(--green-soft);
+  color: var(--green-text);
+}
+.ric svg {
+  width: 19px;
+  height: 19px;
+}
+.rail .spacer {
+  flex: 1;
+}
+
+/* ---------- Tree (papkalar paneli) ---------- */
+.tree {
+  width: 242px;
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  border-right: 1px solid var(--glass-brd);
+  padding: 20px 14px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+  flex-shrink: 0;
+}
+.tree h3 {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--txt2);
+  text-transform: uppercase;
+  padding: 0 8px;
+  margin: 14px 0 10px;
+}
+.tree h3:first-child {
+  margin-top: 0;
+}
+.tnode {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--txt2);
+  cursor: pointer;
+  transition: 0.15s;
+}
+.tnode:hover {
+  background: var(--panel2);
+  color: var(--txt);
+}
+.tnode.on {
+  background: var(--green-soft);
+  color: var(--green-text);
+}
+.tnode .cnt {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--txt3);
+  font-weight: 700;
+}
+.tnode svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.sub {
+  margin-left: 20px;
+  border-left: 1.5px solid var(--glass-brd);
+  padding-left: 6px;
+}
+
+/* ---------- Main / topbar ---------- */
+.main {
+  flex: 1;
+  padding: 24px 32px 90px;
+  min-width: 0;
+}
+.top {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 24px;
+}
+.crumb {
+  font-size: 13px;
+  color: var(--txt3);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.crumb b {
+  color: var(--txt);
+  font-weight: 700;
+}
+.search {
+  flex: 1;
+  max-width: 430px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  border-radius: 14px;
+  padding: 10px 16px;
+  color: var(--txt3);
+  font-size: 13px;
+  backdrop-filter: blur(12px);
+}
+.search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--txt);
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+}
+.search input::placeholder {
+  color: var(--txt3);
+}
+.tbtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  border-radius: 13px;
+  padding: 9px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--txt2);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: 0.2s;
+  font-family: 'Manrope', sans-serif;
+  white-space: nowrap;
+}
+.tbtn:hover {
+  color: var(--txt);
+  background: var(--panel2);
+}
+.tbtn.pri {
+  background: var(--green);
+  color: #04240f;
+  border-color: transparent;
+  box-shadow: 0 8px 22px rgba(104, 231, 142, 0.3);
+}
+.ava {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #68e78e, #2fa45b);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 13px;
+  color: #04240f;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.htitle {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.htitle h1 {
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.htitle p {
+  font-size: 13px;
+  color: var(--txt2);
+  margin-top: 4px;
+}
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.chip {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+  color: var(--txt2);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: 0.15s;
+}
+.chip:hover {
+  color: var(--txt);
+}
+.chip.on {
+  background: var(--green-soft);
+  border-color: rgba(104, 231, 142, 0.4);
+  color: var(--green-text);
+}
+.card {
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  border-radius: var(--radius-card);
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+}
+
+/* ---------- Papka kartasi (.folder) — shisha + orqadagi "qog'oz varaqlar" ---------- */
+.folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px;
+  margin-bottom: 26px;
+}
+.folder {
+  position: relative;
+  border-radius: var(--radius-card);
+  padding: 102px 18px 16px;
+  cursor: pointer;
+  isolation: isolate;
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  backdrop-filter: blur(16px);
+  transition:
+    transform 0.25s,
+    box-shadow 0.25s;
+}
+.folder:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow);
+}
+.folder::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 44%;
+  height: 26px;
+  border-radius: 14px 18px 0 0;
+  background: inherit;
+  border: 1px solid var(--glass-brd);
+  border-bottom: none;
+  transform: translateY(-12px);
+  backdrop-filter: blur(16px);
+}
+.papers {
+  position: absolute;
+  top: -2px;
+  left: 14px;
+  right: 14px;
+  height: 90px;
+  z-index: -1;
+}
+.sheet {
+  position: absolute;
+  bottom: 6px;
+  background: var(--paper);
+  border-radius: 8px;
+  width: 31%;
+  height: 74px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  padding: 9px 8px;
+}
+.sheet i {
+  display: block;
+  height: 3.5px;
+  border-radius: 2px;
+  background: #c9d4ce;
+  margin-bottom: 4.5px;
+}
+.sheet i:nth-child(1) {
+  width: 85%;
+  background: #aebdb5;
+}
+.sheet i:nth-child(3) {
+  width: 60%;
+}
+.sheet i:nth-child(4) {
+  width: 72%;
+}
+.sheet.s1 {
+  left: 2%;
+  transform: rotate(-5deg) translateY(6px);
+}
+.sheet.s2 {
+  left: 34%;
+  transform: translateY(-2px);
+  z-index: 2;
+}
+.sheet.s3 {
+  right: 2%;
+  transform: rotate(5deg) translateY(6px);
+}
+.folder.acc {
+  background: linear-gradient(160deg, rgba(104, 231, 142, 0.32), rgba(47, 164, 91, 0.18));
+  border-color: rgba(104, 231, 142, 0.45);
+}
+.light .folder.acc {
+  background: linear-gradient(160deg, rgba(104, 231, 142, 0.5), rgba(163, 235, 188, 0.35));
+}
+.fname {
+  font-family: 'Sora', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.fmeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--txt2);
+  font-weight: 600;
+}
+.fdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+}
+.fbadge {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 10.5px;
+  font-weight: 800;
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--txt2);
+  backdrop-filter: blur(8px);
+}
+.folder.acc .fbadge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #0b3a1e;
+  border-color: transparent;
+}
+.folder .aclock {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  width: 13px;
+  height: 13px;
+  color: var(--txt2);
+  z-index: 3;
 }
 
 /* Fon nafasi: sahifa orqasida 2 ta harakatsiz radial yashil dog' (DESIGN.md §3) */
