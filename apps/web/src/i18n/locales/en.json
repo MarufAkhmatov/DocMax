@@ -71,6 +71,7 @@
   },
   "docDetail": {
     "download": "Download",
+    "edit": "Edit",
     "newVersion": "New version",
     "tabDiff": "Comparison",
     "tabHistory": "History",

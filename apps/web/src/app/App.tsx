@@ -4,7 +4,7 @@ import {
   Sun, Moon, Bell, Search, Plus, Download, Upload, X, Lock,
   FileText, Check, Eye, Clock, Shield, Tag, Move, Trash2,
   ChevronRight, ChevronDown, GitBranch, Globe, BookOpen,
-  ArrowRight, MoreHorizontal, Zap, Command, Loader2
+  ArrowRight, MoreHorizontal, Zap, Command, Loader2, Pencil
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as mammoth from "mammoth";
@@ -445,6 +445,11 @@ export default function App() {
   const [statusChangeDate, setStatusChangeDate] = useState("");
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
 
+  // Hujjat metadata'sini tahrirlash (nom, raqam, tur, sana, teglar)
+  const [docEditOpen, setDocEditOpen] = useState(false);
+  const [docEditForm, setDocEditForm] = useState({ title: "", docNumber: "", docTypeId: "", approvedAt: "", tagsRaw: "" });
+  const [docEditSaving, setDocEditSaving] = useState(false);
+
   // Yuklash wizard'i — haqiqiy fayl/hujjat holati
   const [pdfUpload, setPdfUpload] = useState<FileSummary | null>(null);
   const [docxUpload, setDocxUpload] = useState<FileSummary | null>(null);
@@ -747,6 +752,40 @@ export default function App() {
       setStatusChangeSaving(false);
     }
   }, [docDetail, statusChangeDate, statusChangeNote, refetchDocuments, toast]);
+
+  // ── Hujjat metadata'sini tahrirlash (nom, raqam, tur, sana, teglar) ────────
+  const openDocEdit = useCallback(() => {
+    if (!docDetail) return;
+    setDocEditForm({
+      title: docDetail.title,
+      docNumber: docDetail.docNumber ?? "",
+      docTypeId: docDetail.docTypeId,
+      approvedAt: docDetail.approvedAt ? docDetail.approvedAt.slice(0, 10) : "",
+      tagsRaw: docDetail.tags.join(", "),
+    });
+    setDocEditOpen(true);
+  }, [docDetail]);
+
+  const handleSaveDocEdit = useCallback(async () => {
+    if (!docDetail || !docEditForm.title.trim()) return;
+    setDocEditSaving(true);
+    try {
+      const updated = await documentsApi.update(docDetail.id, {
+        title: docEditForm.title.trim(),
+        docNumber: docEditForm.docNumber.trim() || null,
+        docTypeId: docEditForm.docTypeId,
+        approvedAt: docEditForm.approvedAt ? new Date(docEditForm.approvedAt) : null,
+        tagNames: docEditForm.tagsRaw.split(",").map(s => s.trim()).filter(Boolean),
+      });
+      setDocDetail(updated);
+      refetchDocuments();
+      setDocEditOpen(false);
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Hujjatni saqlashda xato yuz berdi");
+    } finally {
+      setDocEditSaving(false);
+    }
+  }, [docDetail, docEditForm, refetchDocuments, toast]);
 
   // Word (.docx) preview — mammoth orqali client-side HTML'ga o'giriladi
   const [wordHtml, setWordHtml] = useState<string | null>(null);
@@ -1398,6 +1437,59 @@ export default function App() {
                   </div>
                 </div>
               )}
+
+              {docEditOpen && (
+                <div className="mt-3 space-y-2 rounded-xl p-3.5" style={{ background: panel, border: `1px solid ${panelBorder}` }}>
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t("wizard.fieldDocName")}</label>
+                    <input value={docEditForm.title} onChange={e => setDocEditForm(f => ({ ...f, title: e.target.value }))}
+                      className="w-full outline-none rounded-lg text-[13px] font-semibold px-3 py-2"
+                      style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t("wizard.fieldNumber")}</label>
+                      <input value={docEditForm.docNumber} onChange={e => setDocEditForm(f => ({ ...f, docNumber: e.target.value }))}
+                        className="w-full outline-none rounded-lg text-[13px] font-semibold px-3 py-2"
+                        style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t("wizard.fieldType")}</label>
+                      <select value={docEditForm.docTypeId} onChange={e => setDocEditForm(f => ({ ...f, docTypeId: e.target.value }))}
+                        className="w-full outline-none rounded-lg text-[13px] font-semibold px-3 py-2 cursor-pointer"
+                        style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }}>
+                        {documentTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t("wizard.fieldApprovedDate")}</label>
+                    <input type="date" value={docEditForm.approvedAt} onChange={e => setDocEditForm(f => ({ ...f, approvedAt: e.target.value }))}
+                      className="w-full outline-none rounded-lg text-[13px] font-semibold px-3 py-2"
+                      style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t("wizard.fieldTags")}</label>
+                    <input value={docEditForm.tagsRaw} onChange={e => setDocEditForm(f => ({ ...f, tagsRaw: e.target.value }))}
+                      placeholder="CBU, Moliya, ..."
+                      className="w-full outline-none rounded-lg text-[13px] font-semibold px-3 py-2"
+                      style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setDocEditOpen(false)}
+                      className="text-[11.5px] font-bold px-3 py-1.5 rounded-lg cursor-pointer"
+                      style={{ background: "transparent", border: `1px solid ${panelBorder}`, color: txt2 }}>
+                      {t("common.cancel")}
+                    </button>
+                    <button onClick={handleSaveDocEdit} disabled={!docEditForm.title.trim() || docEditSaving}
+                      className="flex items-center gap-2 text-[11.5px] font-bold px-3 py-1.5 rounded-lg cursor-pointer disabled:opacity-50"
+                      style={{ background: lime, color: "#0A1600", border: "none" }}>
+                      {docEditSaving && <Loader2 size={12} className="animate-spin" />}
+                      {t("common.save")}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <button onClick={() => currentVersion && window.open(currentVersion.pdf.downloadUrl, "_blank")}
@@ -1405,6 +1497,13 @@ export default function App() {
                 style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
                 <Download size={14} /> {t("docDetail.download")}
               </button>
+              {canEditDocuments && (
+                <button onClick={openDocEdit}
+                  className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
+                  style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                  <Pencil size={14} /> {t("docDetail.edit")}
+                </button>
+              )}
               {canEditDocuments && (
                 <button onClick={() => toast(t("docDetail.comingSoon"))}
                   className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
