@@ -9,7 +9,7 @@ import {
 import { useTranslation } from "react-i18next";
 import * as mammoth from "mammoth";
 import type { DocumentDetail, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode } from "@docmax/shared";
-import { authApi, foldersApi, documentsApi, documentTypesApi, filesApi, ApiRequestError } from "@/lib/api";
+import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, filesApi, ApiRequestError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
 import Login from "./Login";
@@ -435,6 +435,7 @@ export default function App() {
 
   // Admin Panel orqali yaratiladigan hujjat turlari (enum o'rniga) — wizard va filtrlar shundan foydalanadi
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeSummary[]>([]);
+  const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
 
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [docDetail, setDocDetail] = useState<DocumentDetail | null>(null);
@@ -517,6 +518,12 @@ export default function App() {
   useEffect(() => {
     if (!user) { setDocumentTypes([]); return; }
     documentTypesApi.list().then(setDocumentTypes).catch(() => {});
+  }, [user]);
+
+  // Kompaniya logotipi (Admin Panel — no-code brend sozlamasi) — Rail sidebar'da ko'rsatiladi
+  useEffect(() => {
+    if (!user) { setOrgLogoUrl(null); return; }
+    organizationsApi.branding().then(b => setOrgLogoUrl(b.logoUrl)).catch(() => {});
   }, [user]);
 
   // Joriy papka (folderStack oxiri) o'zgarganda bolalarini yuklaydi
@@ -839,6 +846,13 @@ export default function App() {
       display: "flex", flexDirection: "column", alignItems: "center",
       padding: "18px 0", gap: 8, position: "sticky", top: 0, height: "100vh", zIndex: 20, flexShrink: 0,
     }}>
+      {/* Kompaniya logotipi — Admin Panel'dan no-code sozlanadi, faqat o'rnatilgan bo'lsa ko'rinadi */}
+      {orgLogoUrl && (
+        <div style={{ width: 52, height: 44, display: "grid", placeItems: "center", marginBottom: 4 }}>
+          <img src={orgLogoUrl} alt="Logo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+        </div>
+      )}
+
       {/* Logo */}
       <div style={{
         width: 38, height: 38, borderRadius: 12, background: lime,
@@ -2102,7 +2116,9 @@ export default function App() {
             {view === "admin" && (
               (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") ? (
                 <AdminPanel theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} toast={toast}
-                  onTypesChanged={() => documentTypesApi.list().then(setDocumentTypes).catch(() => {})} />
+                  onTypesChanged={() => documentTypesApi.list().then(setDocumentTypes).catch(() => {})}
+                  logoUrl={orgLogoUrl}
+                  onLogoChanged={(url) => setOrgLogoUrl(url)} />
               ) : (
                 <div style={{ padding: 48, textAlign: "center", color: txt2 }}>{t("admin.accessDenied")}</div>
               )

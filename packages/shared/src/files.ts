@@ -7,6 +7,11 @@ import type { FileStatus } from './enums';
 export const UPLOADABLE_MIME_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  // Admin Panel — kompaniya logotipi (no-code brend sozlamasi).
+  'image/png',
+  'image/jpeg',
+  'image/svg+xml',
+  'image/webp',
 ] as const;
 
 export const MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB (wizard'dagi ko'rsatma bilan mos)

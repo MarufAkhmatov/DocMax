@@ -14,6 +14,10 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 const EXT_BY_MIME: Record<string, string> = {
   'application/pdf': '.pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/svg+xml': '.svg',
+  'image/webp': '.webp',
 };
 
 /**

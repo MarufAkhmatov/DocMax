@@ -6,3 +6,4 @@ export * from './folders';
 export * from './files';
 export * from './documents';
 export * from './document-types';
+export * from './organizations';

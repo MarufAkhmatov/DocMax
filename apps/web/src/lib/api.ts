@@ -15,6 +15,7 @@ import type {
   ListDocumentsQuery,
   LoginInput,
   MoveFolderInput,
+  OrganizationBranding,
   PaginatedDocuments,
   PresignFileInput,
   PresignResult,
@@ -269,4 +270,13 @@ export const documentTypesApi = {
     apiFetch<DocumentTypeSummary>(`/document-types/${id}`, { method: 'PATCH', body: input }),
 
   remove: (id: string) => apiFetch<void>(`/document-types/${id}`, { method: 'DELETE' }),
+};
+
+export const organizationsApi = {
+  branding: () => apiFetch<OrganizationBranding>('/organizations/branding'),
+
+  setLogo: (fileId: string) =>
+    apiFetch<OrganizationBranding>('/organizations/branding/logo', { method: 'PATCH', body: { fileId } }),
+
+  removeLogo: () => apiFetch<OrganizationBranding>('/organizations/branding/logo', { method: 'DELETE' }),
 };

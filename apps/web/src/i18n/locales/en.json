@@ -149,6 +149,11 @@
   },
   "admin": {
     "title": "Admin Panel",
+    "branding": "Company branding",
+    "brandingHint": "Shown above the DocMax icon in the left rail — any image size works.",
+    "companyLogo": "Company Logo",
+    "replaceLogo": "Replace",
+    "removeLogo": "Remove",
     "documentTypes": "Document types",
     "documentTypesHint": "Every new document picks its type from this list — used for grouping, search, and relations.",
     "newType": "+ New type",

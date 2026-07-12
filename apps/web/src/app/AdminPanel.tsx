@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2, Pencil, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, X } from "lucide-react";
 import type { DocumentTypeSummary } from "@docmax/shared";
-import { documentTypesApi, ApiRequestError } from "@/lib/api";
+import { documentTypesApi, organizationsApi, filesApi, ApiRequestError } from "@/lib/api";
 
 export interface AdminTheme {
   isDark: boolean;
@@ -16,9 +16,41 @@ export interface AdminTheme {
 
 const TYPE_COLORS = ["#C6F24E", "#6BB4F5", "#B39CF5", "#F0C24B", "#F07A6B", "#5EEAD4"];
 
-export default function AdminPanel({ theme, toast, onTypesChanged }: { theme: AdminTheme; toast: (msg: string) => void; onTypesChanged?: () => void }) {
+export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLogoChanged }: {
+  theme: AdminTheme;
+  toast: (msg: string) => void;
+  onTypesChanged?: () => void;
+  logoUrl: string | null;
+  onLogoChanged: (url: string | null) => void;
+}) {
   const { t } = useTranslation();
   const { lime, panel, panelBorder, txt, txt2, txt3, isDark } = theme;
+
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleLogoFile(file: File) {
+    setLogoUploading(true);
+    try {
+      const summary = await filesApi.upload(file);
+      const result = await organizationsApi.setLogo(summary.id);
+      onLogoChanged(result.logoUrl);
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Logotipni yuklashda xato yuz berdi");
+    } finally {
+      setLogoUploading(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  }
+
+  async function handleLogoRemove() {
+    try {
+      await organizationsApi.removeLogo();
+      onLogoChanged(null);
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+    }
+  }
 
   const [types, setTypes] = useState<DocumentTypeSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -107,6 +139,46 @@ export default function AdminPanel({ theme, toast, onTypesChanged }: { theme: Ad
         <h1 className="font-['Sora'] text-2xl font-semibold tracking-tight" style={{ color: txt }}>
           {t("admin.title")}
         </h1>
+      </div>
+
+      <div style={{ ...glass, padding: 22, marginBottom: 20 }}>
+        <h2 className="font-['Sora'] text-[15px] font-semibold mb-1.5" style={{ color: txt }}>
+          {t("admin.branding")}
+        </h2>
+        <p className="text-[12px] font-semibold mb-4" style={{ color: txt3 }}>{t("admin.brandingHint")}</p>
+
+        <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); }} />
+
+        {logoUrl ? (
+          <div className="flex items-center gap-4">
+            <div className="rounded-[14px] flex items-center justify-center overflow-hidden"
+              style={{ width: 220, height: 90, background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}` }}>
+              <img src={logoUrl} alt="Logo" style={{ maxWidth: "90%", maxHeight: "80%", objectFit: "contain" }} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => logoInputRef.current?.click()} disabled={logoUploading}
+                className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-xl cursor-pointer disabled:opacity-50"
+                style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                {logoUploading && <Loader2 size={13} className="animate-spin" />}
+                {t("admin.replaceLogo")}
+              </button>
+              <button onClick={handleLogoRemove}
+                className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-xl cursor-pointer"
+                style={{ background: "transparent", border: `1px solid ${panelBorder}`, color: "#F07A6B" }}>
+                <X size={13} /> {t("admin.removeLogo")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div onClick={() => !logoUploading && logoInputRef.current?.click()}
+            className="rounded-[14px] flex items-center justify-center cursor-pointer"
+            style={{ width: 220, height: 90, background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1.5px dashed ${panelBorder}` }}>
+            {logoUploading
+              ? <Loader2 size={18} className="animate-spin" style={{ color: txt3 }} />
+              : <span className="text-[12.5px] font-bold" style={{ color: txt3 }}>{t("admin.companyLogo")}</span>}
+          </div>
+        )}
       </div>
 
       <div style={{ ...glass, padding: 22 }}>

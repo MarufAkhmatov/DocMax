@@ -149,6 +149,11 @@
   },
   "admin": {
     "title": "Admin Panel",
+    "branding": "Kompaniya brendi",
+    "brandingHint": "Chap paneldagi DocMax ikonkasi tepasida ko'rsatiladigan logotip — istalgan o'lchamdagi rasm mos keladi.",
+    "companyLogo": "Company Logo",
+    "replaceLogo": "Almashtirish",
+    "removeLogo": "O'chirish",
     "documentTypes": "Hujjat turlari",
     "documentTypesHint": "Har bir hujjat yaratilganda shu ro'yxatdan tur tanlanadi — guruhlash, qidiruv va bog'lash uchun ishlatiladi.",
     "newType": "+ Yangi tur",

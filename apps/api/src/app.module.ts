@@ -13,6 +13,7 @@ import { QueueModule } from './queue/queue.module';
 import { FilesModule } from './files/files.module';
 import { DocumentsModule } from './documents/documents.module';
 import { DocumentTypesModule } from './document-types/document-types.module';
+import { OrganizationsModule } from './organizations/organizations.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -38,6 +39,7 @@ import { AllExceptionsFilter } from './common/http-exception.filter';
     FilesModule,
     DocumentsModule,
     DocumentTypesModule,
+    OrganizationsModule,
   ],
   controllers: [HealthController],
   providers: [
