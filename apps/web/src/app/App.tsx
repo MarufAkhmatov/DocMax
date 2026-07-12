@@ -179,6 +179,115 @@ function FolderCard({ folder, onClick }: { folder: FolderCardData; onClick: () =
   );
 }
 
+// ─── Folder Tree Node (chap paneldagi "Papkalar" — real backend, rekursiv "+") ─
+type FolderPathEntry = { id: string | null; name: string | null };
+
+function FolderTreeNode({
+  folder, depth, ancestors, activeFolderId, isAdmin, onNavigate, toast,
+  lime, txt, txt2, txt3, panel, panelBorder, isDark,
+}: {
+  folder: FolderNode;
+  depth: number;
+  ancestors: FolderPathEntry[];
+  activeFolderId: string | null;
+  isAdmin: boolean;
+  onNavigate: (path: FolderPathEntry[]) => void;
+  toast: (msg: string) => void;
+  lime: string; txt: string; txt2: string; txt3: string; panel: string; panelBorder: string; isDark: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [children, setChildren] = useState<FolderNode[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const path = [...ancestors, { id: folder.id, name: folder.name }];
+
+  const loadChildren = () => {
+    setLoading(true);
+    foldersApi.tree({ parentId: folder.id }).then(setChildren).catch(() => setChildren([])).finally(() => setLoading(false));
+  };
+
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!expanded && children === null) loadChildren();
+    setExpanded((x) => !x);
+  };
+
+  const handleCreate = async () => {
+    const name = createName.trim();
+    if (!name) return;
+    setSaving(true);
+    try {
+      await foldersApi.create({ name, parentId: folder.id });
+      setCreateOpen(false);
+      setCreateName("");
+      if (!expanded) setExpanded(true);
+      loadChildren();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Papka yaratishda xato yuz berdi");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isActive = folder.id === activeFolderId;
+  const inputStyle: React.CSSProperties = {
+    background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt,
+  };
+
+  return (
+    <div>
+      <div onClick={() => onNavigate(path)}
+        style={{
+          display: "flex", alignItems: "center", gap: 6, padding: "8px 10px",
+          borderRadius: 11, fontSize: 13.5, fontWeight: 600, cursor: "pointer", transition: ".15s",
+          background: isActive ? `${lime}18` : "transparent",
+          color: isActive ? lime : txt2,
+        }}>
+        <span onClick={toggle} className="flex-shrink-0" style={{ display: "grid", placeItems: "center", width: 14, height: 14 }}>
+          {folder.hasChildren || children ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : null}
+        </span>
+        <FolderOpen size={15} className="flex-shrink-0" />
+        <span className="flex-1 truncate">{folder.name}</span>
+        <span className="text-[11px] font-bold flex-shrink-0" style={{ color: txt3 }}>{folder.documentCount}</span>
+        {isAdmin && (
+          <span onClick={(e) => { e.stopPropagation(); if (!expanded) { setExpanded(true); if (children === null) loadChildren(); } setCreateOpen((o) => !o); }}
+            title="+ Yangi papka"
+            className="flex-shrink-0" style={{ display: "grid", placeItems: "center", width: 18, height: 18, borderRadius: 6, color: txt3 }}>
+            <Plus size={12} />
+          </span>
+        )}
+      </div>
+
+      {createOpen && (
+        <div style={{ marginLeft: 20 + depth * 14, marginTop: 4, marginBottom: 4 }} onClick={(e) => e.stopPropagation()}>
+          <input autoFocus value={createName} onChange={(e) => setCreateName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreateOpen(false); }}
+            placeholder="Papka nomi"
+            className="w-full outline-none rounded-lg text-[12px] font-semibold px-2.5 py-1.5"
+            style={inputStyle} disabled={saving} />
+        </div>
+      )}
+
+      {expanded && (
+        <div style={{ marginLeft: 20, borderLeft: `1.5px solid ${panelBorder}`, paddingLeft: 6 }}>
+          {loading ? (
+            <div style={{ padding: "6px 10px", fontSize: 12, color: txt3 }}>…</div>
+          ) : (
+            children?.map((c) => (
+              <FolderTreeNode key={c.id} folder={c} depth={depth + 1} ancestors={path}
+                activeFolderId={activeFolderId} isAdmin={isAdmin} onNavigate={onNavigate} toast={toast}
+                lime={lime} txt={txt} txt2={txt2} txt3={txt3} panel={panel} panelBorder={panelBorder} isDark={isDark} />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Graph View ───────────────────────────────────────────────────────────────
 function GraphView({ onNavigate }: { onNavigate: (v: View) => void }) {
   const { t } = useTranslation();
@@ -398,7 +507,6 @@ export default function App() {
   const [vaultSeg, setVaultSeg] = useState<"table" | "card" | "timeline">("table");
   const [monFilter, setMonFilter] = useState("all");
   const [treeOpen, setTreeOpen] = useState(true);
-  const [treeExpanded, setTreeExpanded] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   // ── Papkalar (real backend — TZ-1 §1.2, foldersApi.tree) ──────────────────
@@ -415,6 +523,12 @@ export default function App() {
   const [folderCreateOpen, setFolderCreateOpen] = useState(false);
   const [folderCreateName, setFolderCreateName] = useState("");
   const [folderCreateSaving, setFolderCreateSaving] = useState(false);
+
+  // Chap paneldagi "Papkalar" daraxti (real backend) — ildiz darajasi
+  const [sidebarRoots, setSidebarRoots] = useState<FolderNode[]>([]);
+  const [sidebarCreateOpen, setSidebarCreateOpen] = useState(false);
+  const [sidebarCreateName, setSidebarCreateName] = useState("");
+  const [sidebarCreateSaving, setSidebarCreateSaving] = useState(false);
 
   // ── Hujjatlar (real backend — TZ-1 §1.3, documentsApi) ─────────────────────
   const [docFilters, setDocFilters] = useState<{ status?: string; docTypeId?: string; year?: number; tag?: string }>(
@@ -525,6 +639,16 @@ export default function App() {
     if (!user) { setOrgLogoUrl(null); return; }
     organizationsApi.branding().then(b => setOrgLogoUrl(b.logoUrl)).catch(() => {});
   }, [user]);
+
+  // Chap paneldagi "Papkalar" daraxti (real backend) — login qilingach ildiz darajasi yuklanadi
+  const refetchSidebarRoots = useCallback(() => {
+    foldersApi.tree({}).then(setSidebarRoots).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!user) { setSidebarRoots([]); return; }
+    refetchSidebarRoots();
+  }, [user, refetchSidebarRoots]);
+
 
   // Joriy papka (folderStack oxiri) o'zgarganda bolalarini yuklaydi
   useEffect(() => {
@@ -649,6 +773,27 @@ export default function App() {
   }, [folderCreateName, currentFolder.id, refetchFolders, toast]);
 
   const goView = (v: View) => { setView(v); window.scrollTo({ top: 0 }); };
+
+  const handleSidebarNavigate = useCallback((path: FolderPathEntry[]) => {
+    setFolderStack(path);
+    goView("vault");
+  }, []);
+
+  const handleSidebarCreate = useCallback(async () => {
+    const name = sidebarCreateName.trim();
+    if (!name) return;
+    setSidebarCreateSaving(true);
+    try {
+      await foldersApi.create({ name, parentId: null });
+      setSidebarCreateOpen(false);
+      setSidebarCreateName("");
+      refetchSidebarRoots();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Papka yaratishda xato yuz berdi");
+    } finally {
+      setSidebarCreateSaving(false);
+    }
+  }, [sidebarCreateName, refetchSidebarRoots, toast]);
 
   const toggleDoc = (id: string) =>
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -918,45 +1063,32 @@ export default function App() {
       borderRight: `1px solid ${panelBorder}`,
       padding: "20px 14px", position: "sticky", top: 0, height: "100vh", overflowY: "auto", flexShrink: 0,
     }}>
-      <p className="text-[12.5px] font-semibold uppercase tracking-wide mb-2.5 px-2 mt-0" style={{ color: txt3, letterSpacing: ".4px" }}>{t("vault.treeFolders")}</p>
+      <div className="flex items-center justify-between mb-2.5 px-2 mt-0">
+        <p className="text-[12.5px] font-semibold uppercase tracking-wide" style={{ color: txt3, letterSpacing: ".4px" }}>{t("vault.treeFolders")}</p>
+        {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
+          <span onClick={() => setSidebarCreateOpen(o => !o)} title={t("vault.newFolder")}
+            className="cursor-pointer" style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
+            <Plus size={13} />
+          </span>
+        )}
+      </div>
 
-      {[
-        { label: "Boshqaruv", count: 24, id: "boshqaruv" },
-        { label: "Yuridik bo'lim", count: 112, id: "yuridik", active: true, expandable: true },
-        { label: "Kredit dep.", count: 67, id: "kredit" },
-        { label: "Moliyaviy bo'lim", count: null, id: "mol", locked: true },
-        { label: "HR", count: 31, id: "hr" },
-        { label: "Arxiv", count: 203, id: "arxiv" },
-      ].map(node => (
-        <div key={node.id}>
-          <div onClick={() => { if (node.expandable) setTreeExpanded(e => !e); goView("vault"); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 9, padding: "8px 10px",
-              borderRadius: 11, fontSize: 13.5, fontWeight: 600, cursor: "pointer",
-              transition: ".15s",
-              background: node.active ? `${lime}18` : "transparent",
-              color: node.active ? lime : txt2,
-            }}>
-            <FolderOpen size={15} />
-            <span style={{ flex: 1 }}>{node.label}</span>
-            {node.locked ? <Lock size={12} style={{ color: txt3 }} /> :
-              node.count !== null ? <span className="text-[11px] font-bold" style={{ color: txt3 }}>{node.count}</span> : null}
-            {node.expandable && (treeExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />)}
-          </div>
-          {node.expandable && treeExpanded && (
-            <div style={{ marginLeft: 20, borderLeft: `1.5px solid ${panelBorder}`, paddingLeft: 6 }}>
-              {[["Nizomlar", 38], ["Buyruqlar", 51], ["Reglamentlar", 23]].map(([n, c]) => (
-                <div key={n} style={{
-                  display: "flex", alignItems: "center", gap: 9, padding: "7px 10px",
-                  borderRadius: 11, fontSize: 13, fontWeight: 600, cursor: "pointer", color: txt2,
-                }}>
-                  <span style={{ flex: 1 }}>{n}</span>
-                  <span className="text-[11px] font-bold" style={{ color: txt3 }}>{c}</span>
-                </div>
-              ))}
-            </div>
-          )}
+      {sidebarCreateOpen && (
+        <div className="mb-2 px-2">
+          <input autoFocus value={sidebarCreateName} onChange={e => setSidebarCreateName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleSidebarCreate(); if (e.key === "Escape") setSidebarCreateOpen(false); }}
+            placeholder={t("vault.folderNamePlaceholder")}
+            className="w-full outline-none rounded-lg text-[12px] font-semibold px-2.5 py-1.5"
+            style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }}
+            disabled={sidebarCreateSaving} />
         </div>
+      )}
+
+      {sidebarRoots.map(f => (
+        <FolderTreeNode key={f.id} folder={f} depth={0} ancestors={[{ id: null, name: null }]}
+          activeFolderId={currentFolder.id} isAdmin={user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"}
+          onNavigate={handleSidebarNavigate} toast={toast}
+          lime={lime} txt={txt} txt2={txt2} txt3={txt3} panel={panel} panelBorder={panelBorder} isDark={isDark} />
       ))}
 
       <p className="text-[12.5px] font-semibold uppercase tracking-wide mt-4 mb-2.5 px-2" style={{ color: txt3, letterSpacing: ".4px" }}>{t("vault.savedFilters")}</p>
