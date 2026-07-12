@@ -119,6 +119,9 @@ export class FoldersService {
     if (!existing) {
       throw notFound('Papka topilmadi');
     }
+    if (existing.isSystem) {
+      throw conflict("Tizim papkasini tahrirlab bo'lmaydi");
+    }
     const updated = await this.folder.update({ where: { id }, data: input });
     const [childCount, docCount] = await Promise.all([
       this.folder.count({ where: { parentId: id, deletedAt: null } }),
@@ -187,6 +190,9 @@ export class FoldersService {
     const folder = await this.folder.findFirst({ where: { id, deletedAt: null } });
     if (!folder) {
       throw notFound('Papka topilmadi');
+    }
+    if (folder.isSystem) {
+      throw conflict("Tizim papkasini o'chirib bo'lmaydi");
     }
 
     const [childCount, docCount] = await Promise.all([

@@ -184,7 +184,7 @@ function FolderCard({ folder, onClick }: { folder: FolderCardData; onClick: () =
 type FolderPathEntry = { id: string | null; name: string | null };
 
 function FolderTreeNode({
-  folder, depth, ancestors, activeFolderId, isAdmin, onNavigate, toast,
+  folder, depth, ancestors, activeFolderId, isAdmin, onNavigate, onChanged, toast,
   lime, txt, txt2, txt3, panel, panelBorder, isDark,
 }: {
   folder: FolderNode;
@@ -193,6 +193,8 @@ function FolderTreeNode({
   activeFolderId: string | null;
   isAdmin: boolean;
   onNavigate: (path: FolderPathEntry[]) => void;
+  /** Shu tugun o'zini tahrirlagan/o'chirgandan keyin — meni o'z ichiga olgan ro'yxatni yangilash. */
+  onChanged: () => void;
   toast: (msg: string) => void;
   lime: string; txt: string; txt2: string; txt3: string; panel: string; panelBorder: string; isDark: boolean;
 }) {
@@ -202,6 +204,10 @@ function FolderTreeNode({
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState(folder.name);
+  const [editSaving, setEditSaving] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const path = [...ancestors, { id: folder.id, name: folder.name }];
 
@@ -233,32 +239,83 @@ function FolderTreeNode({
     }
   };
 
+  const handleRename = async () => {
+    const name = editName.trim();
+    if (!name || name === folder.name) { setEditOpen(false); setEditName(folder.name); return; }
+    setEditSaving(true);
+    try {
+      await foldersApi.update(folder.id, { name });
+      setEditOpen(false);
+      onChanged();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Papkani tahrirlashda xato yuz berdi");
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(`"${folder.name}" papkasini o'chirasizmi?`)) return;
+    try {
+      await foldersApi.remove(folder.id);
+      onChanged();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Papkani o'chirishda xato yuz berdi");
+    }
+  };
+
   const isActive = folder.id === activeFolderId;
+  const showActions = hovered && isAdmin && !editOpen;
   const inputStyle: React.CSSProperties = {
     background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt,
   };
 
   return (
     <div>
-      <div onClick={() => onNavigate(path)}
+      <div onClick={() => !editOpen && onNavigate(path)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
           display: "flex", alignItems: "center", gap: 6, padding: "8px 10px",
           borderRadius: 11, fontSize: 13.5, fontWeight: 600, cursor: "pointer", transition: ".15s",
-          background: isActive ? `${lime}18` : "transparent",
+          background: isActive ? `${lime}18` : hovered ? (isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.045)") : "transparent",
           color: isActive ? lime : txt2,
         }}>
         <span onClick={toggle} className="flex-shrink-0" style={{ display: "grid", placeItems: "center", width: 14, height: 14 }}>
           {folder.hasChildren || children ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : null}
         </span>
         <FolderOpen size={15} className="flex-shrink-0" />
-        <span className="flex-1 truncate">{folder.name}</span>
-        <span className="text-[11px] font-bold flex-shrink-0" style={{ color: txt3 }}>{folder.documentCount}</span>
-        {isAdmin && (
-          <span onClick={(e) => { e.stopPropagation(); if (!expanded) { setExpanded(true); if (children === null) loadChildren(); } setCreateOpen((o) => !o); }}
-            title="+ Yangi papka"
-            className="flex-shrink-0" style={{ display: "grid", placeItems: "center", width: 18, height: 18, borderRadius: 6, color: txt3 }}>
-            <Plus size={12} />
-          </span>
+        {editOpen ? (
+          <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") { setEditOpen(false); setEditName(folder.name); } }}
+            onBlur={handleRename}
+            disabled={editSaving}
+            className="flex-1 outline-none rounded px-1.5 py-0.5 min-w-0"
+            style={{ background: isDark ? "rgba(255,255,255,.09)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+        ) : (
+          <span className="flex-1 truncate">{folder.name}</span>
+        )}
+        {showActions ? (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <span onClick={(e) => { e.stopPropagation(); if (!expanded) { setExpanded(true); if (children === null) loadChildren(); } setCreateOpen((o) => !o); }}
+              title="+ Yangi papka"
+              style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
+              <Plus size={13} />
+            </span>
+            <span onClick={(e) => { e.stopPropagation(); setEditName(folder.name); setEditOpen(true); }}
+              title="Tahrirlash"
+              style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
+              <Pencil size={12} />
+            </span>
+            <span onClick={handleDelete}
+              title="O'chirish"
+              style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: "#F07A6B" }}>
+              <Trash2 size={12} />
+            </span>
+          </div>
+        ) : !editOpen && (
+          <span className="text-[11px] font-bold flex-shrink-0" style={{ color: txt3 }}>{folder.documentCount}</span>
         )}
       </div>
 
@@ -279,7 +336,7 @@ function FolderTreeNode({
           ) : (
             children?.map((c) => (
               <FolderTreeNode key={c.id} folder={c} depth={depth + 1} ancestors={path}
-                activeFolderId={activeFolderId} isAdmin={isAdmin} onNavigate={onNavigate} toast={toast}
+                activeFolderId={activeFolderId} isAdmin={isAdmin} onNavigate={onNavigate} onChanged={loadChildren} toast={toast}
                 lime={lime} txt={txt} txt2={txt2} txt3={txt3} panel={panel} panelBorder={panelBorder} isDark={isDark} />
             ))
           )}
@@ -1173,7 +1230,7 @@ export default function App() {
           {sidebarRoots.map(f => (
             <FolderTreeNode key={f.id} folder={f} depth={0} ancestors={[{ id: null, name: null }]}
               activeFolderId={currentFolder.id} isAdmin={user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"}
-              onNavigate={handleSidebarNavigate} toast={toast}
+              onNavigate={handleSidebarNavigate} onChanged={refetchSidebarRoots} toast={toast}
               lime={lime} txt={txt} txt2={txt2} txt3={txt3} panel={panel} panelBorder={panelBorder} isDark={isDark} />
           ))}
 
