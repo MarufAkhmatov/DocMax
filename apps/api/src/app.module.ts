@@ -8,6 +8,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { MailerModule } from './mailer/mailer.module';
 import { AuthModule } from './auth/auth.module';
 import { FoldersModule } from './folders/folders.module';
+import { StorageModule } from './storage/storage.module';
+import { QueueModule } from './queue/queue.module';
+import { FilesModule } from './files/files.module';
+import { DocumentsModule } from './documents/documents.module';
+import { DocumentTypesModule } from './document-types/document-types.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -25,9 +30,14 @@ import { AllExceptionsFilter } from './common/http-exception.filter';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 5 }]),
     JwtModule.register({}),
     PrismaModule,
+    StorageModule,
+    QueueModule,
     MailerModule,
     AuthModule,
     FoldersModule,
+    FilesModule,
+    DocumentsModule,
+    DocumentTypesModule,
   ],
   controllers: [HealthController],
   providers: [

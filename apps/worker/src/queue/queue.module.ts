@@ -7,27 +7,30 @@ import {
   type FileIndexJobData,
   type DiffGenerateJobData,
 } from '@docmax/shared';
+import { FileIndexModule } from '../file-index/file-index.module';
+import { FileIndexService } from '../file-index/file-index.service';
 
 const WORKERS = 'WORKERS';
 
 @Module({
+  imports: [FileIndexModule],
   providers: [
     {
       provide: WORKERS,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
+      inject: [ConfigService, FileIndexService],
+      useFactory: (config: ConfigService, fileIndexService: FileIndexService) => {
         const logger = new Logger('Queue');
         const connection: ConnectionOptions = {
           host: config.get<string>('REDIS_HOST', 'localhost'),
           port: config.get<number>('REDIS_PORT', 6379),
         };
 
-        // Handler'lar hozircha stub — biznes-logika tegishli milestone'larda
-        // (file.index — 5-milestone, diff.generate — 6-milestone, docs/START.md).
+        // file.index — 5-milestone (haqiqiy implementatsiya, docs/START.md).
+        // diff.generate — 6-milestone, hozircha stub.
         const fileIndex = new Worker<FileIndexJobData>(
           QUEUE_FILE_INDEX,
           async (job) => {
-            logger.log(`[${QUEUE_FILE_INDEX}] job ${job.id} qabul qilindi (stub)`);
+            await fileIndexService.process(job.data);
           },
           { connection },
         );
