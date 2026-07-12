@@ -1061,126 +1061,137 @@ export default function App() {
     { icon: <GitBranch size={19} /> },
   ];
 
-  const Rail = (
-    <aside style={{
-      width: 68, background: panel, backdropFilter: "blur(18px)",
+  // ── Sidebar (Rail + Papkalar paneli birlashgan holda, tepasida umumiy brend header) ──
+  const Sidebar = (
+    <aside className="w-[68px] md:w-[310px]" style={{
+      background: panel, backdropFilter: "blur(18px)",
       borderRight: `1px solid ${panelBorder}`,
-      display: "flex", flexDirection: "column", alignItems: "center",
-      padding: "18px 0", gap: 8, position: "sticky", top: 0, height: "100vh", zIndex: 20, flexShrink: 0,
+      display: "flex", flexDirection: "column",
+      position: "sticky", top: 0, height: "100vh", zIndex: 20, flexShrink: 0,
     }}>
-      {/* Kompaniya logotipi — Admin Panel'dan no-code sozlanadi, faqat o'rnatilgan bo'lsa ko'rinadi */}
-      {orgLogoUrl && (
-        <div style={{ width: 52, height: 44, display: "grid", placeItems: "center", marginBottom: 4 }}>
-          <img src={orgLogoUrl} alt="Logo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+      {/* Brend header — korxona logotipi (Admin Panel'dan no-code, faqat o'rnatilgan bo'lsa) tepada,
+          uning ostida DocMax ikonka + matn. Ikkalasi ham Rail+Papkalar ustunlarini birlashtirgan
+          to'liq kenglikda ("uzun") joylashadi. */}
+      <div style={{ padding: "16px 14px 14px", borderBottom: `1px solid ${panelBorder}` }}>
+        {orgLogoUrl && (
+          <div className="hidden md:block" style={{ marginBottom: 12 }}>
+            <img src={orgLogoUrl} alt="Logo" style={{ width: "100%", maxHeight: 56, objectFit: "contain" }} />
+          </div>
+        )}
+        <div className="flex items-center gap-2.5">
+          <div style={{
+            width: 34, height: 34, borderRadius: 10, background: lime,
+            display: "grid", placeItems: "center", flexShrink: 0,
+            boxShadow: `0 6px 18px ${lime}55`,
+          }}>
+            <FolderOpen size={16} color="#0A1600" />
+          </div>
+          <span className="hidden md:inline font-['Sora']" style={{ fontWeight: 700, fontSize: 15, color: txt }}>DocMax</span>
         </div>
-      )}
-
-      {/* Logo */}
-      <div style={{
-        width: 38, height: 38, borderRadius: 12, background: lime,
-        display: "grid", placeItems: "center", marginBottom: 18,
-        boxShadow: `0 6px 18px ${lime}55`,
-      }}>
-        <FolderOpen size={18} color="#0A1600" />
       </div>
 
-      {railItems.map((item, i) => {
-        const isActive = item.id && view === item.id;
-        return (
-          <div key={i} onClick={() => item.id && goView(item.id)}
-            className="relative"
-            style={{
+      <div className="flex flex-1" style={{ minHeight: 0 }}>
+        {/* Rail — ikonka ustuni (68px) */}
+        <div style={{
+          width: 68, display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "14px 0", gap: 8, flexShrink: 0,
+        }}>
+          {railItems.map((item, i) => {
+            const isActive = item.id && view === item.id;
+            return (
+              <div key={i} onClick={() => item.id && goView(item.id)}
+                className="relative"
+                style={{
+                  width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
+                  cursor: "pointer", transition: ".2s",
+                  background: isActive ? `${lime}22` : "transparent",
+                  color: isActive ? lime : txt2,
+                }}>
+                {item.pip && <span className="absolute top-2 right-2 w-[7px] h-[7px] rounded-full" style={{ background: "#F07A6B", border: `2px solid ${bg}` }} />}
+                {item.icon}
+              </div>
+            );
+          })}
+
+          <div style={{ flex: 1 }} />
+
+          <div onClick={() => {
+            const cur = i18n.language as SupportedLocale;
+            const idx = SUPPORTED_LOCALES.indexOf(cur);
+            handleLocaleChange(SUPPORTED_LOCALES[(idx + 1) % SUPPORTED_LOCALES.length]);
+          }} title={i18n.language.toUpperCase()} style={{
+            width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
+            cursor: "pointer", color: txt2, transition: ".2s", fontSize: 11, fontWeight: 800,
+          }}>
+            {i18n.language.toUpperCase()}
+          </div>
+
+          <div onClick={() => setIsDark(d => !d)} style={{
+            width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
+            cursor: "pointer", color: txt2, transition: ".2s",
+          }}>
+            {isDark ? <Sun size={19} /> : <Moon size={19} />}
+          </div>
+          {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
+            <div onClick={() => goView("admin")} style={{
               width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
               cursor: "pointer", transition: ".2s",
-              background: isActive ? `${lime}22` : "transparent",
-              color: isActive ? lime : txt2,
+              background: view === "admin" ? `${lime}22` : "transparent",
+              color: view === "admin" ? lime : txt2,
             }}>
-            {item.pip && <span className="absolute top-2 right-2 w-[7px] h-[7px] rounded-full" style={{ background: "#F07A6B", border: `2px solid ${bg}` }} />}
-            {item.icon}
+              <Settings size={19} />
+            </div>
+          )}
+        </div>
+
+        {/* Papkalar paneli — 242px, faqat md+ ekranlarda */}
+        <div className="hidden md:block" style={{
+          width: 242, borderLeft: `1px solid ${panelBorder}`,
+          padding: "20px 14px", overflowY: "auto", flexShrink: 0,
+        }}>
+          <div className="flex items-center justify-between mb-2.5 px-2 mt-0">
+            <p className="text-[12.5px] font-semibold uppercase tracking-wide" style={{ color: txt3, letterSpacing: ".4px" }}>{t("vault.treeFolders")}</p>
+            {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
+              <span onClick={() => setSidebarCreateOpen(o => !o)} title={t("vault.newFolder")}
+                className="cursor-pointer" style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
+                <Plus size={13} />
+              </span>
+            )}
           </div>
-        );
-      })}
 
-      <div style={{ flex: 1 }} />
+          {sidebarCreateOpen && (
+            <div className="mb-2 px-2">
+              <input autoFocus value={sidebarCreateName} onChange={e => setSidebarCreateName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleSidebarCreate(); if (e.key === "Escape") setSidebarCreateOpen(false); }}
+                placeholder={t("vault.folderNamePlaceholder")}
+                className="w-full outline-none rounded-lg text-[12px] font-semibold px-2.5 py-1.5"
+                style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }}
+                disabled={sidebarCreateSaving} />
+            </div>
+          )}
 
-      <div onClick={() => {
-        const cur = i18n.language as SupportedLocale;
-        const idx = SUPPORTED_LOCALES.indexOf(cur);
-        handleLocaleChange(SUPPORTED_LOCALES[(idx + 1) % SUPPORTED_LOCALES.length]);
-      }} title={i18n.language.toUpperCase()} style={{
-        width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
-        cursor: "pointer", color: txt2, transition: ".2s", fontSize: 11, fontWeight: 800,
-      }}>
-        {i18n.language.toUpperCase()}
-      </div>
+          {sidebarRoots.map(f => (
+            <FolderTreeNode key={f.id} folder={f} depth={0} ancestors={[{ id: null, name: null }]}
+              activeFolderId={currentFolder.id} isAdmin={user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"}
+              onNavigate={handleSidebarNavigate} toast={toast}
+              lime={lime} txt={txt} txt2={txt2} txt3={txt3} panel={panel} panelBorder={panelBorder} isDark={isDark} />
+          ))}
 
-      <div onClick={() => setIsDark(d => !d)} style={{
-        width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
-        cursor: "pointer", color: txt2, transition: ".2s",
-      }}>
-        {isDark ? <Sun size={19} /> : <Moon size={19} />}
-      </div>
-      {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
-        <div onClick={() => goView("admin")} style={{
-          width: 42, height: 42, borderRadius: 13, display: "grid", placeItems: "center",
-          cursor: "pointer", transition: ".2s",
-          background: view === "admin" ? `${lime}22` : "transparent",
-          color: view === "admin" ? lime : txt2,
-        }}>
-          <Settings size={19} />
+          <p className="text-[12.5px] font-semibold uppercase tracking-wide mt-4 mb-2.5 px-2" style={{ color: txt3, letterSpacing: ".4px" }}>{t("vault.savedFilters")}</p>
+          {[
+            { color: "#B39CF5", label: "Yuridik · 2026 · aktivlar" },
+            { color: "#6BB4F5", label: "CBU'ga bog'liq hujjatlar" },
+          ].map(f => (
+            <div key={f.label} style={{
+              display: "flex", gap: 8, alignItems: "center", fontSize: 12, padding: "7px 10px",
+              borderRadius: 10, fontWeight: 700, cursor: "pointer", color: txt2,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: 3, background: f.color, flexShrink: 0 }} />
+              {f.label}
+            </div>
+          ))}
         </div>
-      )}
-    </aside>
-  );
-
-  // ── Tree Sidebar ──────────────────────────────────────────────────────────
-  const TreeSidebar = (
-    <aside className="hidden md:block" style={{
-      width: 242, background: panel, backdropFilter: "blur(18px)",
-      borderRight: `1px solid ${panelBorder}`,
-      padding: "20px 14px", position: "sticky", top: 0, height: "100vh", overflowY: "auto", flexShrink: 0,
-    }}>
-      <div className="flex items-center justify-between mb-2.5 px-2 mt-0">
-        <p className="text-[12.5px] font-semibold uppercase tracking-wide" style={{ color: txt3, letterSpacing: ".4px" }}>{t("vault.treeFolders")}</p>
-        {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
-          <span onClick={() => setSidebarCreateOpen(o => !o)} title={t("vault.newFolder")}
-            className="cursor-pointer" style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
-            <Plus size={13} />
-          </span>
-        )}
       </div>
-
-      {sidebarCreateOpen && (
-        <div className="mb-2 px-2">
-          <input autoFocus value={sidebarCreateName} onChange={e => setSidebarCreateName(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") handleSidebarCreate(); if (e.key === "Escape") setSidebarCreateOpen(false); }}
-            placeholder={t("vault.folderNamePlaceholder")}
-            className="w-full outline-none rounded-lg text-[12px] font-semibold px-2.5 py-1.5"
-            style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }}
-            disabled={sidebarCreateSaving} />
-        </div>
-      )}
-
-      {sidebarRoots.map(f => (
-        <FolderTreeNode key={f.id} folder={f} depth={0} ancestors={[{ id: null, name: null }]}
-          activeFolderId={currentFolder.id} isAdmin={user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"}
-          onNavigate={handleSidebarNavigate} toast={toast}
-          lime={lime} txt={txt} txt2={txt2} txt3={txt3} panel={panel} panelBorder={panelBorder} isDark={isDark} />
-      ))}
-
-      <p className="text-[12.5px] font-semibold uppercase tracking-wide mt-4 mb-2.5 px-2" style={{ color: txt3, letterSpacing: ".4px" }}>{t("vault.savedFilters")}</p>
-      {[
-        { color: "#B39CF5", label: "Yuridik · 2026 · aktivlar" },
-        { color: "#6BB4F5", label: "CBU'ga bog'liq hujjatlar" },
-      ].map(f => (
-        <div key={f.label} style={{
-          display: "flex", gap: 8, alignItems: "center", fontSize: 12, padding: "7px 10px",
-          borderRadius: 10, fontWeight: 700, cursor: "pointer", color: txt2,
-        }}>
-          <span style={{ width: 8, height: 8, borderRadius: 3, background: f.color, flexShrink: 0 }} />
-          {f.label}
-        </div>
-      ))}
     </aside>
   );
 
@@ -2370,8 +2381,7 @@ export default function App() {
       </div>
 
       <div className="flex" style={{ position: "relative", zIndex: 1 }}>
-        {Rail}
-        {TreeSidebar}
+        {Sidebar}
 
         <main style={{ flex: 1, padding: "24px 32px 110px", minWidth: 0 }}>
           {TopBar}
