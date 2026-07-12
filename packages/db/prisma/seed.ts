@@ -30,40 +30,40 @@ async function main() {
   const org = await prisma.organization.upsert({
     where: { slug: 'demo' },
     update: {},
-    create: { name: 'NormaVault Demo', slug: 'demo', plan: 'pro' },
+    create: { name: 'DocMax Demo', slug: 'demo', plan: 'pro' },
   });
   console.log(`Organization: ${org.name} (${org.id})`);
 
   const passwordHash = await argon2.hash(DEMO_PASSWORD, { type: argon2.argon2id });
 
   const admin = await prisma.user.upsert({
-    where: { orgId_email: { orgId: org.id, email: 'admin@demo.normavault.local' } },
+    where: { orgId_email: { orgId: org.id, email: 'admin@demo.docmax.local' } },
     update: {},
     create: {
       orgId: org.id,
-      email: 'admin@demo.normavault.local',
+      email: 'admin@demo.docmax.local',
       passwordHash,
       fullName: 'Alisher Administrator',
       role: 'ADMIN',
     },
   });
   const editor = await prisma.user.upsert({
-    where: { orgId_email: { orgId: org.id, email: 'editor@demo.normavault.local' } },
+    where: { orgId_email: { orgId: org.id, email: 'editor@demo.docmax.local' } },
     update: {},
     create: {
       orgId: org.id,
-      email: 'editor@demo.normavault.local',
+      email: 'editor@demo.docmax.local',
       passwordHash,
       fullName: 'Dilnoza Editor',
       role: 'EDITOR',
     },
   });
   const viewer = await prisma.user.upsert({
-    where: { orgId_email: { orgId: org.id, email: 'viewer@demo.normavault.local' } },
+    where: { orgId_email: { orgId: org.id, email: 'viewer@demo.docmax.local' } },
     update: {},
     create: {
       orgId: org.id,
-      email: 'viewer@demo.normavault.local',
+      email: 'viewer@demo.docmax.local',
       passwordHash,
       fullName: 'Sardor Viewer',
       role: 'VIEWER',

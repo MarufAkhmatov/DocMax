@@ -1,5 +1,5 @@
 {
-  "name": "@normavault/api",
+  "name": "@docmax/api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -14,8 +14,8 @@
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
-    "@normavault/db": "workspace:*",
-    "@normavault/shared": "workspace:*",
+    "@docmax/db": "workspace:*",
+    "@docmax/shared": "workspace:*",
     "helmet": "^8.1.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.0"

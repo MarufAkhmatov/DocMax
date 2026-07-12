@@ -23,6 +23,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@docmax/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@docmax/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -35,12 +41,6 @@ importers:
       '@nestjs/platform-express':
         specifier: ^11.0.0
         version: 11.1.28(@nestjs/common@11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)
-      '@normavault/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@normavault/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       helmet:
         specifier: ^8.1.0
         version: 8.2.0
@@ -78,7 +78,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@normavault/shared':
+      '@docmax/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@tanstack/react-query':
@@ -148,6 +148,12 @@ importers:
 
   apps/worker:
     dependencies:
+      '@docmax/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@docmax/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -157,12 +163,6 @@ importers:
       '@nestjs/core':
         specifier: ^11.0.0
         version: 11.1.28(@nestjs/common@11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@normavault/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@normavault/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       bullmq:
         specifier: ^5.44.0
         version: 5.80.1
@@ -197,7 +197,7 @@ importers:
 
   packages/db:
     dependencies:
-      '@normavault/shared':
+      '@docmax/shared':
         specifier: workspace:*
         version: link:../shared
       '@prisma/client':

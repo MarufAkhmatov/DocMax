@@ -1,11 +1,11 @@
-// NormaVault ma'lumotlar bazasi sxemasi — docs/tz-0-umumiy.md §3.
+// DocMax ma'lumotlar bazasi sxemasi — docs/tz-0-umumiy.md §3.
 //
 // Eslatma: Unsupported tiplarga ham (folders.path — ltree, documents.searchVector — tsvector)
 // GIST/GIN indekslari to'g'ridan-to'g'ri shu faylda @@index(..., type: Gist/Gin) orqali e'lon
 // qilingan — Prisma buni qo'llab-quvvatlaydi. Yagona haqiqiy istisno: pgvector'ning HNSW indeks
 // turi Prisma'da tan olinmaydi (faqat BTree/Hash/Gist/Gin/SpGist/Brin bor), shuning uchun
 // embeddings.vector'dagi HNSW indeks va runtime "app" roli/grants/audit_logs REVOKE qo'lda SQL
-// migratsiyada qo'shiladi (packages/db/prisma/migrations/*_unsupported_indexes_and_locks) — bu
+// migratsiyada qo'shiladi (packages/db/prisma/migrations/*_vector_index_and_app_role) — bu
 // YAGONA joy `prisma migrate dev` doim "drift" deb ko'rsatadi; shuning uchun keyingi
 // migratsiyalar har doim avval `--create-only` bilan diff ko'rib chiqilib qo'shilsin.
 

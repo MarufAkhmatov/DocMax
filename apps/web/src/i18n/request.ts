@@ -1,6 +1,6 @@
 import { getRequestConfig } from 'next-intl/server';
 import { cookies } from 'next/headers';
-import { DEFAULT_LOCALE, LOCALES, type Locale } from '@normavault/shared';
+import { DEFAULT_LOCALE, LOCALES, type Locale } from '@docmax/shared';
 
 // Locale hozircha cookie orqali (URL routing'siz) — TZ-0 §5: uz default, ru, en.
 export default getRequestConfig(async () => {

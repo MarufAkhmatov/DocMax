@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * NormaVault dizayn tokenlari — manba: docs/DESIGN.md §1 (etalon: design/normavault-ui-v3.html).
+ * DocMax dizayn tokenlari — manba: docs/DESIGN.md §1 (etalon: design/docmax-ui-v3.html).
  * Dark — default (:root), light `.light` class orqali (next-themes, attribute="class").
  */
 :root {

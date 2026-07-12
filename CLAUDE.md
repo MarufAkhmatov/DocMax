@@ -1,10 +1,10 @@
-# CLAUDE.md — NormaVault loyihasi
+# CLAUDE.md — DocMax loyihasi
 
 Bu fayl Claude Code uchun doimiy kontekst. Har sessiyada shu qoidalarga amal qil.
 
 ## Loyiha nima
 
-**NormaVault** — korxona ichki normativ hujjatlarini (nizom, buyruq, reglament, siyosat) boshqaruvchi multi-tenant SaaS:
+**DocMax** — korxona ichki normativ hujjatlarini (nizom, buyruq, reglament, siyosat) boshqaruvchi multi-tenant SaaS:
 ierarxik papkalar, versiyalash + avtomatik taqqoslama shabloni, hujjatlar orasidagi bog'lanishlar (workflow + graf),
 tashqi manbalar (cbu.uz, lex.uz) monitoringi va semantik solishtirish.
 
@@ -12,7 +12,7 @@ tashqi manbalar (cbu.uz, lex.uz) monitoringi va semantik solishtirish.
 1. `docs/tz-0-umumiy.md` — arxitektura, to'liq DB sxema, API konvensiyalar, xavfsizlik. **Har doim shu asosda ishla.**
 2. `docs/tz-1-mvp.md` … `docs/tz-4-saas.md` — bosqichma-bosqich funksional TZ, har birida qabul mezonlari.
 3. `docs/DESIGN.md` — dizayn tizimi (tokenlar, komponentlar).
-4. `design/normavault-ui-v3.html` — **vizual etalon.** Yangi UI komponent yasashdan oldin shu faylni ochib, mos komponentning ko'rinishi va o'lchamlarini ol.
+4. `design/docmax-ui-v3.html` — **vizual etalon.** Yangi UI komponent yasashdan oldin shu faylni ochib, mos komponentning ko'rinishi va o'lchamlarini ol.
 
 ## Stack (o'zgartirilmaydi, TZ-0 §1)
 
@@ -58,7 +58,7 @@ pnpm lint
 
 - Dizayn tokenlari `docs/DESIGN.md`da — Tailwind config va globals.css shundan generatsiya qilinadi.
 - Dark default, light to'liq qo'llanadi (next-themes, system-aware).
-- Komponent yasashda etalon: `design/normavault-ui-v3.html` (shisha papka kartalari, cmd+K palette, bulk bar, diff jadval, drawer, toast — barchasining tayyor ko'rinishi bor).
+- Komponent yasashda etalon: `design/docmax-ui-v3.html` (shisha papka kartalari, cmd+K palette, bulk bar, diff jadval, drawer, toast — barchasining tayyor ko'rinishi bor).
 - Sana formati: DD.MM.YYYY. Font: Sora (sarlavha), Manrope (matn).
 
 ## Ish tartibi

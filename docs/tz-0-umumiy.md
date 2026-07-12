@@ -1,5 +1,5 @@
 # TZ-0. UMUMIY TEXNIK TOPSHIRIQ
-## NormaVault — arxitektura, standartlar, ma'lumotlar bazasi
+## DocMax — arxitektura, standartlar, ma'lumotlar bazasi
 *Versiya 1.0 · 11.07.2026 · Barcha bosqichlar uchun asos*
 
 ---
@@ -25,7 +25,7 @@
 ## 2. Monorepo strukturasi
 
 ```
-normavault/
+docmax/
 ├── apps/
 │   ├── web/          # Next.js frontend
 │   ├── api/          # NestJS REST API

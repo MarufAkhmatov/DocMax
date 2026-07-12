@@ -6,7 +6,7 @@ import {
   QUEUE_DIFF_GENERATE,
   type FileIndexJobData,
   type DiffGenerateJobData,
-} from '@normavault/shared';
+} from '@docmax/shared';
 
 const WORKERS = 'WORKERS';
 

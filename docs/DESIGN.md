@@ -1,6 +1,6 @@
-# DESIGN.md — NormaVault dizayn tizimi
+# DESIGN.md — DocMax dizayn tizimi
 
-Manba: `design/normavault-ui-v3.html` (interaktiv etalon). Bu hujjat undan token va qoidalarni ajratib beradi.
+Manba: `design/docmax-ui-v3.html` (interaktiv etalon). Bu hujjat undan token va qoidalarni ajratib beradi.
 
 ## 1. Ranglar (CSS variables → Tailwind theme)
 

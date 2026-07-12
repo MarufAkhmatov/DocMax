@@ -19,7 +19,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: 'NormaVault',
+  title: 'DocMax',
   description: 'Korxona ichki normativ hujjatlari ombori',
 };
 

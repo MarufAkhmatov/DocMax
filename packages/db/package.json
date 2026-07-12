@@ -1,5 +1,5 @@
 {
-  "name": "@normavault/db",
+  "name": "@docmax/db",
   "version": "0.1.0",
   "private": true,
   "main": "./dist/index.js",
@@ -21,7 +21,7 @@
     "test": "dotenv -e ../../.env -- vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@normavault/shared": "workspace:*",
+    "@docmax/shared": "workspace:*",
     "@prisma/client": "^6.6.0"
   },
   "devDependencies": {

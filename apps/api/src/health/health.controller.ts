@@ -6,7 +6,7 @@ export class HealthController {
   check() {
     return {
       status: 'ok',
-      service: 'normavault-api',
+      service: 'docmax-api',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     };

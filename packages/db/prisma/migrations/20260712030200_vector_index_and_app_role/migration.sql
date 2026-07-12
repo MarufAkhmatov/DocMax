@@ -6,7 +6,7 @@
 CREATE INDEX embeddings_vector_hnsw_idx ON embeddings USING hnsw (vector vector_cosine_ops);
 
 -- ============================================================================
--- Runtime "app" roli — jadval egasi emas (migratsiyalarni "normavault" bajaradi).
+-- Runtime "app" roli — jadval egasi emas (migratsiyalarni "docmax" bajaradi).
 -- Postgres'da jadval EGASIGA REVOKE ta'sir qilmaydi, shuning uchun audit_logs
 -- append-only qoidasini (CLAUDE.md 3-qoida) haqiqatan DB darajasida majburlash
 -- uchun alohida, egasi bo'lmagan rol kerak. API/worker runtime'da shu rol orqali
@@ -14,26 +14,26 @@ CREATE INDEX embeddings_vector_hnsw_idx ON embeddings USING hnsw (vector vector_
 -- ============================================================================
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'normavault_app') THEN
-    CREATE ROLE normavault_app LOGIN PASSWORD 'normavault_app';
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'docmax_app') THEN
+    CREATE ROLE docmax_app LOGIN PASSWORD 'docmax_app';
   END IF;
 END
 $$;
 
 DO $$
 BEGIN
-  EXECUTE format('GRANT CONNECT ON DATABASE %I TO normavault_app', current_database());
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO docmax_app', current_database());
 END
 $$;
 
-GRANT USAGE ON SCHEMA public TO normavault_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO normavault_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO normavault_app;
+GRANT USAGE ON SCHEMA public TO docmax_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO docmax_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO docmax_app;
 
 -- Kelgusi migratsiyalarda yaratiladigan jadvallar uchun ham avtomatik amal qiladi
--- (migratsiyalarni har doim "normavault" egasi bajaradi).
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO normavault_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO normavault_app;
+-- (migratsiyalarni har doim "docmax" egasi bajaradi).
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO docmax_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO docmax_app;
 
 -- audit_logs: append-only (CLAUDE.md 3-qoida, TZ-0 §3) — faqat SELECT + INSERT.
-REVOKE UPDATE, DELETE ON audit_logs FROM normavault_app;
+REVOKE UPDATE, DELETE ON audit_logs FROM docmax_app;

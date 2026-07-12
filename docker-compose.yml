@@ -2,11 +2,11 @@ services:
   postgres:
     # pgvector rasmiy postgres:16 image'ida yo'q — shuning uchun pgvector/pgvector:pg16
     image: pgvector/pgvector:pg16
-    container_name: normavault-postgres
+    container_name: docmax-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-normavault}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-normavault}
-      POSTGRES_DB: ${POSTGRES_DB:-normavault}
+      POSTGRES_USER: ${POSTGRES_USER:-docmax}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docmax}
+      POSTGRES_DB: ${POSTGRES_DB:-docmax}
     ports:
       # 5433: hostda 5432 band bo'lishi mumkin (masalan lokal Windows PostgreSQL xizmati)
       - "5433:5432"
@@ -14,18 +14,18 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/01-extensions.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-normavault} -d ${POSTGRES_DB:-normavault}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-docmax} -d ${POSTGRES_DB:-docmax}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   minio:
     image: minio/minio:latest
-    container_name: normavault-minio
+    container_name: docmax-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-normavault}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-normavault-secret}
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-docmax}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-docmax-secret}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -39,7 +39,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: normavault-redis
+    container_name: docmax-redis
     ports:
       - "6379:6379"
     volumes:
@@ -52,7 +52,7 @@ services:
 
   mailpit:
     image: axllent/mailpit:latest
-    container_name: normavault-mailpit
+    container_name: docmax-mailpit
     ports:
       - "1025:1025" # SMTP
       - "8025:8025" # Web UI

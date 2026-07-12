@@ -5,7 +5,7 @@ Bu fayl siz uchun: qaysi tartibda, qanday promptlar bilan ishlashni ko'rsatadi. 
 ## 0. Tayyorgarlik
 
 ```bash
-mkdir normavault && cd normavault
+mkdir docmax && cd docmax
 # shu starter-kit ichidagi CLAUDE.md, docs/, design/ papkalarni shu yerga ko'chiring
 claude   # Claude Code'ni ishga tushiring
 ```
@@ -28,7 +28,7 @@ Tekshiruv: `docker compose up -d && pnpm install && pnpm dev` xatosiz.
 
 ## 4-milestone · Papkalar (TZ-1 §1.2)
 
-> docs/tz-1-mvp.md §1.2: folders tree API (ltree, move tranzaksiyasi, avlod ichiga ko'chirish taqiqi) + frontend chap panel tree (lazy-load, drag&drop). UI ko'rinishi uchun design/normavault-ui-v3.html dagi .tree blokini etalon qilib ol, tokenlar docs/DESIGN.md da. Qabul mezonlari testlari.
+> docs/tz-1-mvp.md §1.2: folders tree API (ltree, move tranzaksiyasi, avlod ichiga ko'chirish taqiqi) + frontend chap panel tree (lazy-load, drag&drop). UI ko'rinishi uchun design/docmax-ui-v3.html dagi .tree blokini etalon qilib ol, tokenlar docs/DESIGN.md da. Qabul mezonlari testlari.
 
 ## 5-milestone · Hujjatlar (TZ-1 §1.3)
 
@@ -43,7 +43,7 @@ Shu yerda **Bosqich 1 Definition of Done** (tz-1 §1.7) checklistini yugurting.
 ## Keyingi bosqichlar
 
 Har biri uchun prompt shablon bir xil:
-> docs/tz-2-relations.md §X.Y ni o'qi va bajar. UI etalon: design/normavault-ui-v3.html dagi [komponent]. Qabul mezonlari testlari bilan.
+> docs/tz-2-relations.md §X.Y ni o'qi va bajar. UI etalon: design/docmax-ui-v3.html dagi [komponent]. Qabul mezonlari testlari bilan.
 
 Tartib: TZ-2 (relations → workflow canvas → graf → struktura → ACL → admin) → TZ-3 (scraper → xabarnoma → embedding → semantik) → TZ-4.
 Graf va workflow uchun etalonda tayyor: canvas graf (initGraph) va rang kodlari. Monitoring sahifasi ham (.mrow).

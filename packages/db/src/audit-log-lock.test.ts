@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
 // CLAUDE.md 3-qoida: audit_logs — append-only. Bu DB darajasida REVOKE orqali
-// majburlanadi (packages/db/prisma/migrations/*_unsupported_indexes_and_locks) —
+// majburlanadi (packages/db/prisma/migrations/*_vector_index_and_app_role) —
 // jadval egasi (DATABASE_URL) emas, balki runtime roli (APP_DATABASE_URL) orqali
 // tekshiriladi, chunki Postgres'da jadval egasiga REVOKE ta'sir qilmaydi.
 describe('audit_logs — append-only DB cheklovi', () => {
@@ -24,7 +24,7 @@ describe('audit_logs — append-only DB cheklovi', () => {
     await app.$disconnect();
   });
 
-  it('normavault_app roli audit_logs\'ga INSERT qila oladi', async () => {
+  it('docmax_app roli audit_logs\'ga INSERT qila oladi', async () => {
     const log = await app.auditLog.create({
       data: { orgId, action: 'LOGIN', entityType: 'Organization', entityId: orgId },
     });
@@ -32,7 +32,7 @@ describe('audit_logs — append-only DB cheklovi', () => {
     expect(log.id).toBeDefined();
   });
 
-  it('normavault_app roli audit_logs\'ni UPDATE qila olmaydi (permission denied)', async () => {
+  it('docmax_app roli audit_logs\'ni UPDATE qila olmaydi (permission denied)', async () => {
     const log = await owner.auditLog.create({
       data: { orgId, action: 'LOGIN', entityType: 'Organization', entityId: orgId },
     });
@@ -42,7 +42,7 @@ describe('audit_logs — append-only DB cheklovi', () => {
     ).rejects.toThrow();
   });
 
-  it('normavault_app roli audit_logs\'ni DELETE qila olmaydi (permission denied)', async () => {
+  it('docmax_app roli audit_logs\'ni DELETE qila olmaydi (permission denied)', async () => {
     const log = await owner.auditLog.create({
       data: { orgId, action: 'LOGIN', entityType: 'Organization', entityId: orgId },
     });

@@ -1,8 +1,8 @@
-# NormaVault
+# DocMax
 
 Korxona ichki normativ hujjatlarini (nizom, buyruq, reglament, siyosat) boshqaruvchi multi-tenant SaaS: ierarxik papkalar, versiyalash + avtomatik taqqoslama shabloni, hujjatlar orasidagi bog'lanishlar (workflow + graf), tashqi manbalar (cbu.uz, lex.uz) monitoringi va semantik solishtirish.
 
-Texnik topshiriq: [docs/tz-0-umumiy.md](docs/tz-0-umumiy.md) (arxitektura) → [docs/tz-1-mvp.md](docs/tz-1-mvp.md) … [docs/tz-4-saas.md](docs/tz-4-saas.md) (bosqichlar). Dizayn tizimi: [docs/DESIGN.md](docs/DESIGN.md), vizual etalon: `design/normavault-ui-v3.html`.
+Texnik topshiriq: [docs/tz-0-umumiy.md](docs/tz-0-umumiy.md) (arxitektura) → [docs/tz-1-mvp.md](docs/tz-1-mvp.md) … [docs/tz-4-saas.md](docs/tz-4-saas.md) (bosqichlar). Dizayn tizimi: [docs/DESIGN.md](docs/DESIGN.md), vizual etalon: `design/docmax-ui-v3.html`.
 
 ## Stack
 
@@ -49,7 +49,7 @@ Servislar:
 |---|---|
 | Web | http://localhost:3000 |
 | API health | http://localhost:3001/api/v1/health |
-| MinIO konsol | http://localhost:9001 (normavault / normavault-secret) |
+| MinIO konsol | http://localhost:9001 (docmax / docmax-secret) |
 | Mailpit UI | http://localhost:8025 |
 | Postgres | localhost:5433 (5432 emas — hostda band bo'lishi mumkin) |
 
@@ -59,9 +59,9 @@ Servislar:
 
 | Rol | Email | Parol |
 |---|---|---|
-| ADMIN | admin@demo.normavault.local | Password123! |
-| EDITOR | editor@demo.normavault.local | Password123! |
-| VIEWER | viewer@demo.normavault.local | Password123! |
+| ADMIN | admin@demo.docmax.local | Password123! |
+| EDITOR | editor@demo.docmax.local | Password123! |
+| VIEWER | viewer@demo.docmax.local | Password123! |
 
 ## Buyruqlar
 

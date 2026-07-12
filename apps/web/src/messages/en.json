@@ -1,6 +1,6 @@
 {
   "Home": {
-    "title": "NormaVault",
+    "title": "DocMax",
     "subtitle": "Enterprise internal normative document vault",
     "skeletonReady": "Monorepo skeleton is ready",
     "nextStep": "Next step: database schema and seed (milestone 2)",
