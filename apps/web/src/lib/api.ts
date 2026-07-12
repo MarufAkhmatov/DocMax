@@ -15,7 +15,7 @@ import type {
 } from '@docmax/shared';
 import { useAuthStore } from '@/stores/auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001/api/v1';
 
 export class ApiRequestError extends Error {
   constructor(
