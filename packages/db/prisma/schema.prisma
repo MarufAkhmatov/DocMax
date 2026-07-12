@@ -50,15 +50,6 @@ enum Theme {
   system
 }
 
-enum DocType {
-  ORDER
-  REGULATION
-  POLICY
-  INSTRUCTION
-  PROTOCOL
-  OTHER
-}
-
 enum DocStatus {
   DRAFT
   IN_REVIEW
@@ -131,6 +122,7 @@ model Organization {
   orgUnits      OrgUnit[]
   folders       Folder[]
   documents     Document[]
+  documentTypes DocumentType[]
   files         File[]             @relation("OrgFiles")
   relations     DocumentRelation[]
   tags          Tag[]
@@ -140,6 +132,23 @@ model Organization {
   embeddings    Embedding[]
 
   @@map("organizations")
+}
+
+/** Admin Panel orqali har bir tashkilot o'zi belgilaydigan hujjat turlari (enum o'rniga). */
+model DocumentType {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  color     String?
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  documents Document[]
+
+  @@unique([orgId, name])
+  @@map("document_types")
 }
 
 model User {
@@ -243,7 +252,8 @@ model Document {
   folder            Folder    @relation(fields: [folderId], references: [id], onDelete: Restrict)
   title             String
   docNumber         String?   @map("doc_number")
-  docType           DocType   @map("doc_type")
+  docTypeId         String    @map("doc_type_id") @db.Uuid
+  docType           DocumentType @relation(fields: [docTypeId], references: [id], onDelete: Restrict)
   status            DocStatus @default(DRAFT)
   approvedAt        DateTime? @map("approved_at")
   effectiveFrom     DateTime? @map("effective_from")
@@ -270,7 +280,7 @@ model Document {
 
   @@index([orgId, folderId])
   @@index([orgId, status])
-  @@index([orgId, docType])
+  @@index([orgId, docTypeId])
   // pg_trgm — nom/raqam bo'yicha ILIKE qidiruv (TZ-1 §1.3)
   @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "documents_title_trgm_idx")
   @@index([docNumber(ops: raw("gin_trgm_ops"))], type: Gin, map: "documents_doc_number_trgm_idx")

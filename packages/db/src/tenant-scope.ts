@@ -10,6 +10,7 @@ export const TENANT_SCOPED_MODELS = [
   'OrgUnit',
   'Folder',
   'Document',
+  'DocumentType',
   'File',
   'DocumentRelation',
   'Tag',
