@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-normavault}
       POSTGRES_DB: ${POSTGRES_DB:-normavault}
     ports:
-      - "5432:5432"
+      # 5433: hostda 5432 band bo'lishi mumkin (masalan lokal Windows PostgreSQL xizmati)
+      - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/01-extensions.sql:ro

@@ -1,11 +1,490 @@
-// NormaVault ma'lumotlar bazasi sxemasi.
-// To'liq jadval tavsifi: docs/tz-0-umumiy.md §3 (2-milestone'da to'ldiriladi).
+// NormaVault ma'lumotlar bazasi sxemasi — docs/tz-0-umumiy.md §3.
+//
+// Eslatma: Unsupported tiplarga ham (folders.path — ltree, documents.searchVector — tsvector)
+// GIST/GIN indekslari to'g'ridan-to'g'ri shu faylda @@index(..., type: Gist/Gin) orqali e'lon
+// qilingan — Prisma buni qo'llab-quvvatlaydi. Yagona haqiqiy istisno: pgvector'ning HNSW indeks
+// turi Prisma'da tan olinmaydi (faqat BTree/Hash/Gist/Gin/SpGist/Brin bor), shuning uchun
+// embeddings.vector'dagi HNSW indeks va runtime "app" roli/grants/audit_logs REVOKE qo'lda SQL
+// migratsiyada qo'shiladi (packages/db/prisma/migrations/*_unsupported_indexes_and_locks) — bu
+// YAGONA joy `prisma migrate dev` doim "drift" deb ko'rsatadi; shuning uchun keyingi
+// migratsiyalar har doim avval `--create-only` bilan diff ko'rib chiqilib qo'shilsin.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  // Extensionlar sxemada e'lon qilingani uchun Prisma ularni har bir migratsiya
+  // (jumladan shadow DB) uchun avtomatik yaratadi (TZ-0 §1).
+  extensions = [ltree, pg_trgm, vector]
+}
+
+// ---------- Enum'lar (packages/shared/src/enums.ts bilan bir xil) ----------
+
+enum Plan {
+  free
+  pro
+  enterprise
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  CONTRIBUTOR
+  VIEWER
+}
+
+enum Locale {
+  uz
+  ru
+  en
+}
+
+enum Theme {
+  light
+  dark
+  system
+}
+
+enum DocType {
+  ORDER
+  REGULATION
+  POLICY
+  INSTRUCTION
+  PROTOCOL
+  OTHER
+}
+
+enum DocStatus {
+  DRAFT
+  IN_REVIEW
+  ACTIVE
+  EXPIRED
+}
+
+enum FileStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum RelationType {
+  RELATED
+  PARENT_CHILD
+  AMENDS
+  REPLACES
+  BASED_ON
+}
+
+enum PermissionSubjectType {
+  ROLE
+  USER
+  ORG_UNIT
+}
+
+enum AuditAction {
+  VIEW
+  DOWNLOAD
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  LOGIN
+  LOGOUT
+  PERMISSION_CHANGE
+}
+
+enum ExternalSource {
+  CBU
+  LEX
+}
+
+enum ExternalActStatus {
+  NEW
+  PROCESSED
+}
+
+enum EmbeddingEntityType {
+  DOCUMENT_VERSION
+  EXTERNAL_ACT
+}
+
+// ---------- Modellar ----------
+
+model Organization {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  slug       String   @unique
+  logoFileId String?  @map("logo_file_id") @db.Uuid
+  logoFile   File?    @relation("OrganizationLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
+  settings   Json     @default("{}")
+  plan       Plan     @default(free)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  users         User[]
+  orgUnits      OrgUnit[]
+  folders       Folder[]
+  documents     Document[]
+  files         File[]             @relation("OrgFiles")
+  relations     DocumentRelation[]
+  tags          Tag[]
+  permissions   Permission[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  embeddings    Embedding[]
+
+  @@map("organizations")
+}
+
+model User {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId           String    @map("org_id") @db.Uuid
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  email           String
+  passwordHash    String    @map("password_hash")
+  fullName        String    @map("full_name")
+  avatarFileId    String?   @map("avatar_file_id") @db.Uuid
+  avatarFile      File?     @relation("UserAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  role            Role
+  orgUnitId       String?   @map("org_unit_id") @db.Uuid
+  orgUnit         OrgUnit?  @relation("OrgUnitMembers", fields: [orgUnitId], references: [id], onDelete: SetNull)
+  locale          Locale    @default(uz)
+  theme           Theme     @default(system)
+  isActive        Boolean   @default(true) @map("is_active")
+  lastLoginAt     DateTime? @map("last_login_at")
+  invitedBy       String?   @map("invited_by") @db.Uuid
+  invitedByUser   User?     @relation("UserInvitedBy", fields: [invitedBy], references: [id], onDelete: SetNull)
+  inviteToken     String?   @map("invite_token")
+  inviteExpiresAt DateTime? @map("invite_expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  invitedUsers      User[]             @relation("UserInvitedBy")
+  headOfOrgUnits     OrgUnit[]          @relation("OrgUnitHead")
+  authoredDocuments Document[]         @relation("DocumentAuthor")
+  createdVersions   DocumentVersion[]
+  uploadedFiles     File[]             @relation("FileUploader")
+  createdRelations  DocumentRelation[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+
+  @@unique([orgId, email])
+  @@index([orgId])
+  @@map("users")
+}
+
+model OrgUnit {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  parentId    String?  @map("parent_id") @db.Uuid
+  parent      OrgUnit? @relation("OrgUnitHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    OrgUnit[] @relation("OrgUnitHierarchy")
+  name        String
+  code        String?
+  headUserId  String?  @map("head_user_id") @db.Uuid
+  headUser    User?    @relation("OrgUnitHead", fields: [headUserId], references: [id], onDelete: SetNull)
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users   User[]   @relation("OrgUnitMembers")
+  folders Folder[]
+
+  @@index([orgId, parentId])
+  @@map("org_units")
+}
+
+model Folder {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String    @map("org_id") @db.Uuid
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  parentId    String?   @map("parent_id") @db.Uuid
+  parent      Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Folder[]  @relation("FolderHierarchy")
+  name        String
+  // ltree — Prisma Client orqali o'qib/yozib bo'lmaydi, faqat $queryRaw/$executeRaw (GIST indeksi pastda native e'lon qilingan)
+  path        Unsupported("ltree")
+  orgUnitId   String?   @map("org_unit_id") @db.Uuid
+  orgUnit     OrgUnit?  @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
+  color       String?
+  icon        String?
+  description String?
+  sortOrder   Int       @default(0) @map("sort_order")
+  isSystem    Boolean   @default(false) @map("is_system")
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  documents        Document[]
+  permissions      Permission[]
+  folderShortcuts  FolderShortcut[]
+
+  @@index([orgId, parentId, sortOrder])
+  @@index([path], type: Gist)
+  @@map("folders")
+}
+
+model Document {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId             String    @map("org_id") @db.Uuid
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  folderId          String    @map("folder_id") @db.Uuid
+  folder            Folder    @relation(fields: [folderId], references: [id], onDelete: Restrict)
+  title             String
+  docNumber         String?   @map("doc_number")
+  docType           DocType   @map("doc_type")
+  status            DocStatus @default(DRAFT)
+  approvedAt        DateTime? @map("approved_at")
+  effectiveFrom     DateTime? @map("effective_from")
+  effectiveTo       DateTime? @map("effective_to")
+  authorUserId      String    @map("author_user_id") @db.Uuid
+  author            User      @relation("DocumentAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  orgUnitId         String?   @map("org_unit_id") @db.Uuid
+  // documents.current_version_id <-> document_versions.document_id dumaloq bog'lanish;
+  // ikkalasi ham nullable/mustaqil bo'lgani uchun Postgres bu FK juftligini muammosiz qo'llaydi.
+  currentVersionId  String?   @map("current_version_id") @db.Uuid
+  currentVersion    DocumentVersion? @relation("DocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  // tsvector — Prisma Client orqali o'qib/yozib bo'lmaydi; qiymatni worker file.index vazifasi
+  // $executeRaw orqali to'ldiradi (TZ-1 §1.5), GIN indeksi pastda native e'lon qilingan
+  searchVector      Unsupported("tsvector")? @map("search_vector")
+  deletedAt         DateTime? @map("deleted_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  versions         DocumentVersion[]  @relation("DocumentVersions")
+  tags             DocumentTag[]
+  folderShortcuts  FolderShortcut[]
+  sourceRelations  DocumentRelation[] @relation("RelationSource")
+  targetRelations  DocumentRelation[] @relation("RelationTarget")
+
+  @@index([orgId, folderId])
+  @@index([orgId, status])
+  @@index([orgId, docType])
+  // pg_trgm — nom/raqam bo'yicha ILIKE qidiruv (TZ-1 §1.3)
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "documents_title_trgm_idx")
+  @@index([docNumber(ops: raw("gin_trgm_ops"))], type: Gin, map: "documents_doc_number_trgm_idx")
+  @@index([searchVector], type: Gin)
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId   String    @map("document_id") @db.Uuid
+  document     Document  @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  versionLabel String    @map("version_label")
+  versionNo    Int       @map("version_no")
+  pdfFileId    String    @map("pdf_file_id") @db.Uuid
+  pdfFile      File      @relation("VersionPdf", fields: [pdfFileId], references: [id], onDelete: Restrict)
+  docxFileId   String?   @map("docx_file_id") @db.Uuid
+  docxFile     File?     @relation("VersionDocx", fields: [docxFileId], references: [id], onDelete: SetNull)
+  diffFileId   String?   @map("diff_file_id") @db.Uuid
+  diffFile     File?     @relation("VersionDiff", fields: [diffFileId], references: [id], onDelete: SetNull)
+  note         String?
+  approvedAt   DateTime? @map("approved_at")
+  createdBy    String    @map("created_by") @db.Uuid
+  creator      User      @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  isCurrent    Boolean   @default(false) @map("is_current")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  currentOfDocuments Document[] @relation("DocumentCurrentVersion")
+
+  @@unique([documentId, versionNo])
+  @@index([documentId])
+  @@map("document_versions")
+}
+
+model File {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId          String     @map("org_id") @db.Uuid
+  org            Organization @relation("OrgFiles", fields: [orgId], references: [id], onDelete: Cascade)
+  bucket         String
+  objectKey      String     @map("object_key")
+  originalName   String     @map("original_name")
+  mime           String
+  sizeBytes      BigInt     @map("size_bytes")
+  sha256         String
+  extractedText  String?    @map("extracted_text")
+  uploadedBy     String     @map("uploaded_by") @db.Uuid
+  uploader       User       @relation("FileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  status         FileStatus @default(PENDING)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  logoOfOrganizations Organization[]      @relation("OrganizationLogo")
+  avatarOfUsers       User[]              @relation("UserAvatar")
+  pdfOfVersions       DocumentVersion[]   @relation("VersionPdf")
+  docxOfVersions      DocumentVersion[]   @relation("VersionDocx")
+  diffOfVersions      DocumentVersion[]   @relation("VersionDiff")
+
+  @@index([orgId])
+  @@index([orgId, sha256])
+  @@map("files")
+}
+
+model DocumentRelation {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId              String       @map("org_id") @db.Uuid
+  org                Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  sourceDocumentId   String       @map("source_document_id") @db.Uuid
+  sourceDocument     Document     @relation("RelationSource", fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  targetDocumentId   String       @map("target_document_id") @db.Uuid
+  targetDocument     Document     @relation("RelationTarget", fields: [targetDocumentId], references: [id], onDelete: Cascade)
+  type               RelationType
+  note               String?
+  createdBy          String       @map("created_by") @db.Uuid
+  creator            User         @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  @@unique([sourceDocumentId, targetDocumentId, type])
+  @@index([orgId])
+  @@map("relations")
+}
+
+model Tag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  color     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  documents DocumentTag[]
+
+  @@unique([orgId, name])
+  @@map("tags")
+}
+
+model DocumentTag {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tagId      String   @map("tag_id") @db.Uuid
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([documentId, tagId])
+  @@map("document_tags")
+}
+
+model FolderShortcut {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  folderId   String   @map("folder_id") @db.Uuid
+  folder     Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([documentId, folderId])
+  @@map("folder_shortcuts")
+}
+
+model Permission {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String                @map("org_id") @db.Uuid
+  org         Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  folderId    String                @map("folder_id") @db.Uuid
+  folder      Folder                @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  subjectType PermissionSubjectType @map("subject_type")
+  subjectId   String                @map("subject_id") @db.Uuid
+  canView     Boolean               @default(false) @map("can_view")
+  canEdit     Boolean               @default(false) @map("can_edit")
+  canDownload Boolean               @default(false) @map("can_download")
+  inherit     Boolean               @default(true)
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+
+  @@index([orgId])
+  @@index([folderId])
+  @@map("permissions")
+}
+
+/// Append-only (CLAUDE.md 3-qoida): UPDATE/DELETE DB darajasida REVOKE qilinadi
+/// (packages/db/prisma/migrations/*_indexes_grants_locks/migration.sql).
+model AuditLog {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId      String      @map("org_id") @db.Uuid
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId     String?     @map("user_id") @db.Uuid
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     AuditAction
+  entityType String      @map("entity_type")
+  entityId   String      @map("entity_id") @db.Uuid
+  meta       Json        @default("{}")
+  ip         String?
+  userAgent  String?     @map("user_agent")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  @@index([orgId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean  @default(false) @map("is_read")
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model ExternalAct {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source      ExternalSource
+  externalId  String            @map("external_id")
+  url         String
+  title       String
+  actNumber   String?           @map("act_number")
+  publishedAt DateTime?         @map("published_at")
+  fetchedAt   DateTime          @default(now()) @map("fetched_at")
+  rawText     String?           @map("raw_text")
+  status      ExternalActStatus @default(NEW)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@unique([source, externalId])
+  @@map("external_acts")
+}
+
+model Embedding {
+  id         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId      String?             @map("org_id") @db.Uuid
+  org        Organization?       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  entityType EmbeddingEntityType @map("entity_type")
+  entityId   String              @map("entity_id") @db.Uuid
+  chunkIndex Int                 @map("chunk_index")
+  chunkText  String              @map("chunk_text")
+  // pgvector — HNSW vector_cosine_ops indeksi qo'lda SQL migratsiyada (Prisma bu tipni boshqarmaydi)
+  vector     Unsupported("vector(768)")
+  modelName  String              @map("model_name")
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
+
+  @@index([entityType, entityId])
+  @@index([orgId])
+  @@map("embeddings")
 }
