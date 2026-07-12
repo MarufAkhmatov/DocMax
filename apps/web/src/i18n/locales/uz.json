@@ -79,9 +79,19 @@
     "addVersion": "+ Yangi versiya",
     "relations": "Bog'lanishlar",
     "addRelation": "+ Qo'shish",
+    "searchDocument": "Hujjat nomi yoki raqami bo'yicha qidiring...",
+    "relationNotePlaceholder": "Izoh (ixtiyoriy)",
+    "noRelations": "Hali bog'lanishlar yo'q",
     "audit": "Audit",
     "comingSoon": "Bu funksiya keyingi bosqichda qo'shiladi",
     "current": "joriy"
+  },
+  "relationType": {
+    "RELATED": "Bog'liq",
+    "PARENT_CHILD": "Bola",
+    "AMENDS": "O'zgartiradi",
+    "REPLACES": "O'rnini bosadi",
+    "BASED_ON": "Asos"
   },
   "graph": {
     "title": "Bog'lanishlar grafi",

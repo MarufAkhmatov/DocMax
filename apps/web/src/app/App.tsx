@@ -8,8 +8,9 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as mammoth from "mammoth";
-import type { DocumentDetail, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode } from "@docmax/shared";
-import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, filesApi, ApiRequestError } from "@/lib/api";
+import type { DocumentDetail, DocumentRelationSummary, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode, RelationType } from "@docmax/shared";
+import { RELATION_TYPES } from "@docmax/shared";
+import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, relationsApi, filesApi, ApiRequestError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
 import Login from "./Login";
@@ -565,6 +566,17 @@ export default function App() {
   const [docEditForm, setDocEditForm] = useState({ title: "", docNumber: "", docTypeId: "", approvedAt: "", tagsRaw: "" });
   const [docEditSaving, setDocEditSaving] = useState(false);
 
+  // Bog'lanishlar (TZ-2 — hujjatlarni bir-biriga bog'lash)
+  const [relations, setRelations] = useState<DocumentRelationSummary[]>([]);
+  const [relationAddOpen, setRelationAddOpen] = useState(false);
+  const [relationSearch, setRelationSearch] = useState("");
+  const [relationSearchResults, setRelationSearchResults] = useState<DocumentSummary[]>([]);
+  const [relationTargetId, setRelationTargetId] = useState<string | null>(null);
+  const [relationTargetTitle, setRelationTargetTitle] = useState("");
+  const [relationType, setRelationType] = useState<RelationType>("RELATED");
+  const [relationNote, setRelationNote] = useState("");
+  const [relationSaving, setRelationSaving] = useState(false);
+
   // Yuklash wizard'i — haqiqiy fayl/hujjat holati
   const [pdfUpload, setPdfUpload] = useState<FileSummary | null>(null);
   const [docxUpload, setDocxUpload] = useState<FileSummary | null>(null);
@@ -740,6 +752,33 @@ export default function App() {
     return () => { cancelled = true; };
   }, [selectedDocId]);
 
+  // Bog'lanishlar — tanlangan hujjat o'zgarganda yuklanadi va qo'shish formasi tozalanadi
+  const refetchRelations = useCallback(() => {
+    if (!selectedDocId) { setRelations([]); return; }
+    relationsApi.list(selectedDocId).then(setRelations).catch(() => {});
+  }, [selectedDocId]);
+
+  useEffect(() => {
+    refetchRelations();
+    setRelationAddOpen(false);
+    setRelationSearch("");
+    setRelationSearchResults([]);
+    setRelationTargetId(null);
+    setRelationTargetTitle("");
+    setRelationNote("");
+    setRelationType("RELATED");
+  }, [selectedDocId, refetchRelations]);
+
+  // Bog'lanish qo'shish formasida hujjat nomi/raqami bo'yicha qidiruv
+  useEffect(() => {
+    if (!relationAddOpen || relationSearch.trim().length < 2) { setRelationSearchResults([]); return; }
+    let cancelled = false;
+    documentsApi.list({ q: relationSearch.trim(), limit: 8 })
+      .then((res) => { if (!cancelled) setRelationSearchResults(res.items.filter(d => d.id !== selectedDocId)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [relationAddOpen, relationSearch, selectedDocId]);
+
   const handleLogout = useCallback(async () => {
     setUserMenuOpen(false);
     try {
@@ -794,6 +833,36 @@ export default function App() {
       setSidebarCreateSaving(false);
     }
   }, [sidebarCreateName, refetchSidebarRoots, toast]);
+
+  const handleAddRelation = useCallback(async () => {
+    if (!selectedDocId || !relationTargetId) return;
+    setRelationSaving(true);
+    try {
+      await relationsApi.create(selectedDocId, { targetDocumentId: relationTargetId, type: relationType, note: relationNote.trim() || null });
+      setRelationAddOpen(false);
+      setRelationSearch("");
+      setRelationSearchResults([]);
+      setRelationTargetId(null);
+      setRelationTargetTitle("");
+      setRelationNote("");
+      setRelationType("RELATED");
+      refetchRelations();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Bog'lanish qo'shishda xato yuz berdi");
+    } finally {
+      setRelationSaving(false);
+    }
+  }, [selectedDocId, relationTargetId, relationType, relationNote, refetchRelations, toast]);
+
+  const handleRemoveRelation = useCallback(async (relationId: string) => {
+    if (!selectedDocId) return;
+    try {
+      await relationsApi.remove(selectedDocId, relationId);
+      refetchRelations();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+    }
+  }, [selectedDocId, refetchRelations, toast]);
 
   const toggleDoc = (id: string) =>
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -974,6 +1043,14 @@ export default function App() {
     borderRadius: 20,
     ...(extra ? {} : {}),
   } as React.CSSProperties);
+
+  const RELATION_TYPE_STYLE: Record<RelationType, { color: string; bg: string }> = {
+    BASED_ON: { color: lime, bg: `${lime}18` },
+    PARENT_CHILD: { color: "#6BB4F5", bg: "rgba(107,180,245,.15)" },
+    AMENDS: { color: "#F0C24B", bg: "rgba(240,194,75,.15)" },
+    REPLACES: { color: "#F07A6B", bg: "rgba(240,122,107,.15)" },
+    RELATED: { color: "#B39CF5", bg: "rgba(179,156,245,.15)" },
+  };
 
   // ── Sidebar Rail ──────────────────────────────────────────────────────────
   const railItems: { id?: View; icon: React.ReactNode; pip?: boolean }[] = [
@@ -1753,23 +1830,83 @@ export default function App() {
             ))}
           </div>
 
-          {/* Relations — mock (TZ-2, keyingi bosqich) */}
+          {/* Relations — real backend (TZ-2) */}
           <div style={{ ...glass(), padding: 20 }}>
             <h3 className="font-['Sora'] text-[13px] font-semibold flex justify-between items-center mb-3.5" style={{ color: txt }}>
-              {t("docDetail.relations")} <span onClick={() => toast(t("docDetail.comingSoon"))} className="text-[11px] font-extrabold cursor-pointer" style={{ color: lime, fontFamily: "Manrope" }}>{t("docDetail.addRelation")}</span>
+              {t("docDetail.relations")}
+              {canEditDocuments && (
+                <span onClick={() => setRelationAddOpen(o => !o)} className="text-[11px] font-extrabold cursor-pointer" style={{ color: lime, fontFamily: "Manrope" }}>{t("docDetail.addRelation")}</span>
+              )}
             </h3>
-            {[
-              { type: "asos", typeColor: lime, typeBg: `${lime}18`, label: "CBU qarori № 145/2026" },
-              { type: "bola", typeColor: "#6BB4F5", typeBg: "rgba(107,180,245,.15)", label: "Kredit qo'mitasi yo'riqnomasi Y-30" },
-              { type: "o'zgartiradi", typeColor: "#F0C24B", typeBg: "rgba(240,194,75,.15)", label: "Kredit qo'mitasi nizomi N-08" },
-              { type: "o'rnini bosadi", typeColor: "#F07A6B", typeBg: "rgba(240,122,107,.15)", label: "Eski tartib N-05 (2022)" },
-            ].map((rel, i) => (
-              <div key={i} className="flex items-center gap-2.5 py-2 text-[12.5px] font-semibold" style={{ color: txt2 }}>
-                <span className="text-[9.5px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-[6px] flex-shrink-0 whitespace-nowrap"
-                  style={{ background: rel.typeBg, color: rel.typeColor }}>{rel.type}</span>
-                {rel.label}
+
+            {relationAddOpen && (
+              <div className="mb-4 rounded-xl p-3" style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}` }}>
+                {!relationTargetId ? (
+                  <>
+                    <input autoFocus value={relationSearch} onChange={(e) => setRelationSearch(e.target.value)}
+                      placeholder={t("docDetail.searchDocument")}
+                      className="w-full outline-none rounded-lg text-[12.5px] font-semibold px-3 py-2 mb-1.5"
+                      style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                    {relationSearchResults.map((d) => (
+                      <div key={d.id} onClick={() => { setRelationTargetId(d.id); setRelationTargetTitle(d.title); }}
+                        className="text-[12px] font-semibold px-2 py-1.5 rounded-lg cursor-pointer" style={{ color: txt2 }}>
+                        {d.title}{d.docNumber ? ` № ${d.docNumber}` : ""}
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[12.5px] font-bold" style={{ color: txt }}>{relationTargetTitle}</span>
+                      <span onClick={() => { setRelationTargetId(null); setRelationTargetTitle(""); }} className="cursor-pointer" style={{ color: txt3 }}>
+                        <X size={13} />
+                      </span>
+                    </div>
+                    <select value={relationType} onChange={(e) => setRelationType(e.target.value as RelationType)}
+                      className="w-full outline-none rounded-lg text-[12.5px] font-semibold px-3 py-2 mb-1.5 cursor-pointer"
+                      style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }}>
+                      {RELATION_TYPES.map((rt) => <option key={rt} value={rt}>{t(`relationType.${rt}`)}</option>)}
+                    </select>
+                    <input value={relationNote} onChange={(e) => setRelationNote(e.target.value)}
+                      placeholder={t("docDetail.relationNotePlaceholder")}
+                      className="w-full outline-none rounded-lg text-[12.5px] font-semibold px-3 py-2 mb-2"
+                      style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                    <div className="flex gap-2 justify-end">
+                      <button onClick={() => setRelationAddOpen(false)}
+                        className="text-[11.5px] font-bold px-3 py-1.5 rounded-lg cursor-pointer"
+                        style={{ background: "transparent", border: `1px solid ${panelBorder}`, color: txt2 }}>
+                        {t("common.cancel")}
+                      </button>
+                      <button onClick={handleAddRelation} disabled={relationSaving}
+                        className="flex items-center gap-2 text-[11.5px] font-bold px-3 py-1.5 rounded-lg cursor-pointer disabled:opacity-50"
+                        style={{ background: lime, color: "#0A1600", border: "none" }}>
+                        {relationSaving && <Loader2 size={12} className="animate-spin" />}
+                        {t("common.save")}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-            ))}
+            )}
+
+            {relations.length === 0 ? (
+              <p className="text-[12px] font-semibold" style={{ color: txt3 }}>{t("docDetail.noRelations")}</p>
+            ) : (
+              relations.map((rel) => (
+                <div key={rel.id} className="flex items-center gap-2.5 py-2 text-[12.5px] font-semibold" style={{ color: txt2 }}>
+                  <span className="text-[9.5px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-[6px] flex-shrink-0 whitespace-nowrap"
+                    style={{ background: RELATION_TYPE_STYLE[rel.type].bg, color: RELATION_TYPE_STYLE[rel.type].color }}>
+                    {rel.direction === "INCOMING" ? "← " : ""}{t(`relationType.${rel.type}`)}
+                  </span>
+                  <span onClick={() => openDocument(rel.document.id)} className="flex-1 cursor-pointer truncate">{rel.document.title}</span>
+                  {canEditDocuments && (
+                    <span onClick={() => handleRemoveRelation(rel.id)} className="cursor-pointer flex-shrink-0" style={{ color: txt3 }}>
+                      <X size={13} />
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
           {/* Audit — mock (audit ko'rish UI'si TZ-1 §1.3 doirasida emas) */}

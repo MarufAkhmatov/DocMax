@@ -79,9 +79,19 @@
     "addVersion": "+ New version",
     "relations": "Relations",
     "addRelation": "+ Add",
+    "searchDocument": "Search by document name or number...",
+    "relationNotePlaceholder": "Note (optional)",
+    "noRelations": "No relations yet",
     "audit": "Audit",
     "comingSoon": "This feature will be added in a later stage",
     "current": "current"
+  },
+  "relationType": {
+    "RELATED": "Related",
+    "PARENT_CHILD": "Child",
+    "AMENDS": "Amends",
+    "REPLACES": "Replaces",
+    "BASED_ON": "Based on"
   },
   "graph": {
     "title": "Relations graph",

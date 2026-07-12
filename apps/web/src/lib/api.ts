@@ -4,9 +4,11 @@ import type {
   AuthUser,
   ConfirmFileInput,
   CreateDocumentInput,
+  CreateDocumentRelationInput,
   CreateDocumentTypeInput,
   CreateFolderInput,
   DocumentDetail,
+  DocumentRelationSummary,
   DocumentTypeSummary,
   FileSummary,
   FolderNode,
@@ -279,4 +281,14 @@ export const organizationsApi = {
     apiFetch<OrganizationBranding>('/organizations/branding/logo', { method: 'PATCH', body: { fileId } }),
 
   removeLogo: () => apiFetch<OrganizationBranding>('/organizations/branding/logo', { method: 'DELETE' }),
+};
+
+export const relationsApi = {
+  list: (documentId: string) => apiFetch<DocumentRelationSummary[]>(`/documents/${documentId}/relations`),
+
+  create: (documentId: string, input: CreateDocumentRelationInput) =>
+    apiFetch<DocumentRelationSummary>(`/documents/${documentId}/relations`, { method: 'POST', body: input }),
+
+  remove: (documentId: string, relationId: string) =>
+    apiFetch<void>(`/documents/${documentId}/relations/${relationId}`, { method: 'DELETE' }),
 };

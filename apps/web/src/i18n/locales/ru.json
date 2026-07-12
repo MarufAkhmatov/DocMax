@@ -79,9 +79,19 @@
     "addVersion": "+ Новая версия",
     "relations": "Связи",
     "addRelation": "+ Добавить",
+    "searchDocument": "Найдите документ по названию или номеру...",
+    "relationNotePlaceholder": "Комментарий (необязательно)",
+    "noRelations": "Связей пока нет",
     "audit": "Аудит",
     "comingSoon": "Эта функция появится на следующем этапе",
     "current": "текущая"
+  },
+  "relationType": {
+    "RELATED": "Связан",
+    "PARENT_CHILD": "Дочерний",
+    "AMENDS": "Изменяет",
+    "REPLACES": "Заменяет",
+    "BASED_ON": "Основание"
   },
   "graph": {
     "title": "Граф связей",

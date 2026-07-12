@@ -14,6 +14,7 @@ import { FilesModule } from './files/files.module';
 import { DocumentsModule } from './documents/documents.module';
 import { DocumentTypesModule } from './document-types/document-types.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { DocumentRelationsModule } from './document-relations/document-relations.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -40,6 +41,7 @@ import { AllExceptionsFilter } from './common/http-exception.filter';
     DocumentsModule,
     DocumentTypesModule,
     OrganizationsModule,
+    DocumentRelationsModule,
   ],
   controllers: [HealthController],
   providers: [
