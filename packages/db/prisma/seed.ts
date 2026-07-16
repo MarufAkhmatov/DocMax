@@ -88,6 +88,20 @@ async function main() {
     return;
   }
 
+  // Hujjat turlari endi org-darajali jadval (20260712143930_document_types migratsiyasi) —
+  // enum o'chirilgan, har org o'z turlarini Admin Panel'da boshqaradi. Seed default to'plamni beradi.
+  const typeNames = ['Buyruq', 'Nizom', 'Siyosat', "Yo'riqnoma", 'Protokol', 'Boshqa'] as const;
+  const typeIds = new Map<string, string>();
+  for (const [i, name] of typeNames.entries()) {
+    const docType = await prisma.documentType.upsert({
+      where: { orgId_name: { orgId: org.id, name } },
+      update: {},
+      create: { orgId: org.id, name, sortOrder: i },
+    });
+    typeIds.set(name, docType.id);
+  }
+  console.log(`${typeNames.length} ta hujjat turi yaratildi.`);
+
   const rootId = randomUUID();
   const boshqaruvId = randomUUID();
   const buyruqlarId = randomUUID();
@@ -107,22 +121,22 @@ async function main() {
     folderId: string;
     title: string;
     docNumber: string;
-    docType: 'ORDER' | 'REGULATION' | 'POLICY' | 'INSTRUCTION' | 'PROTOCOL' | 'OTHER';
+    typeName: (typeof typeNames)[number];
     status: 'DRAFT' | 'IN_REVIEW' | 'ACTIVE' | 'EXPIRED';
     authorUserId: string;
     approvedAt?: Date;
     effectiveFrom?: Date;
   }> = [
-    { folderId: buyruqlarId, title: 'Ish vaqti tartibi to\'g\'risida', docNumber: '№12', docType: 'ORDER', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2025-02-10'), effectiveFrom: new Date('2025-02-15') },
-    { folderId: buyruqlarId, title: 'Masofaviy ish tartibi', docNumber: '№15', docType: 'ORDER', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2025-03-01'), effectiveFrom: new Date('2025-03-05') },
-    { folderId: buyruqlarId, title: 'Kadrlar zaxirasi to\'g\'risida', docNumber: '№9', docType: 'ORDER', status: 'DRAFT', authorUserId: editor.id },
-    { folderId: buyruqlarId, title: 'Yillik ta\'til jadvali', docNumber: '№21', docType: 'ORDER', status: 'IN_REVIEW', authorUserId: editor.id },
-    { folderId: nizomlarId, title: 'Tashkilot nizomi', docNumber: '№1', docType: 'REGULATION', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2024-01-12'), effectiveFrom: new Date('2024-01-20') },
-    { folderId: nizomlarId, title: 'Axborot xavfsizligi siyosati', docNumber: '№4', docType: 'POLICY', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2024-06-01'), effectiveFrom: new Date('2024-06-10') },
-    { folderId: nizomlarId, title: 'Mehnat muhofazasi yo\'riqnomasi', docNumber: '№7', docType: 'INSTRUCTION', status: 'ACTIVE', authorUserId: editor.id, approvedAt: new Date('2024-09-15'), effectiveFrom: new Date('2024-09-20') },
-    { folderId: moliyaId, title: 'Byudjet reglamenti', docNumber: '№3', docType: 'REGULATION', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2025-01-05'), effectiveFrom: new Date('2025-01-10') },
-    { folderId: moliyaId, title: 'Xarid protokoli', docNumber: '№4', docType: 'PROTOCOL', status: 'EXPIRED', authorUserId: editor.id, approvedAt: new Date('2023-05-01'), effectiveFrom: new Date('2023-05-05') },
-    { folderId: moliyaId, title: 'Moliyaviy hisobot tartibi', docNumber: '№8', docType: 'POLICY', status: 'DRAFT', authorUserId: editor.id },
+    { folderId: buyruqlarId, title: 'Ish vaqti tartibi to\'g\'risida', docNumber: '№12', typeName: 'Buyruq', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2025-02-10'), effectiveFrom: new Date('2025-02-15') },
+    { folderId: buyruqlarId, title: 'Masofaviy ish tartibi', docNumber: '№15', typeName: 'Buyruq', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2025-03-01'), effectiveFrom: new Date('2025-03-05') },
+    { folderId: buyruqlarId, title: 'Kadrlar zaxirasi to\'g\'risida', docNumber: '№9', typeName: 'Buyruq', status: 'DRAFT', authorUserId: editor.id },
+    { folderId: buyruqlarId, title: 'Yillik ta\'til jadvali', docNumber: '№21', typeName: 'Buyruq', status: 'IN_REVIEW', authorUserId: editor.id },
+    { folderId: nizomlarId, title: 'Tashkilot nizomi', docNumber: '№1', typeName: 'Nizom', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2024-01-12'), effectiveFrom: new Date('2024-01-20') },
+    { folderId: nizomlarId, title: 'Axborot xavfsizligi siyosati', docNumber: '№4', typeName: 'Siyosat', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2024-06-01'), effectiveFrom: new Date('2024-06-10') },
+    { folderId: nizomlarId, title: 'Mehnat muhofazasi yo\'riqnomasi', docNumber: '№7', typeName: "Yo'riqnoma", status: 'ACTIVE', authorUserId: editor.id, approvedAt: new Date('2024-09-15'), effectiveFrom: new Date('2024-09-20') },
+    { folderId: moliyaId, title: 'Byudjet reglamenti', docNumber: '№3', typeName: 'Nizom', status: 'ACTIVE', authorUserId: admin.id, approvedAt: new Date('2025-01-05'), effectiveFrom: new Date('2025-01-10') },
+    { folderId: moliyaId, title: 'Xarid protokoli', docNumber: '№4', typeName: 'Protokol', status: 'EXPIRED', authorUserId: editor.id, approvedAt: new Date('2023-05-01'), effectiveFrom: new Date('2023-05-05') },
+    { folderId: moliyaId, title: 'Moliyaviy hisobot tartibi', docNumber: '№8', typeName: 'Siyosat', status: 'DRAFT', authorUserId: editor.id },
   ];
 
   await prisma.document.createMany({
@@ -131,7 +145,7 @@ async function main() {
       folderId: doc.folderId,
       title: doc.title,
       docNumber: doc.docNumber,
-      docType: doc.docType,
+      docTypeId: typeIds.get(doc.typeName)!,
       status: doc.status,
       authorUserId: doc.authorUserId,
       approvedAt: doc.approvedAt,
