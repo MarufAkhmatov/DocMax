@@ -4,6 +4,7 @@ import { setAuditContext } from '../audit/audit-context';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest, RequestUser } from '../auth/types';
+import { UuidParamPipe } from '../common/uuid-param.pipe';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { DocumentTypesService } from './document-types.service';
 
@@ -39,7 +40,7 @@ export class DocumentTypesController {
   @Patch(':id')
   async update(
     @CurrentUser() user: RequestUser,
-    @Param('id') id: string,
+    @Param('id', new UuidParamPipe()) id: string,
     @Body(new ZodValidationPipe(updateDocumentTypeSchema)) body: unknown,
     @Req() req: AuthenticatedRequest,
   ) {
@@ -57,7 +58,7 @@ export class DocumentTypesController {
   @Roles('ADMIN')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string, @Req() req: AuthenticatedRequest) {
+  async remove(@CurrentUser() user: RequestUser, @Param('id', new UuidParamPipe()) id: string, @Req() req: AuthenticatedRequest) {
     await this.types.remove(id);
     setAuditContext(req, {
       orgId: user.orgId,

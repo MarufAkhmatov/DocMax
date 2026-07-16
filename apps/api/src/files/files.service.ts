@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import type { ConfirmFileInput, FileSummary, PresignFileInput, PresignResult } from '@docmax/shared';
-import { badRequest } from '../common/api-error';
+import type {
+  ConfirmFileInput,
+  FileDownloadResult,
+  FileSummary,
+  PresignFileInput,
+  PresignResult,
+} from '@docmax/shared';
+import { badRequest, notFound } from '../common/api-error';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantPrismaService } from '../prisma/tenant-prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -51,6 +57,16 @@ export class FilesService {
       throw badRequest("Fayl MinIO'ga to'liq yuklanmagan yoki hajmi mos kelmadi");
     }
 
+    // Server-tomonlama hash tekshiruvi (TZ-1 "hash tekshiruv"): klient da'vo qilgan
+    // sha256'ga ishonilmaydi — mos kelmasa obyekt o'chiriladi va so'rov rad etiladi.
+    // Aks holda buzilgan da'vo dedup'ni zaharlashi mumkin edi (istalgan kontent
+    // boshqa hash ostida ro'yxatga olinib, keyingi haqiqiy yuklashlar unga ulanadi).
+    const actualSha256 = await this.storage.computeObjectSha256(input.objectKey);
+    if (actualSha256 !== input.sha256.toLowerCase()) {
+      await this.storage.removeObject(input.objectKey).catch(() => undefined);
+      throw badRequest("Fayl hash tekshiruvdan o'tmadi — yuklashni qayta urinib ko'ring");
+    }
+
     const created = await this.prisma.file.create({
       data: {
         orgId,
@@ -68,6 +84,19 @@ export class FilesService {
     await this.queue.addFileIndexJob({ fileId: created.id, orgId });
 
     return this.toSummary(created);
+  }
+
+  /** Jadval chip'lari bosilganda yangi presigned URL beradi (VIEW/DOWNLOAD auditi controller'da). */
+  async downloadUrl(id: string, inline: boolean): Promise<FileDownloadResult> {
+    const file = await this.file.findFirst({ where: { id } });
+    if (!file) {
+      throw notFound('Fayl topilmadi');
+    }
+    const url = await this.storage.getPresignedDownloadUrl(file.objectKey, PRESIGN_TTL_SECONDS, {
+      filename: file.originalName,
+      inline,
+    });
+    return { url, expiresIn: PRESIGN_TTL_SECONDS };
   }
 
   private async toSummary(file: {

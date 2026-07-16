@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import type { Readable } from 'node:stream';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -7,6 +9,7 @@ import {
   HeadObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
+  DeleteObjectCommand,
   NotFound,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -68,8 +71,19 @@ export class StorageService implements OnModuleInit {
     return getSignedUrl(this.client, command, { expiresIn });
   }
 
-  getPresignedDownloadUrl(objectKey: string, expiresIn = 600): Promise<string> {
-    const command = new GetObjectCommand({ Bucket: this.bucket, Key: objectKey });
+  getPresignedDownloadUrl(
+    objectKey: string,
+    expiresIn = 600,
+    opts?: { filename?: string; inline?: boolean },
+  ): Promise<string> {
+    const disposition = opts?.filename
+      ? `${opts.inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(opts.filename)}`
+      : undefined;
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: objectKey,
+      ResponseContentDisposition: disposition,
+    });
     return getSignedUrl(this.client, command, { expiresIn });
   }
 
@@ -84,5 +98,23 @@ export class StorageService implements OnModuleInit {
       }
       throw err;
     }
+  }
+
+  /** confirm'dagi server-tomonlama hash tekshiruvi uchun — obyektni stream qilib SHA-256 hisoblaydi
+   * (TZ-1 "hash tekshiruv": klient da'vo qilgan qiymatga ishonilmaydi). */
+  async computeObjectSha256(objectKey: string): Promise<string> {
+    const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }));
+    const stream = res.Body as Readable;
+    return new Promise((resolve, reject) => {
+      const hash = createHash('sha256');
+      stream.on('data', (chunk) => hash.update(chunk as Buffer));
+      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on('error', reject);
+    });
+  }
+
+  /** Hash mos kelmagan (yaroqsiz deb topilgan) obyektni tozalash uchun. */
+  async removeObject(objectKey: string): Promise<void> {
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: objectKey }));
   }
 }

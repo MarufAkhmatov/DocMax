@@ -4,6 +4,7 @@ import { setAuditContext } from '../audit/audit-context';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest, RequestUser } from '../auth/types';
+import { UuidParamPipe } from '../common/uuid-param.pipe';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { DocumentsService } from './documents.service';
 
@@ -18,7 +19,7 @@ export class DocumentsController {
   }
 
   @Get(':id')
-  getById(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+  getById(@CurrentUser() user: RequestUser, @Param('id', new UuidParamPipe()) id: string) {
     return this.documents.getById(user.orgId, id);
   }
 
@@ -44,7 +45,7 @@ export class DocumentsController {
   @Patch(':id')
   async update(
     @CurrentUser() user: RequestUser,
-    @Param('id') id: string,
+    @Param('id', new UuidParamPipe()) id: string,
     @Body(new ZodValidationPipe(updateDocumentSchema)) body: unknown,
     @Req() req: AuthenticatedRequest,
   ) {
@@ -62,7 +63,7 @@ export class DocumentsController {
   @Roles('ADMIN', 'EDITOR')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string, @Req() req: AuthenticatedRequest) {
+  async remove(@CurrentUser() user: RequestUser, @Param('id', new UuidParamPipe()) id: string, @Req() req: AuthenticatedRequest) {
     await this.documents.remove(id);
     setAuditContext(req, {
       orgId: user.orgId,

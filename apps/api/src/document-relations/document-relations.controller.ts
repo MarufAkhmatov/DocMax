@@ -4,6 +4,7 @@ import { setAuditContext } from '../audit/audit-context';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest, RequestUser } from '../auth/types';
+import { UuidParamPipe } from '../common/uuid-param.pipe';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { DocumentRelationsService } from './document-relations.service';
 
@@ -13,7 +14,7 @@ export class DocumentRelationsController {
   constructor(private readonly relations: DocumentRelationsService) {}
 
   @Get()
-  list(@Param('documentId') documentId: string) {
+  list(@Param('documentId', new UuidParamPipe()) documentId: string) {
     return this.relations.list(documentId);
   }
 
@@ -21,7 +22,7 @@ export class DocumentRelationsController {
   @Post()
   async create(
     @CurrentUser() user: RequestUser,
-    @Param('documentId') documentId: string,
+    @Param('documentId', new UuidParamPipe()) documentId: string,
     @Body(new ZodValidationPipe(createDocumentRelationSchema)) body: unknown,
     @Req() req: AuthenticatedRequest,
   ) {
@@ -41,7 +42,7 @@ export class DocumentRelationsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @CurrentUser() user: RequestUser,
-    @Param('relationId') relationId: string,
+    @Param('relationId', new UuidParamPipe()) relationId: string,
     @Req() req: AuthenticatedRequest,
   ) {
     await this.relations.remove(relationId);

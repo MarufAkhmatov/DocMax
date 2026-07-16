@@ -132,7 +132,9 @@ export class AuthController {
     return result;
   }
 
+  /** Rate limit (5/min/IP) — email spam va reset-token flooding'ga qarshi (TZ-0 §7 ruhi). */
   @Public()
+  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
   forgotPassword(@Body(new ZodValidationPipe(forgotPasswordSchema)) body: unknown) {

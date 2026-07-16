@@ -16,6 +16,7 @@ import { setAuditContext } from '../audit/audit-context';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest, RequestUser } from '../auth/types';
+import { UuidParamPipe } from '../common/uuid-param.pipe';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { FoldersService } from './folders.service';
 
@@ -56,7 +57,7 @@ export class FoldersController {
   @Patch(':id')
   async update(
     @CurrentUser() user: RequestUser,
-    @Param('id') id: string,
+    @Param('id', new UuidParamPipe()) id: string,
     @Body(new ZodValidationPipe(updateFolderSchema)) body: unknown,
     @Req() req: AuthenticatedRequest,
   ) {
@@ -76,7 +77,7 @@ export class FoldersController {
   @Post(':id/move')
   async move(
     @CurrentUser() user: RequestUser,
-    @Param('id') id: string,
+    @Param('id', new UuidParamPipe()) id: string,
     @Body(new ZodValidationPipe(moveFolderSchema)) body: unknown,
     @Req() req: AuthenticatedRequest,
   ) {
@@ -95,7 +96,7 @@ export class FoldersController {
   @Roles('ADMIN')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string, @Req() req: AuthenticatedRequest) {
+  async remove(@CurrentUser() user: RequestUser, @Param('id', new UuidParamPipe()) id: string, @Req() req: AuthenticatedRequest) {
     await this.folders.remove(id);
     setAuditContext(req, {
       orgId: user.orgId,
