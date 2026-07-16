@@ -10,6 +10,7 @@ import type {
   DocumentDetail,
   DocumentRelationSummary,
   DocumentTypeSummary,
+  FileDownloadResult,
   FileSummary,
   FolderNode,
   ForgotPasswordInput,
@@ -202,6 +203,10 @@ export const filesApi = {
 
   confirm: (input: ConfirmFileInput) =>
     apiFetch<FileSummary>('/files/confirm', { method: 'POST', body: input }),
+
+  /** Bosilgan paytda yangi presigned URL — jadval chip'lari uchun (VIEW/DOWNLOAD audit backend'da). */
+  downloadUrl: (id: string, disposition: 'inline' | 'attachment' = 'attachment') =>
+    apiFetch<FileDownloadResult>(`/files/${id}/download?disposition=${disposition}`),
 
   /** presign → (kerak bo'lsa) to'g'ridan-to'g'ri MinIO'ga PUT → confirm (CLAUDE.md 6-qoida). */
   upload: async (file: File): Promise<FileSummary> => {

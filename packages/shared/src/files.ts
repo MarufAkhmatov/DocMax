@@ -51,3 +51,16 @@ export interface PresignResult {
   objectKey?: string;
   expiresIn?: number;
 }
+
+/** GET /files/:id/download — bosilgan paytda yangi presigned URL (jadval chip'lari uchun,
+ * ro'yxatga URL kiritilsa 10 daqiqada eskirib qolar edi). inline = brauzerda ochish (VIEW),
+ * attachment = yuklab olish (DOWNLOAD) — audit ham shunga mos yoziladi. */
+export const fileDownloadQuerySchema = z.object({
+  disposition: z.enum(['inline', 'attachment']).default('attachment'),
+});
+export type FileDownloadQuery = z.infer<typeof fileDownloadQuerySchema>;
+
+export interface FileDownloadResult {
+  url: string;
+  expiresIn: number;
+}

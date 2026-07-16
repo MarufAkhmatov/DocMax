@@ -24,7 +24,13 @@ const DOWNLOAD_URL_TTL_SECONDS = 600;
 // docTypeId esa haqiqiy relation() (DocumentType) — to'g'ridan-to'g'ri include qilinadi.
 const DOCUMENT_LIST_INCLUDE = {
   author: { select: { fullName: true } },
-  currentVersion: { select: { versionLabel: true } },
+  currentVersion: {
+    select: {
+      versionLabel: true,
+      pdfFile: { select: { id: true, originalName: true } },
+      docxFile: { select: { id: true, originalName: true } },
+    },
+  },
   tags: { include: { tag: { select: { name: true } } } },
   docType: { select: { name: true } },
 } satisfies Prisma.DocumentInclude;
@@ -47,6 +53,8 @@ function toSummary(doc: DocumentWithRelations, orgUnitNames: Map<string, string>
     orgUnitName: doc.orgUnitId ? (orgUnitNames.get(doc.orgUnitId) ?? null) : null,
     folderId: doc.folderId,
     currentVersionLabel: doc.currentVersion?.versionLabel ?? null,
+    pdfFile: doc.currentVersion?.pdfFile ?? null,
+    docxFile: doc.currentVersion?.docxFile ?? null,
     tags: doc.tags.map((t) => t.tag.name),
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),

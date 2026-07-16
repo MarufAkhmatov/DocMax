@@ -54,6 +54,13 @@ export const listDocumentsQuerySchema = paginationSchema.extend({
 });
 export type ListDocumentsQuery = z.infer<typeof listDocumentsQuerySchema>;
 
+/** Ro'yxat jadvalidagi fayl-chip uchun yengil havola — presigned URL emas (muddati o'tib
+ * qolmasligi uchun URL bosilganda GET /files/:id/download orqali yangisi olinadi). */
+export interface DocumentFileRef {
+  id: string;
+  originalName: string;
+}
+
 export interface DocumentSummary {
   id: string;
   title: string;
@@ -69,6 +76,8 @@ export interface DocumentSummary {
   orgUnitName: string | null;
   folderId: string;
   currentVersionLabel: string | null;
+  pdfFile: DocumentFileRef | null;
+  docxFile: DocumentFileRef | null;
   tags: string[];
   createdAt: string;
   updatedAt: string;

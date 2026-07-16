@@ -110,6 +110,61 @@ function TagBadge({ label, violet }: { label: string; violet?: boolean }) {
   );
 }
 
+// ─── Fayl-chip (PDF/DOCX) — hover'da ko'rish/yuklab olish/tahrirlash/o'chirish ─
+// FolderTreeNode'dagi hover naqshi bilan izchil (React state, CSS group-hover emas).
+function FileChip({ label, color, originalName, canEdit, isDark, panelBorder, txt2, onView, onDownload, onEdit, onDelete }: {
+  label: string;
+  color: string;
+  originalName: string;
+  canEdit: boolean;
+  isDark: boolean;
+  panelBorder: string;
+  txt2: string;
+  onView: () => void;
+  onDownload: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useTranslation();
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-1 rounded-[7px] cursor-default whitespace-nowrap"
+        title={originalName}
+        style={{ border: `1px solid ${panelBorder}`, color, background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.03)" }}>
+        <FileText size={11} /> {label}
+      </span>
+      {hovered && (
+        <div className="flex absolute z-30 items-center" style={{ left: "100%", top: "50%", transform: "translateY(-50%)", paddingLeft: 4 }}>
+          <div className="flex items-center gap-0.5 rounded-[10px] p-1"
+            style={{ background: isDark ? "#1E1E1E" : "#fff", border: `1px solid ${panelBorder}`, boxShadow: "0 8px 24px rgba(0,0,0,.35)" }}>
+            <span title={t("vault.fileView")} onClick={onView}
+              className="p-1.5 rounded-lg cursor-pointer transition-opacity hover:opacity-60" style={{ color: txt2 }}>
+              <Eye size={13} />
+            </span>
+            <span title={t("vault.fileDownload")} onClick={onDownload}
+              className="p-1.5 rounded-lg cursor-pointer transition-opacity hover:opacity-60" style={{ color: txt2 }}>
+              <Download size={13} />
+            </span>
+            {canEdit && (
+              <span title={t("vault.fileEdit")} onClick={onEdit}
+                className="p-1.5 rounded-lg cursor-pointer transition-opacity hover:opacity-60" style={{ color: txt2 }}>
+                <Pencil size={13} />
+              </span>
+            )}
+            {canEdit && (
+              <span title={t("vault.fileDelete")} onClick={onDelete}
+                className="p-1.5 rounded-lg cursor-pointer transition-opacity hover:opacity-60" style={{ color: "#F07A6B" }}>
+                <Trash2 size={13} />
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Folder Card (macOS stacked-sheets style) ────────────────────────────────
 function FolderCard({ folder, onClick }: { folder: FolderCardData; onClick: () => void }) {
   const { t } = useTranslation();
@@ -1065,6 +1120,43 @@ export default function App() {
     }
   }, [docDetail, docEditForm, refetchDocuments, toast]);
 
+  // ── Jadvaldagi fayl-chip amallari (PDF/DOCX hover: ko'rish/yuklab olish/tahrirlash/o'chirish) ──
+  const handleFileOpen = useCallback(async (fileId: string, disposition: "inline" | "attachment") => {
+    try {
+      // URL bosilgan paytda yangidan olinadi — ro'yxatga kiritilgan presigned URL 10 daqiqada eskirar edi
+      const { url } = await filesApi.downloadUrl(fileId, disposition);
+      window.open(url, "_blank", "noopener");
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Faylni ochishda xato yuz berdi");
+    }
+  }, [toast]);
+
+  const autoEditDocRef = useRef(false);
+  const handleDocEditFromTable = (id: string) => {
+    autoEditDocRef.current = true;
+    openDocument(id);
+  };
+  useEffect(() => {
+    if (docDetail && autoEditDocRef.current) {
+      autoEditDocRef.current = false;
+      if (user?.role === "ADMIN" || user?.role === "EDITOR") openDocEdit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docDetail]);
+
+  const handleDocDeleteFromTable = useCallback(async (doc: DocumentSummary) => {
+    if (!window.confirm(`${t("vault.deleteDocConfirm")} "${doc.title}"?`)) return;
+    try {
+      await documentsApi.remove(doc.id);
+      toast(t("vault.docDeleted"));
+      refetchDocuments();
+      refetchFolders();
+      refetchSidebarRoots();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Hujjatni o'chirishda xato yuz berdi");
+    }
+  }, [t, toast, refetchDocuments, refetchFolders, refetchSidebarRoots]);
+
   // Word (.docx) preview — mammoth orqali client-side HTML'ga o'giriladi
   const [wordHtml, setWordHtml] = useState<string | null>(null);
   const [wordLoading, setWordLoading] = useState(false);
@@ -1436,6 +1528,7 @@ export default function App() {
   );
 
   // ── VAULT ─────────────────────────────────────────────────────────────────
+  const canEditDocuments = user?.role === "ADMIN" || user?.role === "EDITOR";
   const Vault = (
     <div>
       <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
@@ -1607,7 +1700,7 @@ export default function App() {
                         {selected.size === documents.length && <Check size={10} color="#0A1600" />}
                       </span>
                     </th>
-                    {[t("vault.colDocument"), t("vault.colType"), t("vault.colTags"), t("vault.colStatus"), t("vault.colVersion"), t("vault.colApproved"), t("vault.colDept")].map(h => (
+                    {[t("vault.colDocument"), t("vault.colFiles"), t("vault.colType"), t("vault.colTags"), t("vault.colStatus"), t("vault.colVersion"), t("vault.colApproved"), t("vault.colDept")].map(h => (
                       <th key={h} style={{ padding: "11px 18px", borderBottom: `1px solid ${panelBorder}`, textAlign: "left", fontSize: 10.5, fontWeight: 800, letterSpacing: ".7px", textTransform: "uppercase", color: txt3 }}>{h}</th>
                     ))}
                   </tr>
@@ -1628,6 +1721,22 @@ export default function App() {
                         <span className="block text-[11px] font-semibold mt-0.5" style={{ color: txt3 }}>
                           {doc.docNumber ? `№ ${doc.docNumber}` : ""}{doc.authorName ? ` · ${doc.authorName}` : ""}
                         </span>
+                      </td>
+                      {/* Fayl-chip'lar: hover'da ko'rish/yuklab olish/tahrirlash/o'chirish (foydalanuvchi so'rovi) */}
+                      <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}` }} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5">
+                          {([["PDF", doc.pdfFile, "#F07A6B"], ["DOCX", doc.docxFile, "#6BB4F5"]] as const).map(([label, fileRef, color]) =>
+                            fileRef ? (
+                              <FileChip key={label} label={label} color={color} originalName={fileRef.originalName}
+                                canEdit={canEditDocuments} isDark={isDark} panelBorder={panelBorder} txt2={txt2}
+                                onView={() => handleFileOpen(fileRef.id, "inline")}
+                                onDownload={() => handleFileOpen(fileRef.id, "attachment")}
+                                onEdit={() => handleDocEditFromTable(doc.id)}
+                                onDelete={() => handleDocDeleteFromTable(doc)} />
+                            ) : null,
+                          )}
+                          {!doc.pdfFile && !doc.docxFile && <span style={{ color: txt3, fontWeight: 600 }}>—</span>}
+                        </div>
                       </td>
                       <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}`, color: txt2, fontWeight: 600 }}>{doc.docTypeName}</td>
                       <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}` }}>
@@ -1654,7 +1763,6 @@ export default function App() {
   );
 
   // ── DOCUMENT DETAIL (real backend — TZ-1 §1.3) ────────────────────────────
-  const canEditDocuments = user?.role === "ADMIN" || user?.role === "EDITOR";
   const DocDetail = (
     <div>
       {docDetailLoading ? (
