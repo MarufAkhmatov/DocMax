@@ -1,6 +1,6 @@
 # DocMax — Handoff
 
-*Oxirgi yangilanish: 2026-07-17 · kanonik branch: **`claude/hand-off-task-c339c9`** (= eski `claude/vibrant-davinci-9d583f` + security audit + fayl-chip'lar)*
+*Oxirgi yangilanish: 2026-07-17 (milestone 6 bilan) · kanonik branch: **`claude/hand-off-task-c339c9`** (= eski `claude/vibrant-davinci-9d583f` + security audit + fayl-chip'lar)*
 
 Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilingani va keyingi qadamlar shu yerda.
 
@@ -48,7 +48,7 @@ Batafsil tarix uchun: `git log --oneline` — har commit xabarida nima qilingani
 
 ## 2. Keyingi qadamlar (ustuvorlik tartibida)
 
-1. **Milestone 6 — Versiyalash + avtomatik taqqoslama** (TZ-1 §1.4, docs/START.md 6-band): "Yangi versiya" tugmasi hozir "keyinroq" toast'i beradi. Kerak: versiya turi so'rash (v1.0→v1.1 / v1→v2), `diff.generate` worker'da mammoth→docx 3-ustunli shablon (`design/taqqoslama-jadval-namuna.docx` formati), versiya tranzaksiyasi (insert + is_current almashish + current_version_id, race'siz), timeline UI, tayyor bo'lganda notification. Shundan keyin TZ-1 Definition of Done (§1.7) checklistini yugurtirish.
+1. ✅ **Milestone 6 — BAJARILDI** (2026-07-17): versiya turi modali (MINOR/MAJOR, yorliq preview), `POST /documents/:id/versions` (tranzaksiya, race'da 409), `diff.generate` worker real (mammoth→docx npm, namuna formatida; docx yo'q bo'lsa PDF matnidan fallback ogohlantirish bilan), shablon polling (`/documents/template-jobs/:jobId`), timeline'da PDF/DOCX/Taqqoslama chip'lari. Notification o'rniga modal-ichi polling (notifications tizimi hali yo'q — keyingi ish). Endi TZ-1 Definition of Done (§1.7) checklistini foydalanuvchi bilan birga yugurtirish mumkin.
 2. **⌘K qidiruvni real qilish** — hozir mock; `documentsApi.list({q})` bilan debounce qidiruv.
 3. **Bulk amallar** — checkbox UI bor, endpoint'ga ulanmagan.
 4. **VIEWER'lar uchun ham fayl-chip'lar ko'rinadi** (view/download) — tekshirilgan; lekin DocDetail'dagi "Yuklab olish" tugmasi versiyadagi eskiradigan downloadUrl'dan foydalanadi — uni ham `/files/:id/download`ga o'tkazish arzon yaxshilash.
