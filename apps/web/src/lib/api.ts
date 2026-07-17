@@ -17,6 +17,8 @@ import type {
   DocumentRelationSummary,
   DocumentTypeSummary,
   FileDownloadResult,
+  GraphData,
+  GraphQuery,
   FileSummary,
   FolderNode,
   ForgotPasswordInput,
@@ -284,6 +286,17 @@ export const documentsApi = {
 
   templateJobStatus: (jobId: string) =>
     apiFetch<ComparisonTemplateStatus>(`/documents/template-jobs/${jobId}`),
+};
+
+export const graphApi = {
+  get: (query: Partial<GraphQuery> = {}) => {
+    const search = new URLSearchParams();
+    for (const [k, v] of Object.entries(query)) {
+      if (v !== undefined && v !== null && v !== '') search.set(k, String(v));
+    }
+    const qs = search.toString();
+    return apiFetch<GraphData>(`/graph${qs ? `?${qs}` : ''}`);
+  },
 };
 
 export const documentTypesApi = {

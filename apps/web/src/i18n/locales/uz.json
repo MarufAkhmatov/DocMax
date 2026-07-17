@@ -116,7 +116,14 @@
     "relationsSuffix": "bog'lanish",
     "openDoc": "Hujjatni ochish",
     "modeGraph": "Graf",
-    "modeWorkflow": "Workflow"
+    "modeWorkflow": "Workflow",
+    "colorByStatus": "Holat bo'yicha",
+    "colorByType": "Tur bo'yicha",
+    "allStatuses": "Barcha holatlar",
+    "allTypes": "Barcha turlar",
+    "isolatedToggle": "Yolg'izlar",
+    "empty": "Bog'lanadigan hujjatlar yo'q",
+    "stats": "{{nodes}} hujjat · {{edges}} bog'lanish"
   },
   "monitoring": {
     "title": "Tashqi aktlar monitoringi",

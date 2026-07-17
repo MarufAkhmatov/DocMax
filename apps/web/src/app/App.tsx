@@ -16,6 +16,7 @@ import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
 import Login from "./Login";
 import AdminPanel from "./AdminPanel";
 import CalendarView from "./CalendarView";
+import GraphView from "./GraphView";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type View = "dash" | "vault" | "doc" | "graph" | "mon" | "cal" | "admin";
@@ -40,32 +41,6 @@ const FAN_DATA = [
   { name: "Moliyaviy", count: "45 hujjat", hot: false },
   { name: "Arxiv", count: "203 hujjat", hot: false },
 ];
-
-const GRAPH_NODES = [
-  { id: "N-12", type: "nizom", label: "N-12 Kredit tartibi", big: true },
-  { id: "N-08", type: "nizom", label: "N-08 Kredit qo'mitasi", big: false },
-  { id: "R-07", type: "reg", label: "R-07 Ichki nazorat", big: false },
-  { id: "S-03", type: "nizom", label: "S-03 Axb. xavfsizligi", big: false },
-  { id: "Y-30", type: "buyruq", label: "Y-30 Yo'riqnoma", big: false },
-  { id: "Y-21", type: "buyruq", label: "Y-21 Valyuta", big: false },
-  { id: "B-44", type: "buyruq", label: "B-44 Buyruq", big: false },
-  { id: "B-51", type: "buyruq", label: "B-51 Buyruq", big: false },
-  { id: "CBU145", type: "ext", label: "CBU 145/2026", big: true },
-  { id: "ORQ812", type: "ext", label: "Lex O'RQ-812", big: false },
-  { id: "N-19", type: "nizom", label: "N-19 HR nizomi", big: false },
-  { id: "R-11", type: "reg", label: "R-11 Reglament", big: false },
-];
-
-const GRAPH_LINKS: [string, string][] = [
-  ["CBU145", "N-12"], ["CBU145", "N-08"], ["CBU145", "Y-30"],
-  ["N-12", "N-08"], ["N-12", "Y-30"], ["ORQ812", "S-03"],
-  ["ORQ812", "R-07"], ["R-07", "S-03"], ["N-12", "B-44"],
-  ["N-08", "B-51"], ["N-19", "R-11"], ["R-07", "R-11"],
-];
-
-const NODE_COLOR: Record<string, string> = {
-  nizom: "#C6F24E", buyruq: "#6BB4F5", reg: "#B39CF5", ext: "#F0C24B",
-};
 
 // ─── Real hujjat ma'lumotlari uchun yordamchi funksiyalar ─────────────────────
 /** Backend DocStatus (DRAFT/IN_REVIEW/ACTIVE/EXPIRED) → StatusBadge kaliti. */
@@ -424,205 +399,6 @@ function FolderTreeNode({
 }
 
 // ─── Graph View ───────────────────────────────────────────────────────────────
-function GraphView({ onNavigate }: { onNavigate: (v: View) => void }) {
-  const { t } = useTranslation();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const nodesRef = useRef<Array<{ id: string; type: string; label: string; big: boolean; x: number; y: number; vx: number; vy: number; r: number }>>([]);
-  const hoverRef = useRef<string | null>(null);
-  const frameRef = useRef<number>(0);
-  const initRef = useRef(false);
-  const [selected, setSelected] = useState<string | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-    const wrap = canvas.parentElement!;
-
-    function resize() {
-      canvas!.width = wrap.clientWidth * devicePixelRatio;
-      canvas!.height = wrap.clientHeight * devicePixelRatio;
-      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    }
-    resize();
-    window.addEventListener("resize", resize);
-
-    if (!initRef.current) {
-      initRef.current = true;
-      const W = wrap.clientWidth, H = wrap.clientHeight;
-      nodesRef.current = GRAPH_NODES.map(n => ({
-        ...n,
-        x: W / 2 + (Math.random() - 0.5) * 320,
-        y: H / 2 + (Math.random() - 0.5) * 260,
-        vx: 0, vy: 0,
-        r: n.big ? 14 : 9,
-      }));
-    }
-
-    const byId = Object.fromEntries(nodesRef.current.map(n => [n.id, n]));
-
-    function tick() {
-      const nodes = nodesRef.current;
-      const W = wrap.clientWidth, H = wrap.clientHeight;
-
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = nodes[i], b = nodes[j];
-          let dx = b.x - a.x, dy = b.y - a.y;
-          const d = Math.hypot(dx, dy) || 1;
-          const f = 1400 / (d * d);
-          dx /= d; dy /= d;
-          a.vx -= dx * f; a.vy -= dy * f;
-          b.vx += dx * f; b.vy += dy * f;
-        }
-      }
-      GRAPH_LINKS.forEach(([s, t]) => {
-        const a = byId[s], b = byId[t];
-        if (!a || !b) return;
-        let dx = b.x - a.x, dy = b.y - a.y;
-        const d = Math.hypot(dx, dy) || 1;
-        const f = (d - 110) * 0.004;
-        dx /= d; dy /= d;
-        a.vx += dx * f * d; a.vy += dy * f * d;
-        b.vx -= dx * f * d; b.vy -= dy * f * d;
-      });
-      nodes.forEach(n => {
-        n.vx += (W / 2 - n.x) * 0.0012;
-        n.vy += (H / 2 - n.y) * 0.0012;
-        n.vx *= 0.86; n.vy *= 0.86;
-        n.x += n.vx; n.y += n.vy;
-      });
-
-      ctx.clearRect(0, 0, W, H);
-      const h = hoverRef.current;
-
-      GRAPH_LINKS.forEach(([s, t]) => {
-        const a = byId[s], b = byId[t];
-        if (!a || !b) return;
-        const lit = h && (h === s || h === t);
-        ctx.strokeStyle = lit ? "rgba(198,242,78,.85)" : "rgba(255,255,255,.10)";
-        ctx.lineWidth = lit ? 2 : 1;
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-      });
-
-      nodes.forEach(n => {
-        const dim = h && h !== n.id && !GRAPH_LINKS.some(l => l.includes(h) && l.includes(n.id));
-        ctx.globalAlpha = dim ? 0.2 : 1;
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-        ctx.fillStyle = NODE_COLOR[n.type];
-        ctx.fill();
-        if (n.id === h) {
-          ctx.strokeStyle = NODE_COLOR[n.type];
-          ctx.globalAlpha = 0.3;
-          ctx.lineWidth = 8;
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-        }
-        ctx.fillStyle = "rgba(237,243,240,.88)";
-        ctx.font = "700 10px Manrope";
-        ctx.textAlign = "center";
-        ctx.fillText(n.label, n.x, n.y + n.r + 15);
-        ctx.globalAlpha = 1;
-      });
-
-      frameRef.current = requestAnimationFrame(tick);
-    }
-    frameRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      cancelAnimationFrame(frameRef.current);
-      window.removeEventListener("resize", resize);
-    };
-  }, []);
-
-  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-    const found = nodesRef.current.find(n => Math.hypot(n.x - mx, n.y - my) < n.r + 7);
-    hoverRef.current = found?.id || null;
-    canvasRef.current!.style.cursor = found ? "pointer" : "default";
-  }
-
-  function handleClick() {
-    const h = hoverRef.current;
-    setSelected(h);
-  }
-
-  const selNode = selected ? GRAPH_NODES.find(n => n.id === selected) : null;
-  const selLinks = selected ? GRAPH_LINKS.filter(l => l.includes(selected)).length : 0;
-
-  return (
-    <div>
-      <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
-        <div>
-          <h1 className="font-['Sora'] text-2xl font-semibold tracking-tight" style={{ color: "#EDF3F0" }}>
-            {t("graph.title")}
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "#8FA0A8" }}>
-            {t("graph.subtitle")}
-          </p>
-        </div>
-      </div>
-
-      <div className="relative" style={{
-        height: "calc(100vh - 230px)", minHeight: 480, borderRadius: 20,
-        overflow: "hidden",
-        background: "rgba(255,255,255,.03)",
-        border: "1px solid rgba(255,255,255,.08)",
-      }}>
-        <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }}
-          onMouseMove={handleMouseMove} onClick={handleClick} />
-
-        {/* Legend */}
-        <div className="absolute top-3.5 left-3.5 text-[11.5px] font-bold space-y-1"
-          style={{ background: "rgba(26,26,26,.9)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 14, padding: "12px 16px", backdropFilter: "blur(16px)" }}>
-          {[
-            ["nizom", t("graph.legendRegulation")],
-            ["buyruq", t("graph.legendOrder")],
-            ["reg", t("graph.legendRegulationDoc")],
-            ["ext", t("graph.legendExternal")],
-          ].map(([type, label]) => (
-            <div key={type} className="flex items-center gap-2" style={{ color: "#8FA0A8" }}>
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: NODE_COLOR[type] }} />
-              {label}
-            </div>
-          ))}
-        </div>
-
-        {/* Selected node panel */}
-        {selNode && (
-          <div className="absolute top-3.5 right-3.5 w-60 text-sm"
-            style={{ background: "rgba(26,26,26,.95)", border: "1px solid rgba(255,255,255,.10)", borderRadius: 16, padding: 16, backdropFilter: "blur(18px)" }}>
-            <p className="font-['Sora'] font-semibold mb-1" style={{ color: "#EDF3F0" }}>{selNode.label}</p>
-            <p className="text-[11px] font-semibold mb-3" style={{ color: "#8FA0A8" }}>
-              {selNode.type === "ext" ? t("graph.externalDoc") : t("graph.internalDoc")} · {selLinks} {t("graph.relationsSuffix")}
-            </p>
-            <button onClick={() => onNavigate(selNode.type === "ext" ? "mon" : "doc")}
-              className="w-full text-center text-[12.5px] font-bold py-2 rounded-xl transition-colors"
-              style={{ background: "rgba(255,255,255,.07)", color: "#EDF3F0", border: "1px solid rgba(255,255,255,.09)" }}>
-              {t("graph.openDoc")}
-            </button>
-          </div>
-        )}
-
-        {/* Mode selector */}
-        <div className="absolute bottom-3.5 left-3.5 flex gap-1 text-[11px] font-bold"
-          style={{ background: "rgba(26,26,26,.9)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 12, padding: 4, backdropFilter: "blur(16px)" }}>
-          {[t("graph.modeGraph"), t("graph.modeWorkflow")].map((m, i) => (
-            <span key={m} className="px-3 py-1.5 rounded-[9px] cursor-pointer"
-              style={i === 0
-                ? { background: "#C6F24E", color: "#0A1600" }
-                : { color: "#8FA0A8" }}>
-              {m}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const { t, i18n } = useTranslation();
@@ -3084,7 +2860,7 @@ export default function App() {
             {view === "dash" && Dashboard}
             {view === "vault" && Vault}
             {view === "doc" && DocDetail}
-            {view === "graph" && <GraphView onNavigate={goView} />}
+            {view === "graph" && <GraphView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} docTypes={documentTypes} onOpenDocument={openDocument} />}
             {view === "mon" && Monitoring}
             {view === "cal" && (
               <CalendarView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} onOpenDocument={openDocument} />

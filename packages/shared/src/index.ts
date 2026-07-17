@@ -9,3 +9,4 @@ export * from './document-types';
 export * from './organizations';
 export * from './document-relations';
 export * from './document-versions';
+export * from './graph';

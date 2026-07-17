@@ -116,7 +116,14 @@
     "relationsSuffix": "relations",
     "openDoc": "Open document",
     "modeGraph": "Graph",
-    "modeWorkflow": "Workflow"
+    "modeWorkflow": "Workflow",
+    "colorByStatus": "By status",
+    "colorByType": "By type",
+    "allStatuses": "All statuses",
+    "allTypes": "All types",
+    "isolatedToggle": "Isolated",
+    "empty": "No documents to graph",
+    "stats": "{{nodes}} docs · {{edges}} links"
   },
   "monitoring": {
     "title": "External acts monitoring",

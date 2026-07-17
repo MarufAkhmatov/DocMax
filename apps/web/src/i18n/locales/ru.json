@@ -116,7 +116,14 @@
     "relationsSuffix": "связей",
     "openDoc": "Открыть документ",
     "modeGraph": "Граф",
-    "modeWorkflow": "Процесс"
+    "modeWorkflow": "Процесс",
+    "colorByStatus": "По статусу",
+    "colorByType": "По типу",
+    "allStatuses": "Все статусы",
+    "allTypes": "Все типы",
+    "isolatedToggle": "Одиночные",
+    "empty": "Нет документов для графа",
+    "stats": "{{nodes}} документов · {{edges}} связей"
   },
   "monitoring": {
     "title": "Мониторинг внешних актов",
