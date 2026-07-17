@@ -137,7 +137,9 @@
     "hintSelect": "tanlash",
     "hintOpen": "ochish",
     "hintClose": "yopish",
-    "semanticHint": "Semantik qidiruv: \"ma'no:\" bilan boshlang"
+    "semanticHint": "Semantik qidiruv: \"ma'no:\" bilan boshlang",
+    "searching": "Qidirilmoqda...",
+    "noResults": "Hujjat topilmadi"
   },
   "drawer": {
     "title": "Xabarnomalar",
@@ -206,7 +208,14 @@
     "download": "Yuklab olish",
     "tag": "Teg",
     "move": "Ko'chirish",
-    "delete": "O'chirish"
+    "delete": "O'chirish",
+    "deleteConfirm": "{{count}} ta hujjat chiqindiga o'tkazilsinmi?",
+    "deletedToast": "{{count}} ta hujjat o'chirildi",
+    "tagPlaceholder": "teg nomi",
+    "taggedToast": "{{count}} ta hujjatga teg qo'shildi",
+    "moveTo": "Papkaga ko'chirish",
+    "movedToast": "{{count}} ta hujjat ko'chirildi",
+    "downloadStarted": "{{count}} ta fayl yuklab olinmoqda"
   },
   "cal": {
     "title": "Kalendar",

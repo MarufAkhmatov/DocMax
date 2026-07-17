@@ -137,7 +137,9 @@
     "hintSelect": "выбор",
     "hintOpen": "открыть",
     "hintClose": "закрыть",
-    "semanticHint": "Семантический поиск: начните с «значение:»"
+    "semanticHint": "Семантический поиск: начните с «значение:»",
+    "searching": "Поиск...",
+    "noResults": "Документы не найдены"
   },
   "drawer": {
     "title": "Уведомления",
@@ -206,7 +208,14 @@
     "download": "Скачать",
     "tag": "Тег",
     "move": "Переместить",
-    "delete": "Удалить"
+    "delete": "Удалить",
+    "deleteConfirm": "Переместить {{count}} документов в корзину?",
+    "deletedToast": "Удалено документов: {{count}}",
+    "tagPlaceholder": "имя тега",
+    "taggedToast": "Тег добавлен к {{count}} документам",
+    "moveTo": "Переместить в папку",
+    "movedToast": "Перемещено документов: {{count}}",
+    "downloadStarted": "Скачивается файлов: {{count}}"
   },
   "cal": {
     "title": "Календарь",

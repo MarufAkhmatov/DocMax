@@ -59,6 +59,22 @@ export const listDocumentsQuerySchema = paginationSchema.extend({
 });
 export type ListDocumentsQuery = z.infer<typeof listDocumentsQuerySchema>;
 
+/** Bulk amallar (Vault checkbox tanlash → pastki bar) — bitta endpoint, audit-do'st. */
+export const bulkDocumentsSchema = z
+  .object({
+    documentIds: z.array(uuidSchema).min(1).max(200),
+    action: z.enum(['delete', 'move', 'tag']),
+    folderId: uuidSchema.optional(), // action=move
+    tagName: z.string().trim().min(1).max(50).optional(), // action=tag
+  })
+  .refine((v) => v.action !== 'move' || Boolean(v.folderId), { message: "Ko'chirish uchun papka kerak", path: ['folderId'] })
+  .refine((v) => v.action !== 'tag' || Boolean(v.tagName), { message: 'Teg nomi kerak', path: ['tagName'] });
+export type BulkDocumentsInput = z.infer<typeof bulkDocumentsSchema>;
+
+export interface BulkDocumentsResult {
+  affected: number;
+}
+
 /** Ro'yxat jadvalidagi fayl-chip uchun yengil havola — presigned URL emas (muddati o'tib
  * qolmasligi uchun URL bosilganda GET /files/:id/download orqali yangisi olinadi). */
 export interface DocumentFileRef {

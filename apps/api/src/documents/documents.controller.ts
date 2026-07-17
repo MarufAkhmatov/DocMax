@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import {
+  bulkDocumentsSchema,
   comparisonTemplateSchema,
   createDocumentSchema,
   createDocumentVersionSchema,
@@ -29,6 +30,27 @@ export class DocumentsController {
   @Get('template-jobs/:jobId')
   templateJobStatus(@CurrentUser() user: RequestUser, @Param('jobId') jobId: string) {
     return this.documents.comparisonTemplateStatus(user.orgId, jobId);
+  }
+
+  /** Bulk amallar (delete/move/tag) — Vault tanlash bar. ':id'dan oldin (statik prefiks). */
+  @Roles('ADMIN', 'EDITOR')
+  @Post('bulk')
+  async bulk(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(bulkDocumentsSchema)) body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const input = body as import('@docmax/shared').BulkDocumentsInput;
+    const result = await this.documents.bulk(user.orgId, input);
+    setAuditContext(req, {
+      orgId: user.orgId,
+      userId: user.sub,
+      action: input.action === 'delete' ? 'DELETE' : 'UPDATE',
+      entityType: 'Document',
+      entityId: input.documentIds[0],
+      meta: { bulk: input.action, count: result.affected, ...(input.folderId ? { folderId: input.folderId } : {}), ...(input.tagName ? { tagName: input.tagName } : {}) },
+    });
+    return result;
   }
 
   @Get(':id')

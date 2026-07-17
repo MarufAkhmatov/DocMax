@@ -137,7 +137,9 @@
     "hintSelect": "select",
     "hintOpen": "open",
     "hintClose": "close",
-    "semanticHint": "Semantic search: start with \"meaning:\""
+    "semanticHint": "Semantic search: start with \"meaning:\"",
+    "searching": "Searching...",
+    "noResults": "No documents found"
   },
   "drawer": {
     "title": "Notifications",
@@ -206,7 +208,14 @@
     "download": "Download",
     "tag": "Tag",
     "move": "Move",
-    "delete": "Delete"
+    "delete": "Delete",
+    "deleteConfirm": "Move {{count}} documents to trash?",
+    "deletedToast": "{{count}} documents deleted",
+    "tagPlaceholder": "tag name",
+    "taggedToast": "Tag added to {{count}} documents",
+    "moveTo": "Move to folder",
+    "movedToast": "{{count}} documents moved",
+    "downloadStarted": "Downloading {{count}} files"
   },
   "cal": {
     "title": "Calendar",

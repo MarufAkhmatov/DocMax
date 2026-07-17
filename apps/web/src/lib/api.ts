@@ -2,6 +2,8 @@ import type {
   AcceptInviteInput,
   ApiError,
   AuthUser,
+  BulkDocumentsInput,
+  BulkDocumentsResult,
   ComparisonTemplateInput,
   ComparisonTemplateJob,
   ComparisonTemplateStatus,
@@ -269,6 +271,9 @@ export const documentsApi = {
     apiFetch<DocumentDetail>(`/documents/${id}`, { method: 'PATCH', body: input }),
 
   remove: (id: string) => apiFetch<void>(`/documents/${id}`, { method: 'DELETE' }),
+
+  bulk: (input: BulkDocumentsInput) =>
+    apiFetch<BulkDocumentsResult>('/documents/bulk', { method: 'POST', body: input }),
 
   // TZ-1 §1.4 — versiyalash + taqqoslama shabloni
   createVersion: (id: string, input: CreateDocumentVersionInput) =>

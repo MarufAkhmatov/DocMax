@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@docmax/db';
 import type {
+  BulkDocumentsInput,
+  BulkDocumentsResult,
   ComparisonTemplateInput,
   ComparisonTemplateJob,
   ComparisonTemplateStatus,
@@ -416,6 +418,44 @@ export class DocumentsService {
       throw notFound('Hujjat topilmadi');
     }
     await this.document.update({ where: { id }, data: { deletedAt: new Date() } });
+  }
+
+  /** Bulk amallar (TZ-1 §1.3 UI — Vault tanlash bar): delete/move/tag. Tenant-scope
+   * client bo'lgani uchun documentIds avtomatik org bilan cheklanadi (boshqa org'niki tegmaydi). */
+  async bulk(orgId: string, input: BulkDocumentsInput): Promise<BulkDocumentsResult> {
+    // Faqat shu org'ga tegishli va o'chirilmagan hujjatlar (tenant client filtrlaydi)
+    const docs = await this.document.findMany({
+      where: { id: { in: input.documentIds }, deletedAt: null },
+      select: { id: true },
+    });
+    const ids = docs.map((d) => d.id);
+    if (ids.length === 0) {
+      return { affected: 0 };
+    }
+
+    if (input.action === 'delete') {
+      await this.document.updateMany({ where: { id: { in: ids } }, data: { deletedAt: new Date() } });
+      return { affected: ids.length };
+    }
+
+    if (input.action === 'move') {
+      const folder = await this.tenant.client.folder.findFirst({
+        where: { id: input.folderId!, deletedAt: null },
+      });
+      if (!folder) {
+        throw notFound('Papka topilmadi');
+      }
+      await this.document.updateMany({ where: { id: { in: ids } }, data: { folderId: input.folderId! } });
+      return { affected: ids.length };
+    }
+
+    // action === 'tag' — mavjud teglarga qo'shadi (almashtirmaydi), dublikat o'tkazib yuboriladi
+    const [tagId] = await this.resolveTagIds(orgId, [input.tagName!]);
+    await this.prisma.documentTag.createMany({
+      data: ids.map((documentId) => ({ documentId, tagId })),
+      skipDuplicates: true,
+    });
+    return { affected: ids.length };
   }
 
   private async resolveTagIds(orgId: string, names: string[]): Promise<string[]> {

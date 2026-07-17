@@ -639,6 +639,13 @@ export default function App() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<{ id: number; msg: string }[]>([]);
   const [cmdkQuery, setCmdkQuery] = useState("");
+  const [cmdkResults, setCmdkResults] = useState<DocumentSummary[]>([]);
+  const [cmdkSearching, setCmdkSearching] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkTagOpen, setBulkTagOpen] = useState(false);
+  const [bulkTagValue, setBulkTagValue] = useState("");
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkMoveFolders, setBulkMoveFolders] = useState<{ id: string; name: string; depth: number }[]>([]);
   const [vaultSeg, setVaultSeg] = useState<"table" | "card" | "timeline">("table");
   const [monFilter, setMonFilter] = useState("all");
   const [treeOpen, setTreeOpen] = useState(true);
@@ -758,6 +765,31 @@ export default function App() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  // Palette yopilganda qidiruv holatini tozalash (keyingi ochilishda eski natija chiqmasin)
+  useEffect(() => {
+    if (!cmdkOpen) { setCmdkQuery(""); setCmdkResults([]); }
+  }, [cmdkOpen]);
+
+  // ⌘K real qidiruv — nom/raqam bo'yicha, 300ms debounce (TZ-1 §1.3 / TZ-2 §2.6)
+  useEffect(() => {
+    if (!cmdkOpen) return;
+    const q = cmdkQuery.trim();
+    if (q.length < 2) { setCmdkResults([]); setCmdkSearching(false); return; }
+    setCmdkSearching(true);
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await documentsApi.list({ q, limit: 8 });
+        if (!cancelled) setCmdkResults(res.items);
+      } catch {
+        if (!cancelled) setCmdkResults([]);
+      } finally {
+        if (!cancelled) setCmdkSearching(false);
+      }
+    }, 300);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [cmdkQuery, cmdkOpen]);
 
   // Sahifa yuklanganda refresh cookie orqali sessiyani tiklashga urinish (FOUC'siz)
   useEffect(() => {
@@ -1195,6 +1227,88 @@ export default function App() {
       toast(err instanceof ApiRequestError ? err.body.message : "Hujjatni o'chirishda xato yuz berdi");
     }
   }, [t, toast, refetchDocuments, refetchFolders, refetchSidebarRoots]);
+
+  // ── Bulk amallar (Vault tanlash bar) ──
+  const runBulkAndRefresh = useCallback(async (fn: () => Promise<void>) => {
+    setBulkBusy(true);
+    try {
+      await fn();
+      setSelected(new Set());
+      refetchDocuments();
+      refetchFolders();
+      refetchSidebarRoots();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Amalni bajarishda xato yuz berdi");
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [toast, refetchDocuments, refetchFolders, refetchSidebarRoots]);
+
+  const handleBulkDelete = () => {
+    if (!window.confirm(t("bulkBar.deleteConfirm", { count: selected.size }))) return;
+    void runBulkAndRefresh(async () => {
+      const res = await documentsApi.bulk({ action: "delete", documentIds: [...selected] });
+      toast(t("bulkBar.deletedToast", { count: res.affected }));
+    });
+  };
+
+  const handleBulkTagSubmit = () => {
+    const name = bulkTagValue.trim();
+    if (!name) return;
+    setBulkTagOpen(false);
+    setBulkTagValue("");
+    void runBulkAndRefresh(async () => {
+      const res = await documentsApi.bulk({ action: "tag", documentIds: [...selected], tagName: name });
+      toast(t("bulkBar.taggedToast", { count: res.affected }));
+    });
+  };
+
+  const openBulkMove = async () => {
+    setBulkMoveOpen(true);
+    // Butun papka daraxtini yassi (chekinishli) ro'yxatga yig'ish
+    const flat: { id: string; name: string; depth: number }[] = [];
+    const walk = async (parentId: string | null, depth: number) => {
+      const nodes = await foldersApi.tree({ parentId });
+      for (const n of nodes) {
+        flat.push({ id: n.id, name: n.name, depth });
+        if (n.hasChildren) await walk(n.id, depth + 1);
+      }
+    };
+    try {
+      await walk(null, 0);
+      setBulkMoveFolders(flat);
+    } catch {
+      setBulkMoveFolders([]);
+    }
+  };
+
+  const handleBulkMoveTo = (folderId: string) => {
+    setBulkMoveOpen(false);
+    void runBulkAndRefresh(async () => {
+      const res = await documentsApi.bulk({ action: "move", documentIds: [...selected], folderId });
+      toast(t("bulkBar.movedToast", { count: res.affected }));
+    });
+  };
+
+  const handleBulkDownload = async () => {
+    // Klient tomonlama ketma-ket yuklab olish (server ZIP o'rniga — soddaroq, DOWNLOAD audit har fayl uchun)
+    const chosen = documents.filter(d => selected.has(d.id));
+    for (const doc of chosen) {
+      const fileRef = doc.pdfFile ?? doc.docxFile;
+      if (!fileRef) continue;
+      try {
+        const { url } = await filesApi.downloadUrl(fileRef.id, "attachment");
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileRef.originalName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        await new Promise(r => setTimeout(r, 400));
+      } catch { /* bitta fayl xatosi qolganini to'xtatmaydi */ }
+    }
+    toast(t("bulkBar.downloadStarted", { count: chosen.length }));
+  };
 
   const stopTplPolling = useCallback(() => {
     if (tplTimer.current) {
@@ -2120,7 +2234,7 @@ export default function App() {
               )}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => currentVersion && window.open(currentVersion.pdf.downloadUrl, "_blank")}
+              <button onClick={() => currentVersion && handleFileOpen(currentVersion.pdf.id, "attachment")}
                 className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
                 style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
                 <Download size={14} /> {t("docDetail.download")}
@@ -2568,12 +2682,6 @@ export default function App() {
       { key: "yangi versiya shablon", icon: <FileText size={15} />, label: t("cmdk.actionNewVersion"), kbd: "V", action: "doc" },
       { key: "graf boglanish", icon: <Network size={15} />, label: t("cmdk.actionOpenGraph"), kbd: "G", action: "graph" },
     ]},
-    { section: t("cmdk.sectionDocuments"), items: [
-      { key: "kredit berish tartibi n-12 nizom", icon: <FileText size={15} />, label: "Kredit berish tartibi to'g'risidagi Nizom", sub: "N-12 · Aktiv", action: "doc" },
-      { key: "ichki nazorat reglamenti r-07", icon: <FileText size={15} />, label: "Ichki nazorat reglamenti", sub: "R-07 · Aktiv", action: "vault" },
-      { key: "axborot xavfsizligi s-03", icon: <FileText size={15} />, label: "Axborot xavfsizligi siyosati", sub: "S-03 · Loyiha", action: "vault" },
-      { key: "cbu 145 qaror tashqi akt", icon: <Activity size={15} />, label: "CBU qarori № 145/2026", sub: "Tashqi akt", action: "mon" },
-    ]},
   ];
 
   const CmdK = cmdkOpen && (
@@ -2586,9 +2694,10 @@ export default function App() {
           placeholder={t("cmdk.placeholder")}
           className="w-full bg-transparent outline-none"
           style={{ padding: "18px 20px", fontSize: 15, color: txt, fontFamily: "Manrope", fontWeight: 600, borderBottom: `1px solid ${panelBorder}` }} />
-        <div>
+        <div className="max-h-[52vh] overflow-auto">
+          {/* Amallar — faqat qidiruv bo'sh yoki kalitga mos bo'lganda */}
           {cmdkGroups.map(group => {
-            const filtered = group.items.filter(it => it.key.includes(cmdkQuery.toLowerCase()) || cmdkQuery === "");
+            const filtered = group.items.filter(it => it.key.includes(cmdkQuery.toLowerCase()) || cmdkQuery.trim() === "");
             if (!filtered.length) return null;
             return (
               <div key={group.section}>
@@ -2610,12 +2719,40 @@ export default function App() {
                     <span style={{ color: txt3 }}>{item.icon}</span>
                     <span style={{ flex: 1, color: txt }}>{item.label}</span>
                     {item.kbd && <kbd className="text-[10px] font-extrabold px-2 py-0.5 rounded-[5px]" style={{ border: `1px solid ${panelBorder}`, color: txt3 }}>{item.kbd}</kbd>}
-                    {item.sub && <span className="text-[11px] font-semibold" style={{ color: txt3 }}>{item.sub}</span>}
                   </div>
                 ))}
               </div>
             );
           })}
+
+          {/* Hujjatlar — real qidiruv natijalari (nom/raqam bo'yicha) */}
+          {cmdkQuery.trim().length >= 2 && (
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-[.7px] px-5 pt-3 pb-1.5" style={{ color: txt3 }}>{t("cmdk.sectionDocuments")}</p>
+              {cmdkSearching && cmdkResults.length === 0 ? (
+                <p className="px-5 py-3 text-[12.5px] font-semibold flex items-center gap-2" style={{ color: txt3 }}>
+                  <Loader2 size={13} className="animate-spin" /> {t("cmdk.searching")}
+                </p>
+              ) : cmdkResults.length === 0 ? (
+                <p className="px-5 py-3 text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("cmdk.noResults")}</p>
+              ) : (
+                cmdkResults.map(doc => (
+                  <div key={doc.id}
+                    onClick={() => { setCmdkOpen(false); openDocument(doc.id); }}
+                    className="flex items-center gap-3 px-5 py-3 cursor-pointer transition-all text-[13.5px] font-bold"
+                    style={{ color: txt2 }}
+                    onMouseEnter={e => (e.currentTarget.style.background = `${lime}14`)}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                    <span style={{ color: txt3 }}><FileText size={15} /></span>
+                    <span style={{ flex: 1, color: txt }} className="truncate">{doc.title}</span>
+                    <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: txt3 }}>
+                      {doc.docNumber ? `${doc.docNumber} · ` : ""}{doc.docTypeName}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-4 px-5 py-2.5 text-[10.5px] font-bold" style={{ borderTop: `1px solid ${panelBorder}`, color: txt3 }}>
           {[["↑↓", t("cmdk.hintSelect")], ["↵", t("cmdk.hintOpen")], ["esc", t("cmdk.hintClose")]].map(([k, v]) => (
@@ -2817,14 +2954,48 @@ export default function App() {
         fontSize: 12.5, fontWeight: 800, color: txt,
       }}>
       <strong style={{ color: lime, marginRight: 6 }}>{selected.size}</strong> {t("bulkBar.selectedSuffix")}
+
+      {/* Teg qo'shish popover'i */}
+      {bulkTagOpen && (
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-xl px-2 py-1.5"
+          style={{ bottom: "calc(100% + 8px)", background: isDark ? "#1E1E1E" : "#fff", border: `1px solid ${panelBorder}`, boxShadow: "0 12px 40px rgba(0,0,0,.4)" }}>
+          <input autoFocus value={bulkTagValue} onChange={e => setBulkTagValue(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleBulkTagSubmit(); if (e.key === "Escape") setBulkTagOpen(false); }}
+            placeholder={t("bulkBar.tagPlaceholder")}
+            className="outline-none rounded-lg text-[12px] font-semibold px-2.5 py-1.5"
+            style={{ background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, width: 160, fontFamily: "Manrope" }} />
+          <button onClick={handleBulkTagSubmit} className="text-[11.5px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer"
+            style={{ background: lime, color: "#0A1600" }}>OK</button>
+        </div>
+      )}
+
+      {/* Papkaga ko'chirish popover'i (yassi papka daraxti) */}
+      {bulkMoveOpen && (
+        <div className="absolute left-1/2 -translate-x-1/2 rounded-xl py-1.5 overflow-auto"
+          style={{ bottom: "calc(100% + 8px)", background: isDark ? "#1E1E1E" : "#fff", border: `1px solid ${panelBorder}`, boxShadow: "0 12px 40px rgba(0,0,0,.4)", minWidth: 220, maxHeight: 260 }}>
+          <p className="text-[10px] font-extrabold uppercase tracking-wide px-3 py-1.5" style={{ color: txt3 }}>{t("bulkBar.moveTo")}</p>
+          {bulkMoveFolders.length === 0 ? (
+            <p className="px-3 py-2 text-[12px] font-semibold flex items-center gap-2" style={{ color: txt3 }}><Loader2 size={12} className="animate-spin" /> …</p>
+          ) : bulkMoveFolders.map(f => (
+            <div key={f.id} onClick={() => handleBulkMoveTo(f.id)}
+              className="flex items-center gap-2 px-3 py-2 cursor-pointer text-[12.5px] font-semibold"
+              style={{ color: txt2, paddingLeft: 12 + f.depth * 14 }}
+              onMouseEnter={e => (e.currentTarget.style.background = `${lime}14`)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              <FolderOpen size={13} style={{ color: txt3 }} /> {f.name}
+            </div>
+          ))}
+        </div>
+      )}
+
       {[
-        { label: t("bulkBar.download"), icon: <Download size={13} />, action: () => toast("ZIP arxiv tayyorlanmoqda...") },
-        { label: t("bulkBar.tag"), icon: <Tag size={13} />, action: () => toast("Teg qo'shildi") },
-        { label: t("bulkBar.move"), icon: <Move size={13} />, action: () => toast("Papkaga ko'chirildi") },
-        { label: t("bulkBar.delete"), icon: <Trash2 size={13} />, action: () => toast("Chiqindi qutisiga o'tkazildi · 30 kun ichida tiklash mumkin"), red: true },
+        { label: t("bulkBar.download"), icon: <Download size={13} />, action: () => void handleBulkDownload() },
+        { label: t("bulkBar.tag"), icon: <Tag size={13} />, action: () => { setBulkMoveOpen(false); setBulkTagOpen(o => !o); } },
+        { label: t("bulkBar.move"), icon: <Move size={13} />, action: () => { setBulkTagOpen(false); if (!bulkMoveOpen) void openBulkMove(); else setBulkMoveOpen(false); } },
+        { label: t("bulkBar.delete"), icon: <Trash2 size={13} />, action: handleBulkDelete, red: true },
       ].map(btn => (
-        <button key={btn.label} onClick={btn.action}
-          className="flex items-center gap-1.5 text-[11.5px] font-bold px-3 py-1.5 rounded-xl cursor-pointer"
+        <button key={btn.label} onClick={btn.action} disabled={bulkBusy}
+          className="flex items-center gap-1.5 text-[11.5px] font-bold px-3 py-1.5 rounded-xl cursor-pointer disabled:opacity-50"
           style={{ background: panel, border: `1px solid ${panelBorder}`, color: btn.red ? "#F07A6B" : txt2 }}>
           {btn.icon} {btn.label}
         </button>
