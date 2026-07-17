@@ -13,4 +13,14 @@ export interface DiffGenerateJobData {
   documentId: string;
   oldVersionId: string;
   orgId: string;
+  /** Shablonni so'ragan user — yaratiladigan File yozuvining uploadedBy egasi bo'ladi */
+  requestedBy: string;
+  /** Shablon sarlavhasidagi "YANGI TAHRIR — vX.Y (loyiha)" uchun kutilayotgan yorliq */
+  newVersionLabel: string;
+}
+
+/** diff.generate worker'ining natijasi (BullMQ returnvalue) */
+export interface DiffGenerateResult {
+  fileId: string;
+  fromPdfFallback: boolean;
 }

@@ -94,7 +94,8 @@
     "noRelations": "No relations yet",
     "audit": "Audit",
     "comingSoon": "This feature will be added in a later stage",
-    "current": "current"
+    "current": "current",
+    "diffChip": "Comparison"
   },
   "relationType": {
     "RELATED": "Related",
@@ -219,5 +220,25 @@
     "today": "Today",
     "docsCount": "{{count}} docs",
     "empty": "No documents in this period"
+  },
+  "version": {
+    "title": "New version",
+    "firstVersion": "first version (v1.0)",
+    "typeMinor": "Amendment",
+    "typeMajor": "New revision",
+    "templateSection": "Comparison template",
+    "templateGenerate": "Generate template",
+    "templateRunning": "Generating...",
+    "templateDownload": "Download template",
+    "templateFallback": "Old version has no Word file — template was built from PDF text, formatting may be lost.",
+    "templateFailed": "Generation failed",
+    "newPdf": "New PDF (required)",
+    "newDocx": "New Word (optional)",
+    "filledDiff": "Filled comparison (optional)",
+    "noteLabel": "Note (optional)",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "created": "Version {{label}} created"
   }
 }

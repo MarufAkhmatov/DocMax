@@ -9,24 +9,29 @@ import {
 } from '@docmax/shared';
 import { FileIndexModule } from '../file-index/file-index.module';
 import { FileIndexService } from '../file-index/file-index.service';
+import { DiffGenerateModule } from '../diff-generate/diff-generate.module';
+import { DiffGenerateService } from '../diff-generate/diff-generate.service';
 
 const WORKERS = 'WORKERS';
 
 @Module({
-  imports: [FileIndexModule],
+  imports: [FileIndexModule, DiffGenerateModule],
   providers: [
     {
       provide: WORKERS,
-      inject: [ConfigService, FileIndexService],
-      useFactory: (config: ConfigService, fileIndexService: FileIndexService) => {
+      inject: [ConfigService, FileIndexService, DiffGenerateService],
+      useFactory: (
+        config: ConfigService,
+        fileIndexService: FileIndexService,
+        diffGenerateService: DiffGenerateService,
+      ) => {
         const logger = new Logger('Queue');
         const connection: ConnectionOptions = {
           host: config.get<string>('REDIS_HOST', 'localhost'),
           port: config.get<number>('REDIS_PORT', 6379),
         };
 
-        // file.index — 5-milestone (haqiqiy implementatsiya, docs/START.md).
-        // diff.generate — 6-milestone, hozircha stub.
+        // file.index — 5-milestone, diff.generate — 6-milestone (TZ-1 §1.4/§1.5).
         const fileIndex = new Worker<FileIndexJobData>(
           QUEUE_FILE_INDEX,
           async (job) => {
@@ -37,9 +42,7 @@ const WORKERS = 'WORKERS';
 
         const diffGenerate = new Worker<DiffGenerateJobData>(
           QUEUE_DIFF_GENERATE,
-          async (job) => {
-            logger.log(`[${QUEUE_DIFF_GENERATE}] job ${job.id} qabul qilindi (stub)`);
-          },
+          async (job) => diffGenerateService.process(job.data),
           { connection },
         );
 

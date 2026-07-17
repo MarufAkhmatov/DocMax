@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 
-/** apps/api/src/storage bilan bir xil MinIO ulanish naqshi — worker faqat o'qiydi (file.index). */
+/** apps/api/src/storage bilan bir xil MinIO ulanish naqshi — file.index o'qiydi,
+ * diff.generate esa yasalgan taqqoslama shablonini yozadi. */
 @Injectable()
 export class StorageService {
   private readonly client: S3Client;
@@ -26,5 +27,15 @@ export class StorageService {
     // AWS SDK v3'ning SdkStreamMixin'i Node.js muhitida shu helper'ni ta'minlaydi.
     const bytes = await res.Body!.transformToByteArray();
     return Buffer.from(bytes);
+  }
+
+  async putObject(objectKey: string, body: Buffer, contentType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({ Bucket: this.bucket, Key: objectKey, Body: body, ContentType: contentType }),
+    );
+  }
+
+  get bucketName(): string {
+    return this.bucket;
   }
 }

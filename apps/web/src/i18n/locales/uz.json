@@ -94,7 +94,8 @@
     "noRelations": "Hali bog'lanishlar yo'q",
     "audit": "Audit",
     "comingSoon": "Bu funksiya keyingi bosqichda qo'shiladi",
-    "current": "joriy"
+    "current": "joriy",
+    "diffChip": "Taqqoslama"
   },
   "relationType": {
     "RELATED": "Bog'liq",
@@ -219,5 +220,25 @@
     "today": "Bugun",
     "docsCount": "{{count}} hujjat",
     "empty": "Bu davrda hujjatlar yo'q"
+  },
+  "version": {
+    "title": "Yangi versiya",
+    "firstVersion": "birinchi versiya (v1.0)",
+    "typeMinor": "O'zgartirish",
+    "typeMajor": "Yangi tahrir",
+    "templateSection": "Taqqoslama shablon",
+    "templateGenerate": "Shablon yaratish",
+    "templateRunning": "Generatsiya qilinmoqda...",
+    "templateDownload": "Shablonni yuklab olish",
+    "templateFallback": "Eski versiyada Word yo'q — shablon PDF matnidan yasaldi, formatlash yo'qolgan bo'lishi mumkin.",
+    "templateFailed": "Generatsiya xatosi",
+    "newPdf": "Yangi PDF (majburiy)",
+    "newDocx": "Yangi Word (ixtiyoriy)",
+    "filledDiff": "To'ldirilgan taqqoslama (ixtiyoriy)",
+    "noteLabel": "Izoh (ixtiyoriy)",
+    "cancel": "Bekor qilish",
+    "save": "Saqlash",
+    "saving": "Saqlanmoqda...",
+    "created": "{{label}} versiyasi yaratildi"
   }
 }

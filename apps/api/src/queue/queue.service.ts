@@ -32,6 +32,11 @@ export class QueueService implements OnApplicationShutdown {
     });
   }
 
+  /** Frontend polling uchun — shablon job holati + natijasi (returnvalue). */
+  getDiffGenerateJob(jobId: string) {
+    return this.diffGenerateQueue.getJob(jobId);
+  }
+
   async onApplicationShutdown() {
     await Promise.all([this.fileIndexQueue.close(), this.diffGenerateQueue.close()]);
   }

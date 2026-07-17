@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as mammoth from "mammoth";
-import type { DocumentDetail, DocumentRelationSummary, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode, RelationType } from "@docmax/shared";
-import { RELATION_TYPES } from "@docmax/shared";
+import type { DocumentDetail, DocumentRelationSummary, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode, RelationType, VersionType } from "@docmax/shared";
+import { RELATION_TYPES, nextVersionLabel } from "@docmax/shared";
 import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, relationsApi, filesApi, ApiRequestError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
@@ -698,6 +698,23 @@ export default function App() {
   // Hujjat metadata'sini tahrirlash (nom, raqam, tur, sana, teglar)
   const [docEditOpen, setDocEditOpen] = useState(false);
   const [docEditForm, setDocEditForm] = useState({ title: "", docNumber: "", docTypeId: "", approvedAt: "", tagsRaw: "" });
+
+  // ── Yangi versiya modali (TZ-1 §1.4) ──
+  const [verOpen, setVerOpen] = useState(false);
+  const [verType, setVerType] = useState<VersionType>("MINOR");
+  const [verNote, setVerNote] = useState("");
+  const [verPdf, setVerPdf] = useState<FileSummary | null>(null);
+  const [verDocx, setVerDocx] = useState<FileSummary | null>(null);
+  const [verDiff, setVerDiff] = useState<FileSummary | null>(null);
+  const [verUploading, setVerUploading] = useState<"pdf" | "docx" | "diff" | null>(null);
+  const [verSaving, setVerSaving] = useState(false);
+  const [tplState, setTplState] = useState<"idle" | "running" | "done" | "failed">("idle");
+  const [tplFileId, setTplFileId] = useState<string | null>(null);
+  const [tplFallback, setTplFallback] = useState(false);
+  const tplTimer = useRef<number | null>(null);
+  const verPdfInputRef = useRef<HTMLInputElement>(null);
+  const verDocxInputRef = useRef<HTMLInputElement>(null);
+  const verDiffInputRef = useRef<HTMLInputElement>(null);
   const [docEditSaving, setDocEditSaving] = useState(false);
 
   // Bog'lanishlar (TZ-2 — hujjatlarni bir-biriga bog'lash)
@@ -1179,7 +1196,100 @@ export default function App() {
     }
   }, [t, toast, refetchDocuments, refetchFolders, refetchSidebarRoots]);
 
-  // Word (.docx) preview — mammoth orqali client-side HTML'ga o'giriladi
+  const stopTplPolling = useCallback(() => {
+    if (tplTimer.current) {
+      window.clearTimeout(tplTimer.current);
+      tplTimer.current = null;
+    }
+  }, []);
+
+  const openVersionModal = () => {
+    setVerType("MINOR");
+    setVerNote("");
+    setVerPdf(null);
+    setVerDocx(null);
+    setVerDiff(null);
+    setTplState("idle");
+    setTplFileId(null);
+    setTplFallback(false);
+    setVerOpen(true);
+  };
+
+  const closeVersionModal = () => {
+    stopTplPolling();
+    setVerOpen(false);
+  };
+
+  /** Shablon generatsiyasi — fon vazifa (diff.generate), 1.5s polling bilan kutiladi. */
+  async function startTemplateGeneration() {
+    if (!docDetail) return;
+    stopTplPolling();
+    setTplState("running");
+    setTplFileId(null);
+    try {
+      const { jobId } = await documentsApi.requestComparisonTemplate(docDetail.id, { versionType: verType });
+      const poll = async () => {
+        try {
+          const st = await documentsApi.templateJobStatus(jobId);
+          if (st.state === "completed" && st.fileId) {
+            setTplState("done");
+            setTplFileId(st.fileId);
+            setTplFallback(Boolean(st.fromPdfFallback));
+            return;
+          }
+          if (st.state === "failed") {
+            setTplState("failed");
+            return;
+          }
+          tplTimer.current = window.setTimeout(poll, 1500);
+        } catch {
+          setTplState("failed");
+        }
+      };
+      tplTimer.current = window.setTimeout(poll, 1200);
+    } catch (err) {
+      setTplState("failed");
+      toast(err instanceof ApiRequestError ? err.body.message : "Shablon so'rovida xato yuz berdi");
+    }
+  }
+
+  async function handleVersionFile(kind: "pdf" | "docx" | "diff", file: File) {
+    setVerUploading(kind);
+    try {
+      const summary = await filesApi.upload(file);
+      if (kind === "pdf") setVerPdf(summary);
+      else if (kind === "docx") setVerDocx(summary);
+      else setVerDiff(summary);
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Fayl yuklashda xato yuz berdi");
+    } finally {
+      setVerUploading(null);
+    }
+  }
+
+  async function saveNewVersion() {
+    if (!docDetail || !verPdf) return;
+    setVerSaving(true);
+    try {
+      const updated = await documentsApi.createVersion(docDetail.id, {
+        versionType: verType,
+        pdfFileId: verPdf.id,
+        docxFileId: verDocx?.id ?? null,
+        diffFileId: verDiff?.id ?? null,
+        note: verNote.trim() || null,
+      });
+      setDocDetail(updated);
+      refetchDocuments();
+      closeVersionModal();
+      toast(t("version.created", { label: updated.currentVersionLabel ?? "" }));
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : "Versiya yaratishda xato yuz berdi");
+    } finally {
+      setVerSaving(false);
+    }
+  }
+
+    // Word (.docx) preview — mammoth orqali client-side HTML'ga o'giriladi
   const [wordHtml, setWordHtml] = useState<string | null>(null);
   const [wordLoading, setWordLoading] = useState(false);
   const currentVersion = docDetail?.versions[0] ?? null;
@@ -2023,7 +2133,7 @@ export default function App() {
                 </button>
               )}
               {canEditDocuments && (
-                <button onClick={() => toast(t("docDetail.comingSoon"))}
+                <button onClick={openVersionModal}
                   className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
                   style={{ background: lime, color: "#0A1600", border: "none", boxShadow: `0 6px 18px ${lime}44` }}>
                   <Plus size={14} /> {t("docDetail.newVersion")}
@@ -2111,13 +2221,18 @@ export default function App() {
                     {formatDate(v.createdAt)} · {v.createdByName}
                   </p>
                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                    <a href={v.pdf.downloadUrl} target="_blank" rel="noreferrer"
-                      className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-[6px]"
-                      style={{ border: `1px solid ${panelBorder}`, color: txt2 }}>PDF</a>
+                    <span onClick={() => handleFileOpen(v.pdf.id, "attachment")}
+                      className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-[6px] cursor-pointer"
+                      style={{ border: `1px solid ${panelBorder}`, color: txt2 }}>PDF</span>
                     {v.docx && (
-                      <a href={v.docx.downloadUrl} target="_blank" rel="noreferrer"
-                        className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-[6px]"
-                        style={{ border: `1px solid ${panelBorder}`, color: txt2 }}>DOCX</a>
+                      <span onClick={() => handleFileOpen(v.docx!.id, "attachment")}
+                        className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-[6px] cursor-pointer"
+                        style={{ border: `1px solid ${panelBorder}`, color: txt2 }}>DOCX</span>
+                    )}
+                    {v.diff && (
+                      <span onClick={() => handleFileOpen(v.diff!.id, "attachment")}
+                        className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-[6px] cursor-pointer"
+                        style={{ border: `1px solid ${lime}55`, color: lime }}>{t("docDetail.diffChip")}</span>
                     )}
                   </div>
                 </div>
@@ -2222,6 +2337,129 @@ export default function App() {
         </div>
       </div>
       )}
+    </div>
+  );
+
+  // ── YANGI VERSIYA MODALI (TZ-1 §1.4) ─────────────────────────
+  const verCurrentLabel = docDetail?.currentVersionLabel ?? null;
+  const VersionModal = verOpen && docDetail && (
+    <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-auto"
+      style={{ background: isDark ? "rgba(0,6,14,.55)" : "rgba(20,40,32,.3)", backdropFilter: "blur(6px)" }}
+      onClick={e => e.target === e.currentTarget && closeVersionModal()}>
+      <div className="my-[7vh] overflow-hidden"
+        style={{ width: "min(560px, 94vw)", background: isDark ? "#1E1E1E" : "#fff", border: `1px solid ${panelBorder}`, borderRadius: 20, boxShadow: "0 32px 80px rgba(0,0,0,.55)", padding: 26 }}>
+        <h2 className="font-['Sora'] text-[17px] font-semibold mb-1" style={{ color: txt }}>{t("version.title")}</h2>
+        <p className="text-[12px] font-semibold mb-4" style={{ color: txt2 }}>
+          {docDetail.title}{verCurrentLabel ? ` · ${verCurrentLabel} → ${nextVersionLabel(verCurrentLabel, verType)}` : ` · ${t("version.firstVersion")}`}
+        </p>
+
+        {/* Versiya turi */}
+        <div className="grid grid-cols-2 gap-2.5 mb-4">
+          {([["MINOR", t("version.typeMinor")], ["MAJOR", t("version.typeMajor")]] as const).map(([value, label]) => (
+            <div key={value} onClick={() => setVerType(value)}
+              className="cursor-pointer rounded-[13px] px-3.5 py-3 transition-colors"
+              style={{
+                border: `1.5px solid ${verType === value ? lime : panelBorder}`,
+                background: verType === value ? `${lime}12` : "transparent",
+              }}>
+              <p className="text-[12.5px] font-bold" style={{ color: verType === value ? lime : txt }}>{label}</p>
+              <p className="text-[10.5px] font-semibold mt-0.5" style={{ color: txt3 }}>
+                {verCurrentLabel ?? "v1.0"} → {nextVersionLabel(verCurrentLabel, value)}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Taqqoslama shablon (faqat mavjud versiya bo'lsa) */}
+        {docDetail.versions.length > 0 && (
+          <div className="rounded-[13px] mb-4 px-3.5 py-3" style={{ border: `1px solid ${panelBorder}`, background: isDark ? "rgba(255,255,255,.03)" : "rgba(0,0,0,.02)" }}>
+            <p className="text-[11px] font-extrabold uppercase tracking-wide mb-2" style={{ color: txt3 }}>{t("version.templateSection")}</p>
+            {tplState === "idle" && (
+              <button onClick={startTemplateGeneration}
+                className="text-[12px] font-bold px-3.5 py-2 rounded-[11px] cursor-pointer"
+                style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                {t("version.templateGenerate")}
+              </button>
+            )}
+            {tplState === "running" && (
+              <p className="flex items-center gap-2 text-[12px] font-bold" style={{ color: txt2 }}>
+                <Loader2 size={14} className="animate-spin" /> {t("version.templateRunning")}
+              </p>
+            )}
+            {tplState === "done" && tplFileId && (
+              <div>
+                <button onClick={() => handleFileOpen(tplFileId, "attachment")}
+                  className="flex items-center gap-2 text-[12px] font-bold px-3.5 py-2 rounded-[11px] cursor-pointer"
+                  style={{ background: `${lime}18`, border: `1px solid ${lime}44`, color: isDark ? lime : "#2FA45B" }}>
+                  <Download size={13} /> {t("version.templateDownload")}
+                </button>
+                {tplFallback && (
+                  <p className="text-[10.5px] font-semibold mt-2" style={{ color: "#F0C24B" }}>{t("version.templateFallback")}</p>
+                )}
+              </div>
+            )}
+            {tplState === "failed" && (
+              <p className="text-[12px] font-bold" style={{ color: "#F07A6B" }}>
+                {t("version.templateFailed")}{" "}
+                <span onClick={startTemplateGeneration} className="cursor-pointer underline" style={{ color: txt2 }}>↻</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Fayllar */}
+        <input ref={verPdfInputRef} type="file" accept="application/pdf" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleVersionFile("pdf", f); e.target.value = ""; }} />
+        <input ref={verDocxInputRef} type="file" accept=".docx" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleVersionFile("docx", f); e.target.value = ""; }} />
+        <input ref={verDiffInputRef} type="file" accept=".docx" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleVersionFile("diff", f); e.target.value = ""; }} />
+        <div className="space-y-2 mb-4">
+          {([
+            ["pdf", t("version.newPdf"), verPdf, verPdfInputRef, () => setVerPdf(null)],
+            ["docx", t("version.newDocx"), verDocx, verDocxInputRef, () => setVerDocx(null)],
+            ["diff", t("version.filledDiff"), verDiff, verDiffInputRef, () => setVerDiff(null)],
+          ] as const).map(([kind, label, picked, ref, clear]) => (
+            <div key={kind}>
+              {picked ? (
+                <div className="flex items-center gap-2.5 text-[12px] font-bold rounded-xl px-3.5 py-2.5"
+                  style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.03)", border: `1px solid ${panelBorder}` }}>
+                  <FileText size={14} style={{ color: txt3 }} />
+                  <span className="truncate" style={{ color: txt }}>{picked.originalName}</span>
+                  <span onClick={clear} className="ml-auto cursor-pointer text-[13px]" style={{ color: txt3 }}>✕</span>
+                </div>
+              ) : (
+                <div onClick={() => verUploading === null && ref.current?.click()}
+                  className="rounded-xl text-[12px] font-bold px-3.5 py-2.5 cursor-pointer transition-colors flex items-center gap-2"
+                  style={{ border: `1.5px dashed ${panelBorder}`, color: txt3 }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = `${lime}66`)}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = panelBorder)}>
+                  {verUploading === kind ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} {label}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Izoh */}
+        <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{t("version.noteLabel")}</label>
+        <input value={verNote} onChange={e => setVerNote(e.target.value)}
+          className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3 mb-5"
+          style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />
+
+        <div className="flex justify-end gap-2">
+          <button onClick={closeVersionModal}
+            className="text-[12.5px] font-bold px-4 py-2.5 rounded-[13px] cursor-pointer"
+            style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+            {t("version.cancel")}
+          </button>
+          <button onClick={saveNewVersion} disabled={!verPdf || verSaving || verUploading !== null}
+            className="text-[12.5px] font-bold px-5 py-2.5 rounded-[13px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: lime, color: "#0A1600", border: "none", boxShadow: `0 6px 18px ${lime}44` }}>
+            {verSaving ? t("version.saving") : t("version.save")}
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -2698,6 +2936,7 @@ export default function App() {
       {CmdK}
       {Drawer}
       {Wizard}
+      {VersionModal}
       {BulkBar}
       {Toasts}
       {ViewBar}

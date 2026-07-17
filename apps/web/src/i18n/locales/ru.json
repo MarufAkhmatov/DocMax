@@ -94,7 +94,8 @@
     "noRelations": "Связей пока нет",
     "audit": "Аудит",
     "comingSoon": "Эта функция появится на следующем этапе",
-    "current": "текущая"
+    "current": "текущая",
+    "diffChip": "Сравнение"
   },
   "relationType": {
     "RELATED": "Связан",
@@ -219,5 +220,25 @@
     "today": "Сегодня",
     "docsCount": "{{count}} док.",
     "empty": "В этом периоде документов нет"
+  },
+  "version": {
+    "title": "Новая версия",
+    "firstVersion": "первая версия (v1.0)",
+    "typeMinor": "Изменение",
+    "typeMajor": "Новая редакция",
+    "templateSection": "Шаблон сравнения",
+    "templateGenerate": "Создать шаблон",
+    "templateRunning": "Идёт генерация...",
+    "templateDownload": "Скачать шаблон",
+    "templateFallback": "В старой версии нет Word — шаблон создан из текста PDF, форматирование могло потеряться.",
+    "templateFailed": "Ошибка генерации",
+    "newPdf": "Новый PDF (обязательно)",
+    "newDocx": "Новый Word (необязательно)",
+    "filledDiff": "Заполненное сравнение (необязательно)",
+    "noteLabel": "Примечание (необязательно)",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "saving": "Сохранение...",
+    "created": "Версия {{label}} создана"
   }
 }

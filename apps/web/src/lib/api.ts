@@ -2,9 +2,13 @@ import type {
   AcceptInviteInput,
   ApiError,
   AuthUser,
+  ComparisonTemplateInput,
+  ComparisonTemplateJob,
+  ComparisonTemplateStatus,
   ConfirmFileInput,
   CreateDocumentInput,
   CreateDocumentRelationInput,
+  CreateDocumentVersionInput,
   CreateDocumentTypeInput,
   CreateFolderInput,
   DocumentDetail,
@@ -265,6 +269,16 @@ export const documentsApi = {
     apiFetch<DocumentDetail>(`/documents/${id}`, { method: 'PATCH', body: input }),
 
   remove: (id: string) => apiFetch<void>(`/documents/${id}`, { method: 'DELETE' }),
+
+  // TZ-1 §1.4 — versiyalash + taqqoslama shabloni
+  createVersion: (id: string, input: CreateDocumentVersionInput) =>
+    apiFetch<DocumentDetail>(`/documents/${id}/versions`, { method: 'POST', body: input }),
+
+  requestComparisonTemplate: (id: string, input: ComparisonTemplateInput) =>
+    apiFetch<ComparisonTemplateJob>(`/documents/${id}/comparison-template`, { method: 'POST', body: input }),
+
+  templateJobStatus: (jobId: string) =>
+    apiFetch<ComparisonTemplateStatus>(`/documents/template-jobs/${jobId}`),
 };
 
 export const documentTypesApi = {

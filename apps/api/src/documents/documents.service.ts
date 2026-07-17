@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@docmax/db';
 import type {
+  ComparisonTemplateInput,
+  ComparisonTemplateJob,
+  ComparisonTemplateStatus,
   CreateDocumentInput,
+  CreateDocumentVersionInput,
+  DiffGenerateResult,
   DocumentDetail,
   DocumentSummary,
   DocumentVersionSummary,
@@ -11,10 +16,12 @@ import type {
   PaginatedDocuments,
   UpdateDocumentInput,
 } from '@docmax/shared';
-import { badRequest, notFound } from '../common/api-error';
+import { nextVersionLabel } from '@docmax/shared';
+import { badRequest, conflict, notFound } from '../common/api-error';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantPrismaService } from '../prisma/tenant-prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { QueueService } from '../queue/queue.service';
 
 const SORTABLE_FIELDS = ['approvedAt', 'createdAt', 'title'] as const;
 const DOWNLOAD_URL_TTL_SECONDS = 600;
@@ -67,6 +74,7 @@ export class DocumentsService {
     private readonly prisma: PrismaService,
     private readonly tenant: TenantPrismaService,
     private readonly storage: StorageService,
+    private readonly queue: QueueService,
   ) {}
 
   private get document() {
@@ -136,7 +144,7 @@ export class DocumentsService {
     // yuqorida tenant-client orqali tekshirilgani uchun bu yerda xavfsiz.
     const versions = await this.prisma.documentVersion.findMany({
       where: { documentId: id },
-      include: { pdfFile: true, docxFile: true, creator: { select: { fullName: true } } },
+      include: { pdfFile: true, docxFile: true, diffFile: true, creator: { select: { fullName: true } } },
       orderBy: { versionNo: 'desc' },
     });
 
@@ -152,10 +160,135 @@ export class DocumentsService {
         createdByName: v.creator.fullName,
         pdf: await this.toFileSummary(v.pdfFile),
         docx: v.docxFile ? await this.toFileSummary(v.docxFile) : null,
+        diff: v.diffFile ? await this.toFileSummary(v.diffFile) : null,
       })),
     );
 
     return { ...toSummary(doc, orgUnitNames), folderName: doc.folder.name, versions: versionSummaries };
+  }
+
+  /** TZ-1 §1.4 — yangi versiya BITTA tranzaksiyada: insert + eski is_current=false +
+   * documents.current_version_id yangilash (CLAUDE.md 5-qoida). Raqamlash per-document,
+   * race'da @@unique(documentId, versionNo) himoya qiladi (P2002 -> 409). */
+  async createVersion(
+    orgId: string,
+    userId: string,
+    documentId: string,
+    input: CreateDocumentVersionInput,
+  ): Promise<DocumentDetail> {
+    const doc = await this.document.findFirst({ where: { id: documentId, deletedAt: null } });
+    if (!doc) {
+      throw notFound('Hujjat topilmadi');
+    }
+
+    // Set — bitta fayl ikki rolda kelishi mumkin (masalan to'ldirilgan taqqoslama ham docx, ham diff)
+    const fileIds = [
+      ...new Set([input.pdfFileId, input.docxFileId, input.diffFileId].filter((v): v is string => Boolean(v))),
+    ];
+    const files = await this.tenant.client.file.findMany({ where: { id: { in: fileIds } } });
+    if (files.length !== fileIds.length) {
+      throw notFound('Yuklangan fayl(lar) topilmadi');
+    }
+    if (files.some((f) => f.status === 'FAILED')) {
+      throw badRequest('Yaroqsiz (FAILED) fayl versiyaga biriktirilmaydi');
+    }
+
+    const current = await this.prisma.documentVersion.findFirst({
+      where: { documentId, isCurrent: true },
+      orderBy: { versionNo: 'desc' },
+    });
+    const maxNo = await this.prisma.documentVersion.aggregate({
+      where: { documentId },
+      _max: { versionNo: true },
+    });
+    const versionNo = (maxNo._max.versionNo ?? 0) + 1;
+    const versionLabel = nextVersionLabel(current?.versionLabel ?? null, input.versionType);
+    const versionId = randomUUID();
+
+    try {
+      await this.prisma.$transaction([
+        ...(current
+          ? [
+              this.prisma.documentVersion.update({
+                where: { id: current.id },
+                data: { isCurrent: false },
+              }),
+            ]
+          : []),
+        this.prisma.documentVersion.create({
+          data: {
+            id: versionId,
+            documentId,
+            versionLabel,
+            versionNo,
+            pdfFileId: input.pdfFileId,
+            docxFileId: input.docxFileId ?? null,
+            diffFileId: input.diffFileId ?? null,
+            note: input.note ?? null,
+            createdBy: userId,
+            isCurrent: true,
+          },
+        }),
+        this.prisma.document.update({
+          where: { id: documentId },
+          data: { currentVersionId: versionId },
+        }),
+      ]);
+    } catch (err) {
+      // Parallel yaratishda versionNo to'qnashuvi — foydalanuvchi qayta urinsin
+      if ((err as { code?: string }).code === 'P2002') {
+        throw conflict("Versiya raqami band (parallel yaratish) — qayta urinib ko'ring");
+      }
+      throw err;
+    }
+
+    return this.getById(orgId, documentId);
+  }
+
+  /** Taqqoslama shablonini fon vazifada generatsiya qilishni boshlaydi (TZ-1 §1.4 3-qadam). */
+  async requestComparisonTemplate(
+    orgId: string,
+    userId: string,
+    documentId: string,
+    input: ComparisonTemplateInput,
+  ): Promise<ComparisonTemplateJob> {
+    const doc = await this.document.findFirst({ where: { id: documentId, deletedAt: null } });
+    if (!doc) {
+      throw notFound('Hujjat topilmadi');
+    }
+    const current = await this.prisma.documentVersion.findFirst({
+      where: { documentId, isCurrent: true },
+    });
+    if (!current) {
+      throw badRequest("Hujjatda hali versiya yo'q — shablon uchun joriy versiya kerak");
+    }
+
+    const job = await this.queue.addDiffGenerateJob({
+      documentId,
+      oldVersionId: current.id,
+      orgId,
+      requestedBy: userId,
+      newVersionLabel: nextVersionLabel(current.versionLabel, input.versionType),
+    });
+    return { jobId: String(job.id) };
+  }
+
+  /** Frontend polling: shablon job holati (BullMQ returnvalue orqali fileId). */
+  async comparisonTemplateStatus(orgId: string, jobId: string): Promise<ComparisonTemplateStatus> {
+    const job = await this.queue.getDiffGenerateJob(jobId);
+    // Tenant izolyatsiya: job data'dagi orgId so'rovchi bilan mos bo'lishi shart
+    if (!job || job.data.orgId !== orgId) {
+      throw notFound('Shablon vazifasi topilmadi');
+    }
+    const state = await job.getState();
+    if (state === 'completed') {
+      const result = job.returnvalue as DiffGenerateResult;
+      return { state: 'completed', fileId: result.fileId, fromPdfFallback: result.fromPdfFallback };
+    }
+    if (state === 'failed') {
+      return { state: 'failed', error: job.failedReason ?? 'Generatsiya xatosi' };
+    }
+    return { state: state === 'active' ? 'active' : 'waiting' };
   }
 
   private async orgUnitNamesFor(orgUnitIds: (string | null)[]): Promise<Map<string, string>> {

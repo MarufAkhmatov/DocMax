@@ -99,6 +99,7 @@ export interface DocumentVersionSummary {
   createdByName: string;
   pdf: FileSummary;
   docx: FileSummary | null;
+  diff: FileSummary | null;
 }
 
 export interface DocumentDetail extends DocumentSummary {
