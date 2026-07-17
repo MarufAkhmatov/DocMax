@@ -13,13 +13,15 @@
     "vault": "Vault",
     "doc": "Hujjat",
     "graph": "Graf",
-    "mon": "Monitoring"
+    "mon": "Monitoring",
+    "cal": "Kalendar"
   },
   "breadcrumb": {
     "dash": "Bosh sahifa",
     "graph": "Bog'lanishlar",
     "mon": "Monitoring",
-    "vaultRoot": "Vault"
+    "vaultRoot": "Vault",
+    "cal": "Kalendar"
   },
   "topbar": {
     "searchPlaceholder": "Qidirish: nom, raqam yoki ma'no bo'yicha...",
@@ -68,7 +70,8 @@
     "sortLabel": "Saralash: tasdiqlangan sana",
     "tableTitle": "Hujjatlar",
     "treeFolders": "Papkalar",
-    "savedFilters": "Saqlangan filtrlar"
+    "savedFilters": "Saqlangan filtrlar",
+    "timelineUploadedAt": "yuklangan sana"
   },
   "status": {
     "active": "Aktiv",
@@ -194,7 +197,8 @@
     "cancel": "Bekor qilish",
     "confirm": "Tasdiqlash",
     "download": "Yuklab olish",
-    "save": "Saqlash"
+    "save": "Saqlash",
+    "current": "joriy"
   },
   "bulkBar": {
     "selectedSuffix": "hujjat tanlandi",
@@ -202,5 +206,18 @@
     "tag": "Teg",
     "move": "Ko'chirish",
     "delete": "O'chirish"
+  },
+  "cal": {
+    "title": "Kalendar",
+    "byApproved": "Tasdiqlangan sana",
+    "byCreated": "Yuklangan sana",
+    "byApprovedHint": "Hujjatlar tasdiqlangan sanasi bo'yicha ko'rsatilmoqda",
+    "byCreatedHint": "Hujjatlar tizimga yuklangan sanasi bo'yicha ko'rsatilmoqda",
+    "week": "Hafta",
+    "month": "Oy",
+    "year": "Yil",
+    "today": "Bugun",
+    "docsCount": "{{count}} hujjat",
+    "empty": "Bu davrda hujjatlar yo'q"
   }
 }

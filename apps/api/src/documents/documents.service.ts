@@ -87,6 +87,14 @@ export class DocumentsService {
         lt: new Date(Date.UTC(query.year + 1, 0, 1)),
       };
     }
+    // Kalendar oralig'i: dateField bo'yicha [from, to). approvedAt'da year filtri bilan
+    // birga kelsa oxirgi qo'yilgani ustun bo'ladi — kalendar year'ni ishlatmaydi.
+    if (query.from || query.to) {
+      where[query.dateField] = {
+        ...(query.from ? { gte: query.from } : {}),
+        ...(query.to ? { lt: query.to } : {}),
+      };
+    }
     if (query.q) {
       where.OR = [
         { title: { contains: query.q, mode: 'insensitive' } },

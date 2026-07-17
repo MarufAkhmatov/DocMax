@@ -51,6 +51,11 @@ export const listDocumentsQuerySchema = paginationSchema.extend({
   tag: z.string().optional(),
   year: z.coerce.number().int().min(1900).max(2200).optional(),
   q: z.string().optional(),
+  // Kalendar ko'rinishi: berilgan sana maydoni bo'yicha [from, to) oralig'i.
+  // dateField=approvedAt — tasdiqlangan sana, createdAt — tizimga yuklangan sana.
+  dateField: z.enum(['approvedAt', 'createdAt']).default('approvedAt'),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
 });
 export type ListDocumentsQuery = z.infer<typeof listDocumentsQuerySchema>;
 

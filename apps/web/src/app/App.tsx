@@ -4,7 +4,7 @@ import {
   Sun, Moon, Bell, Search, Plus, Download, Upload, X, Lock,
   FileText, Check, Eye, Clock, Shield, Tag, Move, Trash2,
   ChevronRight, ChevronDown, GitBranch, Globe, BookOpen,
-  ArrowRight, MoreHorizontal, Zap, Command, Loader2, Pencil
+  ArrowRight, MoreHorizontal, Zap, Command, Loader2, Pencil, CalendarDays
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as mammoth from "mammoth";
@@ -15,9 +15,10 @@ import { useAuthStore } from "@/stores/auth";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
 import Login from "./Login";
 import AdminPanel from "./AdminPanel";
+import CalendarView from "./CalendarView";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-type View = "dash" | "vault" | "doc" | "graph" | "mon" | "admin";
+type View = "dash" | "vault" | "doc" | "graph" | "mon" | "cal" | "admin";
 type DocTab = "pdf" | "word" | "diff" | "history";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -110,11 +111,32 @@ function TagBadge({ label, violet }: { label: string; violet?: boolean }) {
   );
 }
 
+// ─── Brendli fayl ikonkasi (PDF qizil / Word ko'k, buklangan burchakli varaq) ──
+export function FileTypeIcon({ kind, size = 26 }: { kind: "pdf" | "docx"; size?: number }) {
+  const body = kind === "pdf" ? "#E2574C" : "#2B7CD3";
+  const fold = kind === "pdf" ? "#B53629" : "#1E5FA8";
+  const label = kind === "pdf" ? "PDF" : "W";
+  return (
+    <svg width={size * (20 / 26)} height={size} viewBox="0 0 20 26" style={{ display: "block", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.25))" }}>
+      {/* varaq tanasi */}
+      <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0H13l5 5v18.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 2 23.5V2.5Z" fill={body} />
+      {/* buklangan burchak */}
+      <path d="M13 0l5 5h-3.8A1.2 1.2 0 0 1 13 3.8V0Z" fill={fold} />
+      {/* matn qatorlari (yorug' shtrixlar) */}
+      <rect x="5" y="8" width="8" height="1.4" rx="0.7" fill="rgba(255,255,255,.45)" />
+      <rect x="5" y="10.6" width="10" height="1.4" rx="0.7" fill="rgba(255,255,255,.3)" />
+      <text x="10" y="21.5" textAnchor="middle" fontFamily="Sora, Manrope, sans-serif" fontWeight="800"
+        fontSize={kind === "pdf" ? 6 : 8.5} fill="#fff" style={{ letterSpacing: kind === "pdf" ? 0.3 : 0 }}>
+        {label}
+      </text>
+    </svg>
+  );
+}
+
 // ─── Fayl-chip (PDF/DOCX) — hover'da ko'rish/yuklab olish/tahrirlash/o'chirish ─
 // FolderTreeNode'dagi hover naqshi bilan izchil (React state, CSS group-hover emas).
-function FileChip({ label, color, originalName, canEdit, isDark, panelBorder, txt2, onView, onDownload, onEdit, onDelete }: {
-  label: string;
-  color: string;
+function FileChip({ kind, originalName, canEdit, isDark, panelBorder, txt2, onView, onDownload, onEdit, onDelete }: {
+  kind: "pdf" | "docx";
   originalName: string;
   canEdit: boolean;
   isDark: boolean;
@@ -129,10 +151,10 @@ function FileChip({ label, color, originalName, canEdit, isDark, panelBorder, tx
   const [hovered, setHovered] = useState(false);
   return (
     <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-1 rounded-[7px] cursor-default whitespace-nowrap"
+      <span className="flex items-center cursor-default rounded-md transition-transform"
         title={originalName}
-        style={{ border: `1px solid ${panelBorder}`, color, background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.03)" }}>
-        <FileText size={11} /> {label}
+        style={{ transform: hovered ? "translateY(-1px) scale(1.06)" : "none" }}>
+        <FileTypeIcon kind={kind} />
       </span>
       {hovered && (
         <div className="flex absolute z-30 items-center" style={{ left: "100%", top: "50%", transform: "translateY(-50%)", paddingLeft: 4 }}>
@@ -1181,6 +1203,7 @@ export default function App() {
     doc: docDetail ? `${t("breadcrumb.vaultRoot")} / ${docDetail.title}` : t("breadcrumb.vaultRoot"),
     graph: t("breadcrumb.graph"),
     mon: t("breadcrumb.mon"),
+    cal: t("breadcrumb.cal"),
     admin: t("admin.title"),
   };
 
@@ -1207,6 +1230,7 @@ export default function App() {
     { id: "vault", icon: <FolderOpen size={19} /> },
     { id: "graph", icon: <Network size={19} /> },
     { id: "mon", icon: <Activity size={19} />, pip: true },
+    { id: "cal", icon: <CalendarDays size={19} /> },
     { icon: <GitBranch size={19} /> },
   ];
 
@@ -1689,7 +1713,7 @@ export default function App() {
             </div>
           ) : documents.length === 0 ? (
             <p className="px-5 pb-5 text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("vault.emptyDocuments")}</p>
-          ) : (
+          ) : vaultSeg === "table" ? (
             <div className="overflow-x-auto">
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
@@ -1725,9 +1749,9 @@ export default function App() {
                       {/* Fayl-chip'lar: hover'da ko'rish/yuklab olish/tahrirlash/o'chirish (foydalanuvchi so'rovi) */}
                       <td style={{ padding: "13px 18px", borderBottom: `1px solid ${panelBorder}` }} onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
-                          {([["PDF", doc.pdfFile, "#F07A6B"], ["DOCX", doc.docxFile, "#6BB4F5"]] as const).map(([label, fileRef, color]) =>
+                          {([["pdf", doc.pdfFile], ["docx", doc.docxFile]] as const).map(([kind, fileRef]) =>
                             fileRef ? (
-                              <FileChip key={label} label={label} color={color} originalName={fileRef.originalName}
+                              <FileChip key={kind} kind={kind} originalName={fileRef.originalName}
                                 canEdit={canEditDocuments} isDark={isDark} panelBorder={panelBorder} txt2={txt2}
                                 onView={() => handleFileOpen(fileRef.id, "inline")}
                                 onDownload={() => handleFileOpen(fileRef.id, "attachment")}
@@ -1755,6 +1779,101 @@ export default function App() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          ) : vaultSeg === "card" ? (
+            /* ── Kartochka ko'rinishi ── */
+            <div className="grid gap-4 px-5 pb-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+              {documents.map(doc => (
+                <div key={doc.id} onClick={() => openDocument(doc.id)}
+                  className="cursor-pointer transition-all duration-200 hover:-translate-y-1"
+                  style={{
+                    borderRadius: 16, padding: "16px 16px 14px",
+                    background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)",
+                    border: `1px solid ${panelBorder}`,
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = `${lime}55`)}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = panelBorder)}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex gap-1.5">
+                      {doc.pdfFile && <FileTypeIcon kind="pdf" size={30} />}
+                      {doc.docxFile && <FileTypeIcon kind="docx" size={30} />}
+                      {!doc.pdfFile && !doc.docxFile && (
+                        <span className="text-[11px] font-bold" style={{ color: txt3 }}>—</span>
+                      )}
+                    </div>
+                    <StatusBadge status={docStatusToBadgeKey(doc.status)} />
+                  </div>
+                  <p className="font-['Sora'] text-[13.5px] font-semibold leading-snug mb-1"
+                    style={{ color: txt, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {doc.title}
+                  </p>
+                  <p className="text-[11px] font-semibold mb-2" style={{ color: txt3 }}>
+                    {doc.docNumber ? `№ ${doc.docNumber} · ` : ""}{doc.authorName}
+                  </p>
+                  <div className="flex items-center justify-between text-[11px] font-bold" style={{ color: txt2 }}>
+                    <span>{doc.docTypeName}</span>
+                    <span style={{ color: txt3 }}>{formatDate(doc.approvedAt)}</span>
+                  </div>
+                  {doc.tags.length > 0 && (
+                    <div className="mt-2">{doc.tags.slice(0, 3).map(tag => <TagBadge key={tag} label={tag} />)}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* ── Timeline ko'rinishi — oy bo'yicha guruhlangan (tasdiqlangan, bo'lmasa yuklangan sana) ── */
+            <div className="px-6 pb-6">
+              {(() => {
+                const dated = documents.map(doc => ({ doc, when: doc.approvedAt ?? doc.createdAt }))
+                  .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime());
+                const groups: { label: string; items: typeof dated }[] = [];
+                const monthFmt = new Intl.DateTimeFormat(i18n.language, { month: "long", year: "numeric" });
+                for (const entry of dated) {
+                  const label = monthFmt.format(new Date(entry.when));
+                  const last = groups[groups.length - 1];
+                  if (last && last.label === label) last.items.push(entry);
+                  else groups.push({ label, items: [entry] });
+                }
+                return groups.map((group, gi) => (
+                  <div key={group.label} className="mb-1">
+                    <p className="text-[11px] font-extrabold uppercase tracking-[.7px] mb-3 mt-2" style={{ color: lime }}>
+                      {group.label}
+                    </p>
+                    {group.items.map(({ doc, when }, i) => {
+                      const isLastOverall = gi === groups.length - 1 && i === group.items.length - 1;
+                      return (
+                        <div key={doc.id} className="flex gap-3.5 relative" style={{ paddingBottom: isLastOverall ? 4 : 20 }}>
+                          {!isLastOverall && (
+                            <div className="absolute left-[7px] top-[18px] bottom-0 w-[1.5px]" style={{ background: panelBorder }} />
+                          )}
+                          <div className="w-[15px] h-[15px] rounded-full border-2 flex-shrink-0 mt-1"
+                            style={{
+                              borderColor: doc.status === "ACTIVE" ? lime : txt3,
+                              background: doc.status === "ACTIVE" ? lime : "transparent",
+                              boxShadow: doc.status === "ACTIVE" ? `0 0 0 4px ${lime}22` : "none",
+                            }} />
+                          <div onClick={() => openDocument(doc.id)}
+                            className="flex-1 cursor-pointer rounded-[13px] transition-colors px-3.5 py-2.5 -mt-1"
+                            style={{ border: `1px solid transparent` }}
+                            onMouseEnter={e => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.03)"; e.currentTarget.style.borderColor = panelBorder; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}>
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <span className="text-[11px] font-extrabold whitespace-nowrap" style={{ color: txt3 }}>{formatDate(when)}</span>
+                              <span className="text-[13px] font-bold" style={{ color: txt }}>{doc.title}</span>
+                              {doc.docNumber && <span className="text-[11px] font-semibold" style={{ color: txt3 }}>№ {doc.docNumber}</span>}
+                              <StatusBadge status={docStatusToBadgeKey(doc.status)} />
+                            </div>
+                            <p className="text-[11px] font-semibold mt-1" style={{ color: txt2 }}>
+                              {doc.docTypeName}{doc.authorName ? ` · ${doc.authorName}` : ""}
+                              {!doc.approvedAt && <span style={{ color: txt3 }}> · {t("vault.timelineUploadedAt")}</span>}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </div>
@@ -2512,6 +2631,7 @@ export default function App() {
         { v: "doc" as View, label: t("viewbar.doc") },
         { v: "graph" as View, label: t("viewbar.graph") },
         { v: "mon" as View, label: t("viewbar.mon") },
+        { v: "cal" as View, label: t("viewbar.cal") },
       ].map(item => (
         <button key={item.v} onClick={() => goView(item.v)}
           className="text-[12px] font-extrabold px-4 py-2.5 rounded-full cursor-pointer transition-all whitespace-nowrap"
@@ -2557,6 +2677,9 @@ export default function App() {
             {view === "doc" && DocDetail}
             {view === "graph" && <GraphView onNavigate={goView} />}
             {view === "mon" && Monitoring}
+            {view === "cal" && (
+              <CalendarView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} onOpenDocument={openDocument} />
+            )}
             {view === "admin" && (
               (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") ? (
                 <AdminPanel theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} toast={toast}
