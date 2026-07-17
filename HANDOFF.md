@@ -46,14 +46,20 @@ Batafsil tarix uchun: `git log --oneline` — har commit xabarida nima qilingani
 7. **Kartochka + Timeline** vault ko'rinishlari ishga tushirildi (avval faqat Jadval ishlar edi) — karta grid va oy bo'yicha guruhlangan xronologiya.
 8. **Kalendar** — yangi nav bandi (`CalendarView.tsx`): Oy/Hafta/Yil rejimlari, tasdiqlangan/yuklangan sana almashtirgichi, holat-rangli pill'lar (bosilsa hujjat ochiladi), bugungi kun halqasi, yil ko'rinishida 12 mini-oy. Backend: `listDocumentsQuerySchema`ga `dateField`/`from`/`to`. Eslatma: kalendar bitta so'rovda max 100 hujjat oladi (pagination cheklovi) — juda katta davrda kam ko'rsatishi mumkin.
 
-## 2. Keyingi qadamlar (ustuvorlik tartibida)
+## 2. Yo'l xaritasi (2026-07-17 auditi asosida)
 
-1. ✅ **Milestone 6 — BAJARILDI** (2026-07-17): versiya turi modali (MINOR/MAJOR, yorliq preview), `POST /documents/:id/versions` (tranzaksiya, race'da 409), `diff.generate` worker real (mammoth→docx npm, namuna formatida; docx yo'q bo'lsa PDF matnidan fallback ogohlantirish bilan), shablon polling (`/documents/template-jobs/:jobId`), timeline'da PDF/DOCX/Taqqoslama chip'lari. Notification o'rniga modal-ichi polling (notifications tizimi hali yo'q — keyingi ish). Endi TZ-1 Definition of Done (§1.7) checklistini foydalanuvchi bilan birga yugurtirish mumkin.
-2. **⌘K qidiruvni real qilish** — hozir mock; `documentsApi.list({q})` bilan debounce qidiruv.
-3. **Bulk amallar** — checkbox UI bor, endpoint'ga ulanmagan.
-4. **VIEWER'lar uchun ham fayl-chip'lar ko'rinadi** (view/download) — tekshirilgan; lekin DocDetail'dagi "Yuklab olish" tugmasi versiyadagi eskiradigan downloadUrl'dan foydalanadi — uni ham `/files/:id/download`ga o'tkazish arzon yaxshilash.
-5. Keyin TZ-2 davomi (workflow canvas, graf, struktura, ACL, admin kengaytmalari) → TZ-3 (scraper/monitoring) → TZ-4.
-6. Texnik qarz: `apps/web` lint/test stub (`echo`), PENDING fayllar uchun tozalash cron'i yo'q, pdfjs-dist o'rniga iframe (TZ pdf.js deydi), to'liq router yo'q (folder/view URL'da emas, faqat filtrlar).
+**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 qisman: §2.1 Relations (asos), §2.3 Graf (real), §2.6 ⌘K nom/raqam qidiruv · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo) · i18n · security hardening.
+
+**Yangi milestonelar (tavsiya tartibi):**
+
+- **M7 — Boshqaruv yakuni (TZ-2 §2.7 + mock'larni realga)**: real Notifications markazi (drawer hozir mock, jadval sxemada bor), Trash sahifasi + 30-kunlik tozalash cron (PENDING fayllar cron'i ham shu yerda), Audit log sahifasi + CSV eksport, CONTRIBUTOR roli oqimi (DRAFT→tasdiq), real Dashboard statistikasi (hozirgi 482/396 raqamlar va faollik lentasi mock), DocDetail audit paneli real.
+- **M8 — Workflow canvas + Relations yakuni (TZ-2 §2.2 + §2.1 qoldiqlari)**: React Flow canvas (drag&drop, edge=relation, layout `user_canvas_layouts`da saqlanadi — yangi migratsiya), PARENT_CHILD sikl tekshiruvi (DFS), REPLACES yaratilganda "target'ni EXPIRED qilaylikmi?" modali, DocDetail'da bog'lanishlarni tur bo'yicha guruhlash.
+- **M9 — Struktura + ACL (TZ-2 §2.4 + §2.5)**: org-units daraxti UI (CRUD, drag&drop, rahbar), remapping wizard + snapshots, papka ACL (guard bitta joyda, qulf ikonkalari, yuklab-olish-taqiq rejimi watermark bilan), permission-matrix e2e.
+- **M10 — Sifat/texnik qarz (TZ-0 §6 talabi)**: apps/web eslint+vitest (hozir stub), documents/files/versions/graph e2e testlari (TZ: versioning 100% test), TZ-1 DoD checklist yugurtirish, pdf.js integratsiyasi (hozir iframe), router/URL holati (view+folder), graf uchun podrazdeleniye rang rejimi.
+- **M11 — TZ-3 Monitoring**: scraper (lex.uz/cbu.uz, cron 2 soat) → external_acts + /monitoring real sahifa → xabarnomalar (in-app/Telegram/email) → embedding (multilingual-e5, LLM'siz) → semantik solishtirish/qidiruv → LLM toggle (default OFF). O'z ichida 3–4 kichik bosqich.
+- **M12 — TZ-4 SaaS**: ochiq /register + trial, tariflar/limitlar, 2FA, ClamAV, API tokenlar, eksport/import/backup, CI/CD + monitoring infra.
+
+**Mayda qoldiqlar (istalgan payt):** ⌘K'da klaviatura navigatsiyasi (↑↓/↵ hozir faqat hint), bulk uchun server ZIP, kalendarda 100+ hujjat sahifalash.
 
 ## 3. Ishga tushirish
 
