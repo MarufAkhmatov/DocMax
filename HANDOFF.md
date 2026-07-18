@@ -1,6 +1,6 @@
 # DocMax — Handoff
 
-*Oxirgi yangilanish: 2026-07-18 (M8 — Workflow canvas + Relations yakuni bilan) · kanonik branch: **`main`** (= `claude/hand-off-task-c339c9` + real ⌘K/bulk/graf + M7-M12 yo'l xaritasi + Pre-M7 i18n + M7 + M8; c339c9 endi orqada qolgan, kerak emas)*
+*Oxirgi yangilanish: 2026-07-18 (M9 — Struktura + ACL bilan) · kanonik branch: **`claude/handoff-ni-oqi-va-m9-e0ad4d`** (= `claude/handoff-update-f121b2`ning barcha commit'lari, ff-merge orqali + shu sessiyaning M9 commit'i)*
 
 Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilingani va keyingi qadamlar shu yerda.
 
@@ -10,13 +10,11 @@ Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilin
 
 **2026-07-16/17 sessiyasida jiddiy chalkashlik topilib tuzatildi:** `main` (2d36d06) juda orqada qolgan, eng so'nggi ish `claude/vibrant-davinci-9d583f`da edi, lekin yangi sessiya `main` asosidagi eski handoff bilan boshlangan va milestone 5'ni PARALLEL qayta qurgan. Bu parallel ish `backup/hand-off-milestone5-parallel` branch'ida saqlanadi (ishlatilmaydi, faqat tarix).
 
-**Hozirgi kanonik holat**: `claude/hand-off-task-c339c9` = vibrant-davinci'ning barcha 11 commit'i + shu sessiyaning 4 commit'i (seed-fix, security, fayl-chip'lar, handoff). **Keyingi sessiya SHU branch'dan davom etsin. `main`ni shu branch'ga fast-forward qilish tavsiya etiladi** (foydalanuvchi roziligi bilan):
-```bash
-git checkout main && git merge --ff-only claude/hand-off-task-c339c9
-```
-Eski `claude/vibrant-davinci-9d583f` branch/worktree endi kerak emas (bu branch uni to'liq o'z ichiga oladi).
+**2026-07-18 sessiyasida XUDDI SHU turdagi chalkashlik YANA yuz berdi** (ikkinchi marta!): bitta bazadan (`bb7a6b8`) ikkita parallel sessiya alohida ishladi — biri (`claude/hand-off-task-c339c9`) faqat kichik i18n tuzatish qildi, ikkinchisi (`claude/handoff-update-f121b2`) shu ustiga to'liq M7+M8'ni qurdi. Bu sessiya `claude/handoff-ni-oqi-va-m9-e0ad4d` branch'ida boshlangan edi (yana `bb7a6b8`dan, xabarsiz) — ff-merge bilan `handoff-update-f121b2`ning ishi qabul qilindi, keyin M9 shu ustiga qurildi. **Xulosa: har sessiya boshida `git log --oneline --graph --all` bilan barcha branch'larni solishtirib, eng oldinda turganini tanlash SHART** — faqat HANDOFF.md'dagi yozuvga ishonmaslik kerak (u eski bo'lishi mumkin).
 
-**DB drift ogohlantirishi**: dev Postgres bitta (docker `docmax-postgres`, port 5433) — turli worktree'lar turli migratsiya to'plamlari bilan almashib ishlasa drift bo'ladi. Hozir bazaga 5 migratsiya (document_types bilan) qo'llangan — shu branch bilan mos.
+**Hozirgi kanonik holat**: `claude/handoff-ni-oqi-va-m9-e0ad4d` = `handoff-update-f121b2`ning barcha commit'lari (M7+M8 shu ichida) + shu sessiyaning M9 commit'i. **Keyingi sessiya SHU branch'dan davom etsin.** `claude/hand-off-task-c339c9` va `claude/handoff-update-f121b2` endi orqada qolgan, kerak emas (bu branch ikkalasini ham qamrab oladi — birinchisining kichik i18n tuzatishi bu branch'da yo'q, lekin keyinroq to'liqroq versiya bilan qoplangan).
+
+**DB drift ogohlantirishi**: dev Postgres bitta (docker `docmax-postgres`, port 5433) — turli worktree'lar turli migratsiya to'plamlari bilan almashib ishlasa drift bo'ladi. Hozir bazaga 10 migratsiya (M9'dagi `acl_enabled`/`org_structure_snapshots`/`permission_subject_id_text` bilan) qo'llangan — shu branch bilan mos. **Boshqa worktree'ning API dev serveri (masalan eski `handoff-update-f121b2`) shu bazaga ulangan holda uzoq vaqt ishlab tursa, port 3001'ni band qilib qo'yishi mumkin** — shunday holatda vaqtincha boshqa port (`.env`dagi `API_PORT` + `.claude/launch.json`dagi `api.port` + `apps/web/.env.local`dagi `VITE_API_URL`) bilan ishlab, ishni tugatgach 3001'ga qaytaring (canonik qiymat).
 
 ---
 
@@ -24,10 +22,10 @@ Eski `claude/vibrant-davinci-9d583f` branch/worktree endi kerak emas (bu branch 
 
 | Qatlam | Holat |
 |---|---|
-| **Backend (apps/api)** | Auth (m3, CONTRIBUTOR bilan) + Papkalar (m4) + Hujjatlar/Fayllar (m5) + Admin Panel (dinamik hujjat turlari) + Bog'lanishlar+Graf (TZ-2 §2.1/§2.3) + Kompaniya logotipi + Notifications/Trash/Audit-logs/Stats (M7) + **security hardening** + **GET /files/:id/download (VIEW/DOWNLOAD audit bilan)** |
-| **DB (packages/db)** | 5 migratsiya (oxirgisi `document_types`), tenant-izolyatsiya extension, **seed yangi sxemaga moslangan** (6 default tur + 10 demo hujjat) |
+| **Backend (apps/api)** | Auth (m3, CONTRIBUTOR bilan) + Papkalar (m4) + Hujjatlar/Fayllar (m5) + Admin Panel (dinamik hujjat turlari) + Bog'lanishlar+Graf+Workflow (TZ-2 §2.1/§2.2/§2.3) + Kompaniya logotipi + Notifications/Trash/Audit-logs/Stats (M7) + **Org-units + struktura snapshot + remapping wizard + folder ACL (M9, TZ-2 §2.4/§2.5)** + security hardening + `GET /files/:id/download` (VIEW/DOWNLOAD audit) |
+| **DB (packages/db)** | 10 migratsiya (oxirgisi `permission_subject_id_text`), tenant-izolyatsiya extension (endi `OrgStructureSnapshot` ham), seed yangi sxemaga moslangan (6 default tur + 10 demo hujjat) |
 | **Worker (apps/worker)** | `file.index` real (pdf-parse@1.1.1/mammoth, 3x retry→FAILED). `diff.generate` real (M6) + TEMPLATE_READY bildirishnoma (M7) |
-| **Frontend (apps/web)** | React+Vite (router YO'Q — App.tsx view-switching). Login, Dashboard (real statistika+faollik+bildirishnoma), Vault (papka grid + daraxt sidebar, hover-CRUD), Hujjatlar jadvali (PDF/DOCX fayl-chip'lar), 3-qadamli wizard, DocDetail (PDF iframe, Word mammoth, tahrirlash, holat o'zgartirish, bog'lanishlar, real audit), real Graf, Admin Panel (turlar+logo+**Trash**+**Audit log**), i18n (uz/ru/en, deyarli to'liq). Monitoring/Workflow-canvas/Struktura hali yo'q yoki mock |
+| **Frontend (apps/web)** | React+Vite (router YO'Q — App.tsx view-switching). Login, Dashboard (real statistika+faollik+bildirishnoma), Vault (papka grid + daraxt sidebar, hover-CRUD, **ACL "Kirishni cheklash" modali + qulf ikonkasi**), Hujjatlar jadvali (PDF/DOCX fayl-chip'lar), 3-qadamli wizard, DocDetail (PDF iframe, Word mammoth, tahrirlash, holat o'zgartirish, bog'lanishlar, real audit, **yuklab-olish-taqiq rejimi + watermark**), real Graf/Workflow, **`/structure` — org-unit daraxti + remapping wizard + snapshot viewer (M9)**, Admin Panel (turlar+logo+Trash+Audit log+Teglar), i18n (uz/ru/en, to'liq — barcha 327 kalit uch tilda mos). Monitoring hali mock |
 
 Batafsil tarix uchun: `git log --oneline` — har commit xabarida nima qilingani yozilgan.
 
@@ -92,18 +90,40 @@ Frontend:
 
 E2e sinaldi (curl + brauzer + JS orqali drag&drop/connect/delete simulyatsiyasi): cikl bloklash, REPLACES+EXPIRE+audit, canvas'ga node qo'shish+saqlash+qayta yuklash, mavjud relation avtomatik edge sifatida chizilishi, edge o'chirish → backend'da relation ham o'chishi — barchasi tasdiqlandi.
 
+## 1.5. Shu sessiyada qilinganlar (2026-07-18) — M9: Struktura + ACL (TZ-2 §2.4 + §2.5)
+
+**Schema** (`packages/db/prisma/schema.prisma`, 3 migratsiya): `Folder.aclEnabled` (ACL chegarasi belgisi), `OrgStructureSnapshot` (org-unit daraxti + papka-mapping snapshot, jsonb, faqat o'qish), `Permission.subjectId` **uuid'dan text'ga o'zgartirildi** (ROLE turi uchun qiymat "EDITOR" kabi Role enum, uuid emas — bu birinchi marta shu jadval real ishlatilganda topilgan sxema xatosi edi) + `Permission`ga `@@unique([folderId, subjectType, subjectId])`.
+
+Backend:
+- **`apps/api/src/org-units/*`** — `GET tree`, CRUD, `POST :id/move` (DFS sikl tekshiruvi — `OrgUnit`da ltree yo'q, app-darajasida ajdodlar bo'ylab yurish), `POST :id/close` (`moveFoldersToArchive` bayrog'i bilan — "Arxiv strukturalar" tizim papkasi birinchi yopishda lazy yaratiladi, `FoldersService.move()` qayta ishlatiladi), `POST :id/reopen`, `GET :id/remap-preview` (mutatsiyasiz — eng yaqin "mapped" ajdod-unit'ni topib yangi joy taklif qiladi), `POST :id/remap-apply` (bir nechta papka ko'chirishini **BITTA tranzaksiyada** — `FoldersService.move()`dan yangi `buildMoveStatements()` metodi ajratib olindi, chaqiruvchi statement'larni yig'ib bitta `$transaction`ga beradi). Snapshot har mutatsiyadan KEYIN yoziladi (audit kabi best-effort, mutatsiya bilan bitta tranzaksiyada emas).
+- **`apps/api/src/folders/folder-access.service.ts`** — markazlashtirilgan ACL tekshiruvi (`TenantPrismaService`dagi kabi request-scoped lazy naqsh): org ichidagi `aclEnabled=true` chegaralarni bir marta yuklaydi (ACL hech qayerda yoqilmagan bo'lsa — bugungi standart holat — 0 qo'shimcha so'rov), har candidate uchun eng yaqin chegarani ltree path prefiksi orqali JS'da topadi, subject (ROLE/USER/ORG_UNIT) + `inherit` mantig'ini qo'llaydi. ADMIN/SUPER_ADMIN bypass. `canView=false`→404, `canEdit`/`canDownload=false`→403.
+  - **Muhim: 1000 papkali tree perf testi buzilib, tuzatildi** — dastlabki versiya har node uchun alohida `pathOf()` so'rovi qilardi (N+1); `nearestBoundariesBatch()` bilan bitta `= ANY(...)` so'rovga birlashtirildi (`visibleFolderIds`/`lockedFolderIds`/`deniedFolderIds` barchasi shu orqali).
+  - Ulangan joylar: `FoldersController.getTree` (ko'rinmas papkalar butunlay chiqarib tashlanadi + `locked` maydoni), `DocumentsService` (list/getById/create/createVersion/update/remove/bulk/comparison-template), `GraphService.build`, `FilesService.downloadUrl` (`inline`→canView, `attachment`→canDownload, aks holda 403).
+  - Yangi: `GET/PUT /folders/:id/permissions` (ADMIN, `PERMISSION_CHANGE` audit — enum birinchi marta ishlatildi), `GET /folders/:id/access` (istalgan user, joriy effektiv huquqlar — frontend watermark/qulf uchun).
+- **`GET /auth/users`** (ADMIN) — org-unit rahbar tanlash va ACL USER-subject tanlash uchun yengil userlar ro'yxati (avval bunday endpoint yo'q edi).
+
+Frontend:
+- **`apps/web/src/app/StructureView.tsx`** (yangi) — org-unit daraxti (`FolderTreeNode`dagi hover-reveal naqshi bilan bir xil — React state, CSS `:hover` emas), native HTML5 drag&drop bilan reparent, rahbar tanlash (select), bog'langan papkalar ko'rinishi, remapping wizard modali (preview→checkbox bilan tanlab apply), struktura snapshot ko'rinishi (sana bo'yicha, faqat o'qish). App.tsx'ga ulandi: `View` ittifoqiga `"struct"` qo'shildi, rail'dagi **ilgari ishlatilmagan `GitBranch` ikonka slot'i** (`id`siz edi) shu maqsadga ishlatildi, ViewBar+breadcrumb yangilandi.
+- Papka ACL: `FolderTreeNode`ga yangi `Settings` hover-amali → `FolderAclModal` (yangi, App.tsx ichida) — toggle + subject qo'shish (rol/user/bo'linma) + 3 checkbox + inherit. `FolderNode.locked`/`aclEnabled` real backend'dan — `FolderCard`/`FolderTreeNode`dagi eski hardcoded `locked: false` olib tashlandi, haqiqiy qulf ikonkasi ko'rinadi.
+- DocDetail: `GET /folders/:id/access` orqali joriy hujjat papkasining huquqlari olinadi; `canDownload=false` bo'lsa — Yuklab olish tugmasi yashiriladi, PDF iframe/Word HTML ustiga takrorlanuvchi email watermark (`WatermarkOverlay`, yangi) chiziladi.
+
+**Testlar**: `apps/api/src/folders/folder-permissions.e2e.test.ts` (9 ta — ADMIN bypass, ROLE/USER/ORG_UNIT subject, inherit/override, PERMISSION_CHANGE audit, ACL yo'q holat), `apps/api/src/org-units/org-units.e2e.test.ts` (5 ta — sikl bloklash, snapshot yozilishi, close+archive+hujjat-ID saqlanishi, remap-preview mutatsiyasiz, remap-apply bitta tranzaksiyada+rollback). Jami 29/29 test yashil (mavjud folders/auth e2e'lar bilan birga, regressiyasiz).
+
+**Brauzerda sinaldi** (Chrome preview + curl, chunki `computer` screenshot bu sessiyada doim timeout berdi — `read_page`/`get_page_text`/`javascript_tool`/tarmoq so'rovlari orqali tekshirildi): org-unit yaratish/rahbar tayinlash, ACL yoqish+subject qo'shish+saqlash (haqiqiy `PUT /folders/:id/permissions` 200), keyin uch turli rol (ADMIN/VIEWER-grantli/EDITOR-grantsiz) bilan `folders/tree`+`documents`ni solishtirib ruxsat mantig'i tasdiqlandi, remap wizard ochilishi, DocDetail'da yuklab olish tugmasi ACL yo'q papkada normal ko'rinishi.
+
+**Eslatma keyingi sessiyaga**: `computer` action `key: "Return"` inputlarda ba'zan yetib bormaydi (Enter bosilgan hodisa React'ga tarqalmaydi) — `javascript_tool` bilan `dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', bubbles:true}))` ishonchli muqobil. `computer` action `screenshot` bu sessiyada barqaror timeout berdi — vizual tekshiruv kerak bo'lsa avval qisqa `zoom` bilan sinab ko'ring yoki matn-asosidagi tekshiruvga tayaning.
+
 ## 2. Yo'l xaritasi (2026-07-17 auditi asosida)
 
-**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 qisman: §2.1 Relations (to'liq — M8), §2.2 Workflow canvas (to'liq — M8), §2.3 Graf (real), §2.6 ⌘K nom/raqam qidiruv, §2.7 to'liq (M7) · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n · security hardening.
+**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 to'liq: §2.1 Relations, §2.2 Workflow canvas, §2.3 Graf, §2.4 Struktura (M9), §2.5 Papka ACL (M9), §2.6 ⌘K nom/raqam qidiruv, §2.7 Boshqaruv yakuni · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n (to'liq) · security hardening.
 
 **Keyingi milestonelar (tavsiya tartibi):**
 
-- **M9 — Struktura + ACL (TZ-2 §2.4 + §2.5)**: org-units daraxti UI (CRUD, drag&drop, rahbar), remapping wizard + snapshots, papka ACL (guard bitta joyda, qulf ikonkalari, yuklab-olish-taqiq rejimi watermark bilan), permission-matrix e2e.
-- **M10 — Sifat/texnik qarz (TZ-0 §6 talabi)**: apps/web eslint+vitest (hozir stub), documents/files/versions/graph e2e testlari (TZ: versioning 100% test), TZ-1 DoD checklist yugurtirish, pdf.js integratsiyasi (hozir iframe), router/URL holati (view+folder), graf uchun podrazdeleniye rang rejimi.
+- **M10 — Sifat/texnik qarz (TZ-0 §6 talabi)**: apps/web eslint+vitest (hozir stub), documents/files/versions/graph e2e testlari (TZ: versioning 100% test), TZ-1 DoD checklist yugurtirish, pdf.js integratsiyasi (hozir iframe), router/URL holati (view+folder), graf uchun podrazdeleniye rang rejimi, **`vite build` production'da singan** (`RELATION_TYPES` named export Rollup'da topilmaydi — §1.2'da batafsil, hali tegilmagan).
 - **M11 — TZ-3 Monitoring**: scraper (lex.uz/cbu.uz, cron 2 soat) → external_acts + /monitoring real sahifa → xabarnomalar (in-app/Telegram/email) → embedding (multilingual-e5, LLM'siz) → semantik solishtirish/qidiruv → LLM toggle (default OFF). O'z ichida 3–4 kichik bosqich.
 - **M12 — TZ-4 SaaS**: ochiq /register + trial, tariflar/limitlar, 2FA, ClamAV, API tokenlar, eksport/import/backup, CI/CD + monitoring infra.
 
-**Mayda qoldiqlar (istalgan payt):** ⌘K'da klaviatura navigatsiyasi (↑↓/↵ hozir faqat hint), bulk uchun server ZIP, kalendarda 100+ hujjat sahifalash.
+**Mayda qoldiqlar (istalgan payt):** ⌘K'da klaviatura navigatsiyasi (↑↓/↵ hozir faqat hint), bulk uchun server ZIP, kalendarda 100+ hujjat sahifalash, ACL — bir nechta papka bitta org-unit'ga mapping bo'lganda remap-preview faqat "birinchi yaratilgan" papkani vakil sifatida oladi (kam uchraydigan holat, kodda izohlangan).
 
 ## 3. Ishga tushirish
 
@@ -132,20 +152,26 @@ Web `:3000` · API `:3001/api/v1` · MinIO konsol `:9001` (docmax/docmax-secret)
 - **Windows: api/worker ishlab turganda `db:generate`/`db build` EPERM beradi** (query engine DLL band) — avval jarayonlarni to'xtatish.
 - **pdf-parse@1.1.1'da qat'iy qoling** (2.x butunlay boshqa API). Test PDF: `node_modules/.pnpm/pdf-parse@1.1.1/.../test/data/04-valid.pdf` (qo'lda yasalgan minimal PDF'lar "bad XRef entry" beradi).
 - **`docker exec ... psql` heredoc'iga `-i` flag shart**, aks holda jim chiqadi.
-- **Bash'da dotenv**: `pnpm exec dotenv -e ../../.env -- ...` (global dotenv binary xato beradi).
+- **Bash'da dotenv**: `pnpm exec dotenv -e ../../.env -- ...` (global dotenv binary xato beradi) — **lekin faqat skript o'zi dotenv talab qilsa** (masalan `db:seed`/`db:migrate`). `apps/api`/`apps/worker`ning `dev` skripti (`nest start --watch`) `.env`ni **o'zi** `ConfigModule.forRoot({envFilePath:[...]})` orqali yuklaydi — bularni `pnpm exec dotenv -e ...` bilan o'rab qo'yish shart EMAS va aksincha global `dotenv` (Python paketi, boshqa CLI) bilan to'qnashib xato berishi mumkin (`Invalid value for '-e'/'--export'`). Xato ko'rinsa — avval skript o'zi dotenv kerak qiladimi tekshiring.
 - **Yangi worktree'da**: `pnpm install` + `pnpm db:generate` + `.env`ni `.env.example`dan nusxalash — uchchalasi ham kerak.
 - **CDP orqali CSS `:hover` sinab bo'lmaydi** — hover-reveal UI'lar React state bilan qilinadi (FolderTreeNode va FileChip shu naqshda), sinovda `mouseover` dispatch ishlaydi.
+- **`computer` action `key:"Return"` React controlled input'larda ba'zan yetib bormaydi** (M9 sessiyasida topildi) — `javascript_tool` bilan qo'lda `input.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', bubbles:true}))` ishonchli muqobil. `computer` action `screenshot` ham shu sessiyada barqaror timeout berdi — `read_page`/`get_page_text`/tarmoq so'rovlari orqali tekshiring, screenshot shart bo'lmasa ishlatmang.
+- **Prisma tenant-client extension `createMany`/`create`da ham `orgId`ni qo'lda talab qiladi** (runtime'da extension qayta yozadi, lekin Prisma generatsiya qilingan tipi buni bilmaydi) — naqsh: `NotificationsService.notifyUsers`/`FolderPermissionsService.set` kabi joylarga qarang.
+- **Yangi Prisma modelida polimorfik `subjectId`/`entityId` kabi maydon bo'lsa — DIQQAT: `@db.Uuid` cheklovini oldindan tekshiring** (M9'da `Permission.subjectId` ROLE uchun "EDITOR" kabi enum qiymat saqlashi kerak edi, lekin `@db.Uuid` edi — jadval bo'sh bo'lgani uchun oson tuzatildi, lekin productionda data bo'lsa qiyin bo'lardi).
 - Preview serverlar uzoq sessiyada o'z-o'zidan to'xtab qolishi mumkin — `preview_start` bilan qayta ko'tarish kifoya.
 
 ## 5. Fayl xaritasi (qisqa)
 
 ```
-apps/web/src/app/App.tsx      ← BARCHA UI (~2700 qator): view-switching, Vault, DocDetail, wizard, FileChip, FolderTreeNode
-apps/web/src/app/Login.tsx    ← Login ekrani;  AdminPanel.tsx ← Admin Panel (brend + hujjat turlari)
-apps/web/src/lib/api.ts       ← authApi, foldersApi, filesApi(+downloadUrl), documentsApi, documentTypesApi, organizationsApi, relationsApi
-apps/web/src/i18n/            ← uz(asosiy)/ru/en lug'atlar
-apps/api/src/{auth,folders,files,documents,document-types,document-relations,organizations,storage,queue,audit,common,prisma,mailer}/
+apps/web/src/app/App.tsx      ← BARCHA asosiy UI (~3000+ qator): view-switching, Vault, DocDetail, wizard,
+                                 FileChip, FolderTreeNode, FolderAclModal, WatermarkOverlay
+apps/web/src/app/StructureView.tsx ← M9: org-unit daraxti, remapping wizard, snapshot viewer
+apps/web/src/app/Login.tsx    ← Login ekrani;  AdminPanel.tsx ← Admin Panel (brend + hujjat turlari + teglar + trash + audit)
+apps/web/src/lib/api.ts       ← authApi(+listUsers), foldersApi(+access), permissionsApi, orgUnitsApi, filesApi, documentsApi, ...
+apps/web/src/i18n/            ← uz(asosiy)/ru/en lug'atlar — 327 kalit, uchchalasida bir xil
+apps/api/src/{auth,folders(+folder-access,folder-permissions),files,documents,document-types,document-relations,
+  organizations,org-units,storage,queue,audit,common,prisma,mailer}/
 apps/worker/src/{file-index,queue,prisma,storage}/
-packages/db/prisma/           ← schema + 5 migratsiya + seed (document_types bilan mos)
-packages/shared/src/          ← barcha zod sxemalar/DTO (front+back bitta manba)
+packages/db/prisma/           ← schema + 10 migratsiya + seed (document_types bilan mos)
+packages/shared/src/          ← barcha zod sxemalar/DTO (front+back bitta manba) — org-units.ts, permissions.ts (M9)
 ```

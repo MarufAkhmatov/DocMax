@@ -19,6 +19,7 @@ export const TENANT_SCOPED_MODELS = [
   'Notification',
   'UserCanvasLayout',
   'Embedding',
+  'OrgStructureSnapshot',
 ] as const;
 
 export type TenantScopedModel = (typeof TENANT_SCOPED_MODELS)[number];

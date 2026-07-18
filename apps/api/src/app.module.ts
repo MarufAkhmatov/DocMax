@@ -22,6 +22,7 @@ import { TrashModule } from './trash/trash.module';
 import { StatsModule } from './stats/stats.module';
 import { TagsModule } from './tags/tags.module';
 import { WorkflowModule } from './workflow/workflow.module';
+import { OrgUnitsModule } from './org-units/org-units.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -56,6 +57,7 @@ import { AllExceptionsFilter } from './common/http-exception.filter';
     StatsModule,
     TagsModule,
     WorkflowModule,
+    OrgUnitsModule,
   ],
   controllers: [HealthController],
   providers: [

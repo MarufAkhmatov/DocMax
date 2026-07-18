@@ -13,12 +13,16 @@ import type {
   CreateDocumentRelationInput,
   CreateDocumentVersionInput,
   CreateDocumentTypeInput,
+  CloseOrgUnitInput,
   CreateFolderInput,
+  CreateOrgUnitInput,
   DashboardStats,
   DocumentDetail,
   DocumentRelationSummary,
   DocumentTypeSummary,
   FileDownloadResult,
+  FolderAccessResult,
+  FolderPermissionsSummary,
   GraphData,
   GraphQuery,
   FileSummary,
@@ -29,22 +33,31 @@ import type {
   ListDocumentsQuery,
   LoginInput,
   MoveFolderInput,
+  MoveOrgUnitInput,
   NotificationsList,
   OrganizationBranding,
+  OrgStructureSnapshotDetail,
+  OrgStructureSnapshotSummary,
+  OrgUnitNode,
   PaginatedAuditLogs,
   PaginatedDocuments,
   PresignFileInput,
   PresignResult,
+  RemapApplyInput,
+  RemapPreviewEntry,
   ResetPasswordInput,
   SaveCanvasLayoutInput,
+  SetFolderPermissionsInput,
   SetupInput,
   TagSummary,
   TrashItem,
   UpdateDocumentInput,
   UpdateDocumentTypeInput,
   UpdateFolderInput,
+  UpdateOrgUnitInput,
   UpdateProfileInput,
   UpdateTagInput,
+  UserSummary,
 } from '@docmax/shared';
 import { useAuthStore } from '@/stores/auth';
 
@@ -183,6 +196,9 @@ export const authApi = {
       body: input,
       skipAuthRetry: true,
     }),
+
+  /** Org-unit rahbar tanlash (TZ-2 §2.4) va ACL USER-subject tanlash (§2.5) uchun. */
+  listUsers: () => apiFetch<UserSummary[]>('/auth/users'),
 };
 
 export const foldersApi = {
@@ -204,6 +220,54 @@ export const foldersApi = {
     apiFetch<FolderNode>(`/folders/${id}/move`, { method: 'POST', body: input }),
 
   remove: (id: string) => apiFetch<void>(`/folders/${id}`, { method: 'DELETE' }),
+
+  /** TZ-2 §2.5 — joriy foydalanuvchining shu papkadagi effektiv huquqlari (drawer/preview). */
+  access: (id: string) => apiFetch<FolderAccessResult>(`/folders/${id}/access`),
+};
+
+export const permissionsApi = {
+  get: (folderId: string) => apiFetch<FolderPermissionsSummary>(`/folders/${folderId}/permissions`),
+
+  set: (folderId: string, input: SetFolderPermissionsInput) =>
+    apiFetch<FolderPermissionsSummary>(`/folders/${folderId}/permissions`, { method: 'PUT', body: input }),
+};
+
+export const orgUnitsApi = {
+  tree: (params: { parentId?: string | null; q?: string } = {}) => {
+    const search = new URLSearchParams();
+    if (params.parentId) search.set('parentId', params.parentId);
+    if (params.q) search.set('q', params.q);
+    const qs = search.toString();
+    return apiFetch<OrgUnitNode[]>(`/org-units/tree${qs ? `?${qs}` : ''}`);
+  },
+
+  create: (input: CreateOrgUnitInput) => apiFetch<OrgUnitNode>('/org-units', { method: 'POST', body: input }),
+
+  update: (id: string, input: UpdateOrgUnitInput) =>
+    apiFetch<OrgUnitNode>(`/org-units/${id}`, { method: 'PATCH', body: input }),
+
+  move: (id: string, input: MoveOrgUnitInput) =>
+    apiFetch<OrgUnitNode>(`/org-units/${id}/move`, { method: 'POST', body: input }),
+
+  close: (id: string, input: CloseOrgUnitInput) =>
+    apiFetch<OrgUnitNode>(`/org-units/${id}/close`, { method: 'POST', body: input }),
+
+  reopen: (id: string) => apiFetch<OrgUnitNode>(`/org-units/${id}/reopen`, { method: 'POST' }),
+
+  remapPreview: (id: string) => apiFetch<RemapPreviewEntry[]>(`/org-units/${id}/remap-preview`),
+
+  remapApply: (id: string, input: RemapApplyInput) =>
+    apiFetch<void>(`/org-units/${id}/remap-apply`, { method: 'POST', body: input }),
+
+  snapshots: (params: { page?: number; limit?: number } = {}) => {
+    const search = new URLSearchParams();
+    if (params.page) search.set('page', String(params.page));
+    if (params.limit) search.set('limit', String(params.limit));
+    const qs = search.toString();
+    return apiFetch<{ items: OrgStructureSnapshotSummary[]; total: number }>(`/org-units/snapshots${qs ? `?${qs}` : ''}`);
+  },
+
+  snapshotAt: (date: string) => apiFetch<OrgStructureSnapshotDetail | null>(`/org-units/snapshots/at?date=${date}`),
 };
 
 /** Fayl bayt'laridan sha256 hex — dedup uchun (TZ-1 §1.3 qabul mezoni). */

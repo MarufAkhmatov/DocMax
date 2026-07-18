@@ -8,19 +8,20 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as mammoth from "mammoth";
-import type { AuditLogEntry, DashboardStats, DocumentDetail, DocumentRelationSummary, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode, NotificationSummary, RelationType, VersionType } from "@docmax/shared";
-import { RELATION_TYPES, nextVersionLabel } from "@docmax/shared";
-import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, relationsApi, filesApi, notificationsApi, statsApi, ApiRequestError } from "@/lib/api";
+import type { AuditLogEntry, DashboardStats, DocumentDetail, DocumentRelationSummary, DocumentSummary, DocumentTypeSummary, FileSummary, FolderAccessResult, FolderNode, NotificationSummary, RelationType, UserSummary, VersionType } from "@docmax/shared";
+import { RELATION_TYPES, ROLES, nextVersionLabel } from "@docmax/shared";
+import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, orgUnitsApi, permissionsApi, relationsApi, filesApi, notificationsApi, statsApi, ApiRequestError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
 import Login from "./Login";
 import AdminPanel from "./AdminPanel";
 import CalendarView from "./CalendarView";
 import GraphView from "./GraphView";
+import StructureView from "./StructureView";
 import WorkflowView from "./WorkflowView";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-type View = "dash" | "vault" | "doc" | "graph" | "mon" | "cal" | "admin";
+type View = "dash" | "vault" | "doc" | "graph" | "mon" | "cal" | "admin" | "struct";
 type DocTab = "pdf" | "word" | "diff" | "history";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -106,6 +107,25 @@ export function FileTypeIcon({ kind, size = 26 }: { kind: "pdf" | "docx"; size?:
         {label}
       </text>
     </svg>
+  );
+}
+
+// ─── TZ-2 §2.5 — "yuklab olish taqiqlangan" preview qatlami (foydalanuvchi email'i) ──
+function WatermarkOverlay({ email }: { email: string }) {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden select-none" style={{ zIndex: 5 }}>
+      <div style={{
+        position: "absolute", inset: "-20%",
+        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 48,
+        transform: "rotate(-28deg)",
+      }}>
+        {Array.from({ length: 24 }).map((_, i) => (
+          <span key={i} style={{ fontSize: 13, fontWeight: 800, color: "rgba(140,150,155,.28)", whiteSpace: "nowrap" }}>
+            {email}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -233,6 +253,184 @@ function FolderCard({ folder, onClick }: { folder: FolderCardData; onClick: () =
   );
 }
 
+// ─── Papka ACL (TZ-2 §2.5) — "Kirishni cheklash" modali ───────────────────────
+async function fetchAllOrgUnitsFlat(): Promise<{ id: string; name: string; depth: number }[]> {
+  const result: { id: string; name: string; depth: number }[] = [];
+  async function walk(parentId: string | null, depth: number) {
+    const children = await orgUnitsApi.tree({ parentId });
+    for (const c of children) {
+      result.push({ id: c.id, name: c.name, depth });
+      if (c.hasChildren) await walk(c.id, depth + 1);
+    }
+  }
+  await walk(null, 0);
+  return result;
+}
+
+type AclEntryDraft = {
+  subjectType: "ROLE" | "USER" | "ORG_UNIT";
+  subjectId: string;
+  canView: boolean;
+  canEdit: boolean;
+  canDownload: boolean;
+  inherit: boolean;
+};
+
+function FolderAclModal({
+  folderId, folderName, onClose, toast,
+  lime, txt, txt2, txt3, panel, panelBorder, isDark,
+}: {
+  folderId: string;
+  folderName: string;
+  onClose: () => void;
+  toast: (msg: string) => void;
+  lime: string; txt: string; txt2: string; txt3: string; panel: string; panelBorder: string; isDark: boolean;
+}) {
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [entries, setEntries] = useState<AclEntryDraft[]>([]);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [orgUnits, setOrgUnits] = useState<{ id: string; name: string; depth: number }[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([permissionsApi.get(folderId), authApi.listUsers().catch(() => []), fetchAllOrgUnitsFlat().catch(() => [])])
+      .then(([summary, u, ou]) => {
+        if (cancelled) return;
+        setEnabled(summary.aclEnabled);
+        setEntries(summary.entries.map((e) => ({
+          subjectType: e.subjectType, subjectId: e.subjectId,
+          canView: e.canView, canEdit: e.canEdit, canDownload: e.canDownload, inherit: e.inherit,
+        })));
+        setUsers(u);
+        setOrgUnits(ou);
+      })
+      .catch((err) => toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic")))
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderId]);
+
+  const addEntry = () => setEntries((prev) => [
+    ...prev,
+    { subjectType: "ROLE", subjectId: "VIEWER", canView: true, canEdit: false, canDownload: false, inherit: true },
+  ]);
+  const removeEntry = (idx: number) => setEntries((prev) => prev.filter((_, i) => i !== idx));
+  const updateEntry = (idx: number, patch: Partial<AclEntryDraft>) =>
+    setEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await permissionsApi.set(folderId, { enabled, entries });
+      onClose();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.permissionSave"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectStyle: React.CSSProperties = { background: panel, border: `1px solid ${panelBorder}`, color: txt };
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-start justify-center overflow-auto"
+      style={{ background: isDark ? "rgba(0,6,14,.55)" : "rgba(20,40,32,.3)", backdropFilter: "blur(6px)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="my-[6vh] overflow-hidden" style={{ width: "min(640px, 94vw)", background: isDark ? "#1E1E1E" : "#fff", border: `1px solid ${panelBorder}`, borderRadius: 20, boxShadow: "0 32px 80px rgba(0,0,0,.55)", padding: 26 }}>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-['Sora'] text-[17px] font-semibold" style={{ color: txt }}>{t("vault.restrictAccess")}</h2>
+          <button onClick={onClose} style={{ color: txt3, fontSize: 20, background: "none", border: "none", cursor: "pointer" }}>✕</button>
+        </div>
+        <p className="text-[12px] font-semibold mb-4" style={{ color: txt2 }}>{folderName}</p>
+
+        {loading ? (
+          <div style={{ padding: 24, textAlign: "center", color: txt3 }}><Loader2 size={20} className="animate-spin" /></div>
+        ) : (
+          <>
+            <label className="flex items-center gap-2 mb-4 cursor-pointer">
+              <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+              <span className="text-[13px] font-bold" style={{ color: txt }}>{t("vault.restrictAccess")}</span>
+            </label>
+
+            {enabled && (
+              <div className="space-y-2 mb-4">
+                {entries.map((entry, idx) => (
+                  <div key={idx} className="rounded-[13px] p-3" style={{ border: `1px solid ${panelBorder}` }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <select value={entry.subjectType}
+                        onChange={(e) => updateEntry(idx, { subjectType: e.target.value as AclEntryDraft["subjectType"], subjectId: "" })}
+                        className="text-[12px] font-bold rounded-lg px-2 py-1.5" style={selectStyle}>
+                        <option value="ROLE">{t("vault.aclSubjectRole")}</option>
+                        <option value="USER">{t("vault.aclSubjectUser")}</option>
+                        <option value="ORG_UNIT">{t("vault.aclSubjectOrgUnit")}</option>
+                      </select>
+
+                      {entry.subjectType === "ROLE" && (
+                        <select value={entry.subjectId} onChange={(e) => updateEntry(idx, { subjectId: e.target.value })}
+                          className="flex-1 text-[12px] font-bold rounded-lg px-2 py-1.5" style={selectStyle}>
+                          {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      )}
+                      {entry.subjectType === "USER" && (
+                        <select value={entry.subjectId} onChange={(e) => updateEntry(idx, { subjectId: e.target.value })}
+                          className="flex-1 text-[12px] font-bold rounded-lg px-2 py-1.5" style={selectStyle}>
+                          <option value="">—</option>
+                          {users.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+                        </select>
+                      )}
+                      {entry.subjectType === "ORG_UNIT" && (
+                        <select value={entry.subjectId} onChange={(e) => updateEntry(idx, { subjectId: e.target.value })}
+                          className="flex-1 text-[12px] font-bold rounded-lg px-2 py-1.5" style={selectStyle}>
+                          <option value="">—</option>
+                          {orgUnits.map((u) => <option key={u.id} value={u.id}>{"— ".repeat(u.depth)}{u.name}</option>)}
+                        </select>
+                      )}
+
+                      <button onClick={() => removeEntry(idx)} style={{ color: "#F07A6B", background: "none", border: "none", cursor: "pointer" }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {([["canView", t("vault.aclCanView")], ["canEdit", t("vault.aclCanEdit")], ["canDownload", t("vault.aclCanDownload")], ["inherit", t("vault.aclInherit")]] as const).map(([key, label]) => (
+                        <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={entry[key]} onChange={(e) => updateEntry(idx, { [key]: e.target.checked } as Partial<AclEntryDraft>)} />
+                          <span className="text-[11.5px] font-bold" style={{ color: txt2 }}>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <button onClick={addEntry}
+                  className="text-[12px] font-bold px-3.5 py-2 rounded-[11px] cursor-pointer flex items-center gap-1.5"
+                  style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                  <Plus size={13} /> {t("vault.aclAddSubject")}
+                </button>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button onClick={onClose}
+                className="text-[12.5px] font-bold px-4 py-2.5 rounded-[12px] cursor-pointer"
+                style={{ background: "transparent", border: `1px solid ${panelBorder}`, color: txt2 }}>
+                {t("common.cancel")}
+              </button>
+              <button onClick={handleSave} disabled={saving}
+                className="text-[12.5px] font-bold px-4 py-2.5 rounded-[12px] cursor-pointer flex items-center gap-1.5"
+                style={{ background: lime, border: "none", color: "#0A1600", opacity: saving ? 0.6 : 1 }}>
+                {saving && <Loader2 size={13} className="animate-spin" />}
+                {t("common.save")}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Folder Tree Node (chap paneldagi "Papkalar" — real backend, rekursiv "+") ─
 type FolderPathEntry = { id: string | null; name: string | null };
 
@@ -262,6 +460,7 @@ function FolderTreeNode({
   const [editName, setEditName] = useState(folder.name);
   const [editSaving, setEditSaving] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [aclOpen, setAclOpen] = useState(false);
 
   const path = [...ancestors, { id: folder.id, name: folder.name }];
 
@@ -339,6 +538,7 @@ function FolderTreeNode({
           {folder.hasChildren || children ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : null}
         </span>
         <FolderOpen size={15} className="flex-shrink-0" />
+        {folder.locked && <Lock size={12} className="flex-shrink-0" style={{ color: txt3 }} title={t("vault.aclLockedTooltip")} />}
         {editOpen ? (
           <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
             onClick={(e) => e.stopPropagation()}
@@ -362,6 +562,11 @@ function FolderTreeNode({
               style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
               <Pencil size={12} />
             </span>
+            <span onClick={(e) => { e.stopPropagation(); setAclOpen(true); }}
+              title={t("vault.restrictAccess")}
+              style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
+              <Settings size={12} />
+            </span>
             <span onClick={handleDelete}
               title={t("common.delete")}
               style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: "#F07A6B" }}>
@@ -372,6 +577,11 @@ function FolderTreeNode({
           <span className="text-[11px] font-bold flex-shrink-0" style={{ color: txt3 }}>{folder.documentCount}</span>
         )}
       </div>
+
+      {aclOpen && (
+        <FolderAclModal folderId={folder.id} folderName={folder.name} onClose={() => setAclOpen(false)} toast={toast}
+          lime={lime} txt={txt} txt2={txt2} txt3={txt3} panel={panel} panelBorder={panelBorder} isDark={isDark} />
+      )}
 
       {createOpen && (
         <div style={{ marginLeft: 20 + depth * 14, marginTop: 4, marginBottom: 4 }} onClick={(e) => e.stopPropagation()}>
@@ -742,6 +952,16 @@ export default function App() {
       .finally(() => { if (!cancelled) setDocDetailLoading(false); });
     return () => { cancelled = true; };
   }, [selectedDocId]);
+
+  // TZ-2 §2.5 — hujjat papkasidagi effektiv huquqlar (yuklab olish taqiqlangan rejim uchun).
+  const [docFolderAccess, setDocFolderAccess] = useState<FolderAccessResult | null>(null);
+  useEffect(() => {
+    if (!docDetail?.folderId) { setDocFolderAccess(null); return; }
+    let cancelled = false;
+    foldersApi.access(docDetail.folderId).then((res) => { if (!cancelled) setDocFolderAccess(res); }).catch(() => { if (!cancelled) setDocFolderAccess(null); });
+    return () => { cancelled = true; };
+  }, [docDetail?.folderId]);
+  const downloadBlocked = docFolderAccess !== null && !docFolderAccess.canDownload;
 
   // Bog'lanishlar — tanlangan hujjat o'zgarganda yuklanadi va qo'shish formasi tozalanadi
   const refetchRelations = useCallback(() => {
@@ -1252,6 +1472,7 @@ export default function App() {
     mon: t("breadcrumb.mon"),
     cal: t("breadcrumb.cal"),
     admin: t("admin.title"),
+    struct: t("breadcrumb.struct"),
   };
 
   // Glass card style helper
@@ -1278,7 +1499,7 @@ export default function App() {
     { id: "graph", icon: <Network size={19} /> },
     { id: "mon", icon: <Activity size={19} />, pip: true },
     { id: "cal", icon: <CalendarDays size={19} /> },
-    { icon: <GitBranch size={19} /> },
+    { id: "struct", icon: <GitBranch size={19} /> },
   ];
 
   // ── Sidebar (Rail + Papkalar paneli birlashgan holda, tepasida umumiy brend header) ──
@@ -1771,7 +1992,7 @@ export default function App() {
                 ? t("vault.folderMetaWithChildren", { count: f.documentCount })
                 : t("vault.folderMetaPlain", { count: f.documentCount }),
               accent: false,
-              locked: false,
+              locked: f.locked,
             }} onClick={() => setFolderStack(s => [...s, { id: f.id, name: f.name }])} />
           ))}
         </div>
@@ -2091,11 +2312,13 @@ export default function App() {
               )}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => currentVersion && handleFileOpen(currentVersion.pdf.id, "attachment")}
-                className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
-                style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
-                <Download size={14} /> {t("docDetail.download")}
-              </button>
+              {!downloadBlocked && (
+                <button onClick={() => currentVersion && handleFileOpen(currentVersion.pdf.id, "attachment")}
+                  className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
+                  style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                  <Download size={14} /> {t("docDetail.download")}
+                </button>
+              )}
               {canEditDocuments && (
                 <button onClick={openDocEdit}
                   className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
@@ -2137,8 +2360,9 @@ export default function App() {
 
           {/* PDF preview — brauzer native PDF renderi orqali */}
           {docTab === "pdf" && currentVersion && (
-            <div className="mx-6 my-5 rounded-xl overflow-hidden" style={{ height: 600, border: `1px solid ${panelBorder}` }}>
+            <div className="relative mx-6 my-5 rounded-xl overflow-hidden" style={{ height: 600, border: `1px solid ${panelBorder}` }}>
               <iframe src={currentVersion.pdf.downloadUrl} title="PDF" style={{ width: "100%", height: "100%", border: "none" }} />
+              {downloadBlocked && user?.email && <WatermarkOverlay email={user.email} />}
             </div>
           )}
 
@@ -2149,9 +2373,12 @@ export default function App() {
             ) : wordLoading ? (
               <div className="mx-6 my-5" style={{ height: 200, borderRadius: 12, background: panel }} />
             ) : (
-              <div className="mx-6 my-5 rounded-xl p-6 text-[13px]"
-                style={{ background: "#F4F7F5", color: "#1a1a1a", maxHeight: 600, overflowY: "auto" }}
-                dangerouslySetInnerHTML={{ __html: wordHtml ?? "" }} />
+              <div className="relative mx-6 my-5 rounded-xl overflow-hidden" style={{ maxHeight: 600 }}>
+                <div className="p-6 text-[13px]"
+                  style={{ background: "#F4F7F5", color: "#1a1a1a", maxHeight: 600, overflowY: "auto" }}
+                  dangerouslySetInnerHTML={{ __html: wordHtml ?? "" }} />
+                {downloadBlocked && user?.email && <WatermarkOverlay email={user.email} />}
+              </div>
             )
           )}
 
@@ -2910,6 +3137,7 @@ export default function App() {
         { v: "graph" as View, label: t("viewbar.graph") },
         { v: "mon" as View, label: t("viewbar.mon") },
         { v: "cal" as View, label: t("viewbar.cal") },
+        { v: "struct" as View, label: t("viewbar.struct") },
       ].map(item => (
         <button key={item.v} onClick={() => goView(item.v)}
           className="text-[12px] font-extrabold px-4 py-2.5 rounded-full cursor-pointer transition-all whitespace-nowrap"
@@ -2985,6 +3213,10 @@ export default function App() {
               ) : (
                 <div style={{ padding: 48, textAlign: "center", color: txt2 }}>{t("admin.accessDenied")}</div>
               )
+            )}
+            {view === "struct" && (
+              <StructureView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} toast={toast}
+                isAdmin={user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"} />
             )}
           </div>
         </main>

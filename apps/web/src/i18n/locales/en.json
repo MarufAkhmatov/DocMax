@@ -14,14 +14,16 @@
     "doc": "Document",
     "graph": "Graph",
     "mon": "Monitoring",
-    "cal": "Calendar"
+    "cal": "Calendar",
+    "struct": "Structure"
   },
   "breadcrumb": {
     "dash": "Home",
     "graph": "Relations",
     "mon": "Monitoring",
     "vaultRoot": "Vault",
-    "cal": "Calendar"
+    "cal": "Calendar",
+    "struct": "Structure"
   },
   "topbar": {
     "searchPlaceholder": "Search: by name, number, or meaning...",
@@ -91,7 +93,17 @@
     "treeFolders": "Folders",
     "savedFilters": "Saved filters",
     "timelineUploadedAt": "upload date",
-    "folderDeleteConfirm": "Delete folder \"{{name}}\"?"
+    "folderDeleteConfirm": "Delete folder \"{{name}}\"?",
+    "restrictAccess": "Restrict access",
+    "aclSubjectRole": "Role",
+    "aclSubjectUser": "User",
+    "aclSubjectOrgUnit": "Org unit",
+    "aclCanView": "View",
+    "aclCanEdit": "Edit",
+    "aclCanDownload": "Download",
+    "aclInherit": "Inherited by subfolders",
+    "aclAddSubject": "+ Add subject",
+    "aclLockedTooltip": "Access restricted"
   },
   "status": {
     "active": "Active",
@@ -330,6 +342,36 @@
     "versionCreate": "Something went wrong while creating the version",
     "logoUpload": "Something went wrong while uploading the logo",
     "calendarLoad": "Something went wrong while loading calendar data",
-    "graphLoad": "Something went wrong while loading the graph"
+    "graphLoad": "Something went wrong while loading the graph",
+    "orgUnitCreate": "Something went wrong while creating the org unit",
+    "orgUnitUpdate": "Something went wrong while updating the org unit",
+    "orgUnitMove": "Something went wrong while moving the org unit",
+    "orgUnitClose": "Something went wrong while changing the org unit status",
+    "permissionSave": "Something went wrong while saving permissions"
+  },
+  "structure": {
+    "title": "Org structure",
+    "hint": "Select an org unit on the left — its head, mapped folders and other details will appear here.",
+    "newUnit": "+ New org unit",
+    "unitNamePlaceholder": "e.g. Legal department",
+    "headLabel": "Head",
+    "headNone": "Not assigned",
+    "noUnitsYet": "No org units yet",
+    "unitCloseConfirm": "Close org unit \"{{name}}\"?",
+    "closeTooltip": "Close",
+    "reopenTooltip": "Reopen",
+    "archiveFolderOffer": "Move its mapped folder(s) to \"Archive structures\"?",
+    "archiveFolderName": "Archive structures",
+    "folderMapping": "Mapped folders",
+    "folderMappingEmpty": "No mapped folders",
+    "remapWizardTitle": "Sync folders",
+    "remapWizardHint": "After a structure change, mapped folders get a proposed new location. Select the rows you want and confirm.",
+    "remapEntryLabel": "new location: {{path}}",
+    "remapApply": "Confirm and move",
+    "remapNoChanges": "Nothing to sync — everything is already in place",
+    "snapshotViewerTitle": "Structure history",
+    "snapshotReadOnlyNote": "Read-only — the structure state as of the selected date, no restore.",
+    "snapshotDatePicker": "View",
+    "snapshotEmpty": "No data for this date"
   }
 }

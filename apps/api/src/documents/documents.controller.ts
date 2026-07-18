@@ -65,7 +65,8 @@ export class DocumentsController {
   /** TZ-2 §2.7 — DocDetail audit paneli: shu hujjatga oid faoliyat, hujjatni ko'ra oladigan
    * har kimga ochiq (org-darajasidagi to'liq /audit-logs ADMIN'ga cheklangan, bu esa torroq). */
   @Get(':id/audit')
-  documentAudit(@Param('id', new UuidParamPipe()) id: string) {
+  async documentAudit(@Param('id', new UuidParamPipe()) id: string) {
+    await this.documents.assertVisible(id);
     return this.auditLogs.list({ entityType: 'Document', entityId: id, page: 1, limit: 10, order: 'desc' });
   }
 

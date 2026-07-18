@@ -14,14 +14,16 @@
     "doc": "Hujjat",
     "graph": "Graf",
     "mon": "Monitoring",
-    "cal": "Kalendar"
+    "cal": "Kalendar",
+    "struct": "Struktura"
   },
   "breadcrumb": {
     "dash": "Bosh sahifa",
     "graph": "Bog'lanishlar",
     "mon": "Monitoring",
     "vaultRoot": "Vault",
-    "cal": "Kalendar"
+    "cal": "Kalendar",
+    "struct": "Struktura"
   },
   "topbar": {
     "searchPlaceholder": "Qidirish: nom, raqam yoki ma'no bo'yicha...",
@@ -91,7 +93,17 @@
     "treeFolders": "Papkalar",
     "savedFilters": "Saqlangan filtrlar",
     "timelineUploadedAt": "yuklangan sana",
-    "folderDeleteConfirm": "\"{{name}}\" papkasini o'chirasizmi?"
+    "folderDeleteConfirm": "\"{{name}}\" papkasini o'chirasizmi?",
+    "restrictAccess": "Kirishni cheklash",
+    "aclSubjectRole": "Rol",
+    "aclSubjectUser": "Foydalanuvchi",
+    "aclSubjectOrgUnit": "Bo'linma",
+    "aclCanView": "Ko'rish",
+    "aclCanEdit": "Tahrirlash",
+    "aclCanDownload": "Yuklab olish",
+    "aclInherit": "Pastki papkalarga o'tadi",
+    "aclAddSubject": "+ Subyekt qo'shish",
+    "aclLockedTooltip": "Kirish cheklangan"
   },
   "status": {
     "active": "Aktiv",
@@ -330,6 +342,36 @@
     "versionCreate": "Versiya yaratishda xato yuz berdi",
     "logoUpload": "Logotipni yuklashda xato yuz berdi",
     "calendarLoad": "Kalendar ma'lumotini yuklashda xato",
-    "graphLoad": "Grafni yuklashda xato"
+    "graphLoad": "Grafni yuklashda xato",
+    "orgUnitCreate": "Bo'linma yaratishda xato yuz berdi",
+    "orgUnitUpdate": "Bo'linmani tahrirlashda xato yuz berdi",
+    "orgUnitMove": "Bo'linmani ko'chirishda xato yuz berdi",
+    "orgUnitClose": "Bo'linma holatini o'zgartirishda xato yuz berdi",
+    "permissionSave": "Ruxsatlarni saqlashda xato yuz berdi"
+  },
+  "structure": {
+    "title": "Korxona strukturasi",
+    "hint": "Chapdan bo'linma tanlang — rahbar, papka mapping va boshqa tafsilotlar shu yerda ko'rinadi.",
+    "newUnit": "+ Yangi bo'linma",
+    "unitNamePlaceholder": "masalan: Yuridik departament",
+    "headLabel": "Rahbar",
+    "headNone": "Tayinlanmagan",
+    "noUnitsYet": "Hali bo'linma yaratilmagan",
+    "unitCloseConfirm": "\"{{name}}\" bo'linmasini yopasizmi?",
+    "closeTooltip": "Yopish",
+    "reopenTooltip": "Qayta ochish",
+    "archiveFolderOffer": "Bu bo'linmaga bog'langan papka(lar)ni \"Arxiv strukturalar\"ga ko'chirasizmi?",
+    "archiveFolderName": "Arxiv strukturalar",
+    "folderMapping": "Bog'langan papkalar",
+    "folderMappingEmpty": "Bog'langan papka yo'q",
+    "remapWizardTitle": "Papkalarni sinxronlashtirish",
+    "remapWizardHint": "Struktura o'zgargach, bog'langan papkalar yangi joyga taklif qilinadi. Kerakli qatorlarni tanlab tasdiqlang.",
+    "remapEntryLabel": "yangi joy: {{path}}",
+    "remapApply": "Tasdiqlash va ko'chirish",
+    "remapNoChanges": "Sinxronlash uchun papka yo'q — hammasi joyida",
+    "snapshotViewerTitle": "Struktura tarixi",
+    "snapshotReadOnlyNote": "Faqat o'qish uchun — tanlangan sanadagi struktura holati, tiklash imkoni yo'q.",
+    "snapshotDatePicker": "Ko'rish",
+    "snapshotEmpty": "Bu sana uchun ma'lumot yo'q"
   }
 }

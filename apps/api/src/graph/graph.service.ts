@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@docmax/db';
 import type { GraphData, GraphEdge, GraphNode, GraphQuery, RelationType } from '@docmax/shared';
+import { FolderAccessService } from '../folders/folder-access.service';
 import { TenantPrismaService } from '../prisma/tenant-prisma.service';
 
 /** TZ-2 §2.3 — bog'lanishlar grafi: hujjatlar (node) + relations (edge). Tenant-scoped. */
 @Injectable()
 export class GraphService {
-  constructor(private readonly tenant: TenantPrismaService) {}
+  constructor(
+    private readonly tenant: TenantPrismaService,
+    private readonly folderAccess: FolderAccessService,
+  ) {}
 
   async build(query: GraphQuery): Promise<GraphData> {
     const where: Prisma.DocumentWhereInput = { deletedAt: null };
@@ -14,8 +18,12 @@ export class GraphService {
     if (query.docTypeId) where.docTypeId = query.docTypeId;
     if (query.folderId) where.folderId = query.folderId;
 
+    // TZ-2 §2.5 — ACL'd papkadagi hujjatlar ruxsatsizga graf'da ham chiqmaydi.
+    const denied = await this.folderAccess.deniedFolderIds();
+    const finalWhere: Prisma.DocumentWhereInput = denied.length ? { AND: [where, { folderId: { notIn: denied } }] } : where;
+
     const docs = await this.tenant.client.document.findMany({
-      where,
+      where: finalWhere,
       select: {
         id: true,
         title: true,

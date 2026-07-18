@@ -1,11 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import type { Folder } from '@docmax/db';
+import type { Folder, Prisma } from '@docmax/db';
 import type { CreateFolderInput, FolderNode, MoveFolderInput, UpdateFolderInput } from '@docmax/shared';
 import { conflict, notFound } from '../common/api-error';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantPrismaService } from '../prisma/tenant-prisma.service';
 
+/** `locked` — TZ-2 §2.5 hisoblanadigan (query-vaqtida FolderAccessService orqali
+ * ancestor bo'ylab aniqlanadigan) maydon; shu yerda faqat papkaning O'ZI cheklovi
+ * bilan taxminiy to'ldiriladi — chaqiruvchi (FoldersController) haqiqiy qiymatni
+ * FolderAccessService.locked() bilan qayta hisoblab qo'yishi mumkin. */
 function toFolderNode(folder: Folder, hasChildren: boolean, documentCount: number): FolderNode {
   return {
     id: folder.id,
@@ -19,6 +23,9 @@ function toFolderNode(folder: Folder, hasChildren: boolean, documentCount: numbe
     isSystem: folder.isSystem,
     hasChildren,
     documentCount,
+    orgUnitId: folder.orgUnitId,
+    aclEnabled: folder.aclEnabled,
+    locked: folder.aclEnabled,
     createdAt: folder.createdAt.toISOString(),
     updatedAt: folder.updatedAt.toISOString(),
   };
@@ -130,8 +137,10 @@ export class FoldersService {
     return toFolderNode(updated, childCount > 0, docCount);
   }
 
-  /** TZ-1 §1.2 qabul mezoni: papkani o'z avlodi (yoki o'zi) ichiga ko'chirish taqiqlanadi (409). */
-  async move(orgId: string, id: string, input: MoveFolderInput): Promise<FolderNode> {
+  /** move()ning ikkita $executeRaw statement'ini QAYTARADI, ULARNI BAJARMAYDI — chaqiruvchi
+   * o'zining $transaction([...]) massiviga qo'shib, bir nechta papka ko'chirishini bitta
+   * atomik tranzaksiyada birlashtira oladi (org-units remap-apply, TZ-2 §2.4, shuni ishlatadi). */
+  async buildMoveStatements(orgId: string, id: string, input: MoveFolderInput): Promise<Prisma.PrismaPromise<unknown>[]> {
     const folder = await this.folder.findFirst({ where: { id, deletedAt: null } });
     if (!folder) {
       throw notFound('Papka topilmadi');
@@ -158,7 +167,7 @@ export class FoldersService {
 
     const newPath = newParentPath ? `${newParentPath}.${pathSegment(id)}` : pathSegment(id);
 
-    await this.prisma.$transaction([
+    return [
       // Ko'chirilayotgan papka + barcha avlodlari: eski prefiks yangisiga almashtiriladi,
       // har bir tugunning o'z (nisbiy) segmentlari saqlanadi. subpath(path, offset) offset
       // == nlevel(path) bo'lganda xato beradi (ltree cheklovi) — shuning uchun ko'chirilayotgan
@@ -177,7 +186,13 @@ export class FoldersService {
         SET parent_id = ${input.parentId ?? null}::uuid, sort_order = ${input.sortOrder}
         WHERE id = ${id}::uuid AND org_id = ${orgId}::uuid
       `,
-    ]);
+    ];
+  }
+
+  /** TZ-1 §1.2 qabul mezoni: papkani o'z avlodi (yoki o'zi) ichiga ko'chirish taqiqlanadi (409). */
+  async move(orgId: string, id: string, input: MoveFolderInput): Promise<FolderNode> {
+    const statements = await this.buildMoveStatements(orgId, id, input);
+    await this.prisma.$transaction(statements);
 
     const updated = await this.folder.findFirstOrThrow({ where: { id } });
     const childCount = await this.folder.count({ where: { parentId: id, deletedAt: null } });
