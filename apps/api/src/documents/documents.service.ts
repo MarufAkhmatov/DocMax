@@ -16,10 +16,12 @@ import type {
   FileSummary,
   ListDocumentsQuery,
   PaginatedDocuments,
+  Role,
   UpdateDocumentInput,
 } from '@docmax/shared';
 import { nextVersionLabel } from '@docmax/shared';
-import { badRequest, conflict, notFound } from '../common/api-error';
+import { badRequest, conflict, forbidden, notFound } from '../common/api-error';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantPrismaService } from '../prisma/tenant-prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -77,6 +79,7 @@ export class DocumentsService {
     private readonly tenant: TenantPrismaService,
     private readonly storage: StorageService,
     private readonly queue: QueueService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private get document() {
@@ -244,6 +247,15 @@ export class DocumentsService {
       throw err;
     }
 
+    if (doc.authorUserId !== userId) {
+      await this.notifications.notifyUsers(orgId, [doc.authorUserId], {
+        type: 'VERSION_UPDATED',
+        title: `${doc.title} — ${versionLabel}`,
+        body: `Yangi versiya yaratildi (${versionLabel})`,
+        meta: { documentId },
+      });
+    }
+
     return this.getById(orgId, documentId);
   }
 
@@ -370,10 +382,29 @@ export class DocumentsService {
     return this.getById(orgId, documentId);
   }
 
-  async update(orgId: string, id: string, input: UpdateDocumentInput): Promise<DocumentDetail> {
+  /** TZ-2 §2.7 — CONTRIBUTOR faqat o'z DRAFT hujjatini tahrirlaydi va faqat IN_REVIEW'ga
+   * yuboradi (ACTIVE/EXPIRED qila olmaydi — EDITOR/ADMIN tasdiqlaydi). */
+  async update(
+    orgId: string,
+    actorUserId: string,
+    actorRole: Role,
+    id: string,
+    input: UpdateDocumentInput,
+  ): Promise<DocumentDetail> {
     const existing = await this.document.findFirst({ where: { id, deletedAt: null } });
     if (!existing) {
       throw notFound('Hujjat topilmadi');
+    }
+    if (actorRole === 'CONTRIBUTOR') {
+      if (existing.authorUserId !== actorUserId) {
+        throw forbidden("Faqat o'zingiz yuklagan hujjatni tahrirlay olasiz");
+      }
+      if (existing.status !== 'DRAFT') {
+        throw forbidden("Faqat DRAFT holatidagi hujjatni tahrirlay olasiz");
+      }
+      if (input.status && input.status !== 'DRAFT' && input.status !== 'IN_REVIEW') {
+        throw forbidden("Faqat tasdiq uchun yuborish (IN_REVIEW) mumkin — ACTIVE/EXPIRED EDITOR/ADMIN tomonidan belgilanadi");
+      }
     }
     if (input.status === 'EXPIRED' && (!input.effectiveTo || !input.statusChangeNote)) {
       throw badRequest("EXPIRED holatiga o'tkazishda kuchga to'xtash sanasi va izoh majburiy");
@@ -409,7 +440,37 @@ export class DocumentsService {
       ]);
     }
 
+    if (input.status && input.status !== existing.status) {
+      await this.notifyStatusChange(orgId, actorUserId, existing.authorUserId, existing.title, input.status);
+    }
+
     return this.getById(orgId, id);
+  }
+
+  private async notifyStatusChange(
+    orgId: string,
+    actorUserId: string,
+    authorUserId: string,
+    title: string,
+    newStatus: string,
+  ): Promise<void> {
+    if (newStatus === 'IN_REVIEW') {
+      const approvers = await this.tenant.client.user.findMany({
+        where: { role: { in: ['ADMIN', 'EDITOR'] }, id: { not: actorUserId }, isActive: true },
+        select: { id: true },
+      });
+      await this.notifications.notifyUsers(
+        orgId,
+        approvers.map((a) => a.id),
+        { type: 'APPROVAL_PENDING', title, body: 'Tasdiq kutmoqda' },
+      );
+    } else if ((newStatus === 'ACTIVE' || newStatus === 'EXPIRED') && authorUserId !== actorUserId) {
+      await this.notifications.notifyUsers(orgId, [authorUserId], {
+        type: 'STATUS_CHANGED',
+        title,
+        body: newStatus === 'ACTIVE' ? 'ACTIVE holatga o\'tdi' : 'Kuchini yo\'qotdi',
+      });
+    }
   }
 
   async remove(id: string): Promise<void> {

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2, Pencil, Loader2, X } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, X, RotateCcw, Download } from "lucide-react";
+import type { AuditLogEntry, TrashItem } from "@docmax/shared";
 import type { DocumentTypeSummary } from "@docmax/shared";
-import { documentTypesApi, organizationsApi, filesApi, ApiRequestError } from "@/lib/api";
+import { AUDIT_ACTIONS } from "@docmax/shared";
+import { documentTypesApi, organizationsApi, filesApi, trashApi, auditLogsApi, ApiRequestError } from "@/lib/api";
 
 export interface AdminTheme {
   isDark: boolean;
@@ -73,6 +75,75 @@ export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLo
   };
 
   useEffect(load, []);
+
+  // TZ-2 §2.7 — Trash (30 kunlik saqlash, tiklash)
+  const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
+  const [trashLoading, setTrashLoading] = useState(false);
+  const [trashRestoringId, setTrashRestoringId] = useState<string | null>(null);
+  const loadTrash = () => {
+    setTrashLoading(true);
+    trashApi.list().then(setTrashItems).catch(() => {}).finally(() => setTrashLoading(false));
+  };
+  useEffect(loadTrash, []);
+
+  const handleRestore = async (item: TrashItem) => {
+    setTrashRestoringId(item.id);
+    try {
+      if (item.type === "document") await trashApi.restoreDocument(item.id);
+      else await trashApi.restoreFolder(item.id);
+      toast(t("admin.trashRestored"));
+      loadTrash();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
+    } finally {
+      setTrashRestoringId(null);
+    }
+  };
+
+  // TZ-2 §2.7 — Audit log (filtr + CSV eksport)
+  const [auditItems, setAuditItems] = useState<AuditLogEntry[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditActionFilter, setAuditActionFilter] = useState("");
+  const [auditEntityTypeFilter, setAuditEntityTypeFilter] = useState("");
+  const [auditExporting, setAuditExporting] = useState(false);
+  const AUDIT_PAGE_SIZE = 20;
+
+  const loadAuditLogs = () => {
+    setAuditLoading(true);
+    auditLogsApi
+      .list({
+        page: auditPage,
+        limit: AUDIT_PAGE_SIZE,
+        action: (auditActionFilter || undefined) as never,
+        entityType: auditEntityTypeFilter || undefined,
+      })
+      .then((res) => { setAuditItems(res.items); setAuditTotal(res.total); })
+      .catch(() => {})
+      .finally(() => setAuditLoading(false));
+  };
+  useEffect(loadAuditLogs, [auditPage, auditActionFilter, auditEntityTypeFilter]);
+
+  const handleExportCsv = async () => {
+    setAuditExporting(true);
+    try {
+      const blob = await auditLogsApi.exportCsv({
+        action: (auditActionFilter || undefined) as never,
+        entityType: auditEntityTypeFilter || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "audit-log.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast(t("errors.generic"));
+    } finally {
+      setAuditExporting(false);
+    }
+  };
 
   const glass: React.CSSProperties = {
     background: panel,
@@ -252,6 +323,102 @@ export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLo
                 </button>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* TZ-2 §2.7 — Trash */}
+      <div style={{ ...glass, padding: 22, marginTop: 20 }}>
+        <h2 className="font-['Sora'] text-[15px] font-semibold mb-1.5" style={{ color: txt }}>{t("admin.trash")}</h2>
+        <p className="text-[12px] font-semibold mb-4" style={{ color: txt3 }}>{t("admin.trashHint")}</p>
+        {trashLoading ? (
+          <div className="space-y-2">
+            {[0, 1].map((i) => <div key={i} style={{ height: 44, borderRadius: 12, background: panel }} />)}
+          </div>
+        ) : trashItems.length === 0 ? (
+          <p className="text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("admin.trashEmpty")}</p>
+        ) : (
+          <div>
+            {trashItems.map((item) => (
+              <div key={`${item.type}-${item.id}`} className="flex items-center gap-3 py-2.5"
+                style={{ borderBottom: `1px solid ${panelBorder}` }}>
+                <span className="text-[10.5px] font-extrabold uppercase px-2 py-0.5 rounded-full flex-shrink-0"
+                  style={{ background: item.type === "document" ? "rgba(107,180,245,.13)" : "rgba(179,156,245,.13)", color: item.type === "document" ? "#6BB4F5" : "#B39CF5" }}>
+                  {item.type === "document" ? t("admin.trashTypeDocument") : t("admin.trashTypeFolder")}
+                </span>
+                <span className="flex-1 text-[13px] font-bold truncate" style={{ color: txt }}>{item.title}</span>
+                <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: txt3 }}>
+                  {t("admin.trashPurgeAt", { date: new Date(item.purgeAt).toLocaleDateString() })}
+                </span>
+                <button onClick={() => handleRestore(item)} disabled={trashRestoringId === item.id} title={t("admin.trashRestore")}
+                  className="w-8 h-8 rounded-lg inline-grid place-items-center cursor-pointer disabled:opacity-50"
+                  style={{ background: "transparent", border: "none", color: lime }}>
+                  {trashRestoringId === item.id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* TZ-2 §2.7 — Audit log */}
+      <div style={{ ...glass, padding: 22, marginTop: 20 }}>
+        <div className="flex items-center justify-between mb-1.5 flex-wrap gap-3">
+          <h2 className="font-['Sora'] text-[15px] font-semibold" style={{ color: txt }}>{t("admin.auditLog")}</h2>
+          <button onClick={handleExportCsv} disabled={auditExporting}
+            className="flex items-center gap-1.5 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer disabled:opacity-50"
+            style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+            {auditExporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} {t("admin.auditExportCsv")}
+          </button>
+        </div>
+        <p className="text-[12px] font-semibold mb-4" style={{ color: txt3 }}>{t("admin.auditLogHint")}</p>
+
+        <div className="flex gap-2.5 mb-4 flex-wrap">
+          <select value={auditActionFilter} onChange={(e) => { setAuditActionFilter(e.target.value); setAuditPage(1); }}
+            className="outline-none rounded-lg text-[12.5px] font-semibold px-3 py-2"
+            style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt }}>
+            <option value="">{t("admin.auditAllActions")}</option>
+            {AUDIT_ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <input value={auditEntityTypeFilter} onChange={(e) => { setAuditEntityTypeFilter(e.target.value); setAuditPage(1); }}
+            placeholder={t("admin.auditEntityTypePlaceholder")}
+            className="outline-none rounded-lg text-[12.5px] font-semibold px-3 py-2"
+            style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, width: 180 }} />
+        </div>
+
+        {auditLoading ? (
+          <div className="space-y-2">
+            {[0, 1, 2].map((i) => <div key={i} style={{ height: 36, borderRadius: 10, background: panel }} />)}
+          </div>
+        ) : auditItems.length === 0 ? (
+          <p className="text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("admin.auditEmpty")}</p>
+        ) : (
+          <div>
+            {auditItems.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 py-2 text-[12px]"
+                style={{ borderBottom: `1px solid ${panelBorder}` }}>
+                <span className="font-bold flex-shrink-0" style={{ color: txt3, width: 90 }}>{new Date(item.createdAt).toLocaleString()}</span>
+                <span className="font-bold flex-shrink-0" style={{ color: txt, width: 140 }}>{item.userName ?? "—"}</span>
+                <span className="text-[10.5px] font-extrabold uppercase px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: `${lime}22`, color: lime }}>{item.action}</span>
+                <span className="font-semibold flex-1 truncate" style={{ color: txt2 }}>{item.entityType} · {item.entityId.slice(0, 8)}</span>
+                <span className="font-semibold flex-shrink-0" style={{ color: txt3 }}>{item.ip}</span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between mt-3">
+              <button onClick={() => setAuditPage((p) => Math.max(1, p - 1))} disabled={auditPage <= 1}
+                className="text-[12px] font-bold px-3 py-1.5 rounded-lg cursor-pointer disabled:opacity-40"
+                style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                {t("wizard.back")}
+              </button>
+              <span className="text-[11.5px] font-semibold" style={{ color: txt3 }}>
+                {auditPage} / {Math.max(1, Math.ceil(auditTotal / AUDIT_PAGE_SIZE))} ({auditTotal})
+              </span>
+              <button onClick={() => setAuditPage((p) => p + 1)} disabled={auditPage >= Math.ceil(auditTotal / AUDIT_PAGE_SIZE)}
+                className="text-[12px] font-bold px-3 py-1.5 rounded-lg cursor-pointer disabled:opacity-40"
+                style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                {t("wizard.next")}
+              </button>
+            </div>
           </div>
         )}
       </div>

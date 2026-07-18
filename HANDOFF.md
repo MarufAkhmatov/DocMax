@@ -1,6 +1,6 @@
 # DocMax — Handoff
 
-*Oxirgi yangilanish: 2026-07-18 (Pre-M7 i18n tuzatish bilan) · kanonik branch: **`main`** (= `claude/hand-off-task-c339c9` + real ⌘K/bulk/graf + M7-M12 yo'l xaritasi; c339c9 endi orqada qolgan, kerak emas)*
+*Oxirgi yangilanish: 2026-07-18 (M7 — Boshqaruv yakuni bilan) · kanonik branch: **`main`** (= `claude/hand-off-task-c339c9` + real ⌘K/bulk/graf + M7-M12 yo'l xaritasi + Pre-M7 i18n + M7; c339c9 endi orqada qolgan, kerak emas)*
 
 Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilingani va keyingi qadamlar shu yerda.
 
@@ -24,10 +24,10 @@ Eski `claude/vibrant-davinci-9d583f` branch/worktree endi kerak emas (bu branch 
 
 | Qatlam | Holat |
 |---|---|
-| **Backend (apps/api)** | Auth (m3) + Papkalar (m4) + Hujjatlar/Fayllar (m5) + Admin Panel (dinamik hujjat turlari) + Bog'lanishlar (TZ-2 boshi) + Kompaniya logotipi + **security hardening (server-side sha256, throttle, UUID validatsiya)** + **GET /files/:id/download (VIEW/DOWNLOAD audit bilan)** |
-| **DB (packages/db)** | 5 migratsiya (oxirgisi `document_types` — enum o'rniga org-darajali jadval), tenant-izolyatsiya extension, **seed yangi sxemaga moslangan** (6 default tur + 10 demo hujjat) |
-| **Worker (apps/worker)** | `file.index` real (pdf-parse@1.1.1/mammoth, 3x retry→FAILED). `diff.generate` stub (m6) |
-| **Frontend (apps/web)** | React+Vite (router YO'Q — App.tsx view-switching). Login, Vault (papka grid + daraxt sidebar, hover-CRUD), Hujjatlar jadvali (**yangi: PDF/DOCX fayl-chip'lar, hover'da ko'rish/yuklab olish/tahrirlash/o'chirish**), 3-qadamli wizard, DocDetail (PDF iframe, Word mammoth, tahrirlash, holat o'zgartirish, bog'lanishlar), Admin Panel, i18n (uz/ru/en). Graf/Monitoring hali mock |
+| **Backend (apps/api)** | Auth (m3, CONTRIBUTOR bilan) + Papkalar (m4) + Hujjatlar/Fayllar (m5) + Admin Panel (dinamik hujjat turlari) + Bog'lanishlar+Graf (TZ-2 §2.1/§2.3) + Kompaniya logotipi + Notifications/Trash/Audit-logs/Stats (M7) + **security hardening** + **GET /files/:id/download (VIEW/DOWNLOAD audit bilan)** |
+| **DB (packages/db)** | 5 migratsiya (oxirgisi `document_types`), tenant-izolyatsiya extension, **seed yangi sxemaga moslangan** (6 default tur + 10 demo hujjat) |
+| **Worker (apps/worker)** | `file.index` real (pdf-parse@1.1.1/mammoth, 3x retry→FAILED). `diff.generate` real (M6) + TEMPLATE_READY bildirishnoma (M7) |
+| **Frontend (apps/web)** | React+Vite (router YO'Q — App.tsx view-switching). Login, Dashboard (real statistika+faollik+bildirishnoma), Vault (papka grid + daraxt sidebar, hover-CRUD), Hujjatlar jadvali (PDF/DOCX fayl-chip'lar), 3-qadamli wizard, DocDetail (PDF iframe, Word mammoth, tahrirlash, holat o'zgartirish, bog'lanishlar, real audit), real Graf, Admin Panel (turlar+logo+**Trash**+**Audit log**), i18n (uz/ru/en, deyarli to'liq). Monitoring/Workflow-canvas/Struktura hali yo'q yoki mock |
 
 Batafsil tarix uchun: `git log --oneline` — har commit xabarida nima qilingani yozilgan.
 
@@ -57,13 +57,30 @@ Foydalanuvchi so'rovi bilan: "frontga chiqadigan barcha tekstlar uz/ru/en'da lok
 - Uch tilda brauzerda sinaldi (locale-toggle orqali uz→ru→en aylanish): nav/vault/wizard chrome to'liq tarjima bo'ladi, konsolda xato yo'q.
 - **Yon topilma**: `pnpm --filter @docmax/web build` (production Rollup build) `packages/shared`dan `RELATION_TYPES` named export'ini topolmayapti — CJS `tsc` chiqishi (`__createBinding` interop)ni Rollup'ning statik export-aniqlashi yeta olmayapti. Bu **oldindan mavjud** muammo (import qatori `64ee6ba`da qo'shilgan, shu sessiyada tegilmagan) — loyiha hozirgacha faqat `pnpm dev` (Vite dev server) bilan ishlatilgan, `vite build` hech qachon sinalmagan. M10 (texnik qarz) doirasida hal qilinishi kerak — masalan `packages/shared`ni ESM'ga o'tkazish yoki tsconfig'da `module: "esnext"`.
 
+## 1.3. Shu sessiyada qilinganlar (2026-07-18) — M7: Boshqaruv yakuni (TZ-2 §2.7)
+
+Backend — yangi modullar, barchasi mavjud naqshga mos (`TenantPrismaService`, `@Roles()`, `setAuditContext`):
+- **`apps/api/src/notifications/*`** — `GET /notifications`, `PATCH /notifications/:id/read`, `PATCH /notifications/read-all`. `NotificationsService.notifyUsers()` boshqa servislar tomonidan chaqiriladi (documents.service versiya/status o'zgarishida, worker diff-generate shablon tayyor bo'lganda).
+- **`apps/api/src/trash/*`** — `GET /trash` (Document/Folder'ning mavjud `deletedAt` soft-delete'ini ro'yxatlaydi, `purgeAt` = deletedAt+30 kun), `POST /trash/documents/:id/restore`, `POST /trash/folders/:id/restore`. **Eslatma: 30-kunlik avtomatik tozalash cron'i HALI YO'Q** — faqat qo'lda tiklash ishlaydi, muddati o'tganini avtomatik o'chirish keyingi ishga qoldi (worker'da BullMQ repeatable job kerak).
+- **`apps/api/src/audit-logs/*`** — `GET /audit-logs` (filtr: user/action/entityType/entityId/sana, sahifalash), `GET /audit-logs/export.csv`. Ikkalasi ham faqat ADMIN. `apps/api/src/documents/`ga qo'shilgan **`GET /documents/:id/audit`** — torroq, hujjatni ko'ra oladigan har kimga ochiq (DocDetail audit paneli uchun, org-darajasidagi to'liq logdan farqli).
+- **`apps/api/src/stats/*`** — `GET /stats/dashboard`: haqiqiy hujjat/papka soni, aktiv/tasdiq-kutayotgan hisoblar, `audit_logs`dan olingan real "oxirgi faollik" ro'yxati.
+- **CONTRIBUTOR roli faollashdi** — `documents.service.ts`ga rol tekshiruvi: faqat o'z DRAFT hujjatini tahrirlaydi, faqat IN_REVIEW'ga yubora oladi (ACTIVE/EXPIRED — EDITOR/ADMIN). E2e sinaldi: invite→accept→login→ownership 403 va business-404 (403 emas) create'da tasdiqlandi.
+
+Frontend (`App.tsx`, `AdminPanel.tsx`):
+- Dashboard: statistik kartalar, "Oxirgi faollik" va "E'tibor talab qiladi" (endi joriy user'ning o'qilmagan bildirishnomalari) — barchasi real API'ga ulandi. Fan-vizualizatsiya (dekorativ) ataylab mock qoldirildi.
+- Bildirishnoma drawer + bell badge — real `notificationsApi` (list/markRead/markAllRead).
+- DocDetail "Audit" paneli — `documentsApi.audit()` orqali real.
+- Admin Panel'ga ikkita yangi bo'lim: **Chiqindilar qutisi** (ro'yxat + tiklash) va **Audit log** (filtr + sahifalash + CSV eksport).
+- Barcha yangi matnlar uz/ru/en'da.
+
+Brauzerda to'liq sinaldi (curl bilan API + Chrome preview bilan UI): status-change → bildirishnoma real userga keladi, Dashboard/Audit log/Trash sahifalari real ma'lumot bilan ishlaydi, pagination/CSV/CONTRIBUTOR cheklovlari tasdiqlandi, konsolda xato yo'q.
+
 ## 2. Yo'l xaritasi (2026-07-17 auditi asosida)
 
-**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 qisman: §2.1 Relations (asos), §2.3 Graf (real), §2.6 ⌘K nom/raqam qidiruv · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo) · i18n · security hardening.
+**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 qisman: §2.1 Relations (asos), §2.3 Graf (real), §2.6 ⌘K nom/raqam qidiruv, §2.7 to'liq (M7 — yuqorida) · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo) · i18n (Pre-M7 tuzatish bilan to'liqroq) · security hardening.
 
-**Yangi milestonelar (tavsiya tartibi):**
+**Keyingi milestonelar (tavsiya tartibi):**
 
-- **M7 — Boshqaruv yakuni (TZ-2 §2.7 + mock'larni realga)**: real Notifications markazi (drawer hozir mock, jadval sxemada bor), Trash sahifasi + 30-kunlik tozalash cron (PENDING fayllar cron'i ham shu yerda), Audit log sahifasi + CSV eksport, CONTRIBUTOR roli oqimi (DRAFT→tasdiq), real Dashboard statistikasi (hozirgi 482/396 raqamlar va faollik lentasi mock), DocDetail audit paneli real.
 - **M8 — Workflow canvas + Relations yakuni (TZ-2 §2.2 + §2.1 qoldiqlari)**: React Flow canvas (drag&drop, edge=relation, layout `user_canvas_layouts`da saqlanadi — yangi migratsiya), PARENT_CHILD sikl tekshiruvi (DFS), REPLACES yaratilganda "target'ni EXPIRED qilaylikmi?" modali, DocDetail'da bog'lanishlarni tur bo'yicha guruhlash.
 - **M9 — Struktura + ACL (TZ-2 §2.4 + §2.5)**: org-units daraxti UI (CRUD, drag&drop, rahbar), remapping wizard + snapshots, papka ACL (guard bitta joyda, qulf ikonkalari, yuklab-olish-taqiq rejimi watermark bilan), permission-matrix e2e.
 - **M10 — Sifat/texnik qarz (TZ-0 §6 talabi)**: apps/web eslint+vitest (hozir stub), documents/files/versions/graph e2e testlari (TZ: versioning 100% test), TZ-1 DoD checklist yugurtirish, pdf.js integratsiyasi (hozir iframe), router/URL holati (view+folder), graf uchun podrazdeleniye rang rejimi.

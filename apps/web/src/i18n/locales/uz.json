@@ -36,7 +36,26 @@
     "statNewExternalActs": "Yangi tashqi aktlar",
     "statReviewSuggested": "Tekshirish tavsiya",
     "recentActivity": "Oxirgi faollik",
-    "needsAttention": "E'tibor talab qiladi"
+    "needsAttention": "E'tibor talab qiladi",
+    "todaySummary": "Bugun: {{newExternalActs}} ta yangi tashqi akt, {{pendingApproval}} hujjat tasdiq kutmoqda",
+    "totalPrefix": "Jami",
+    "totalFolders": "{{count}} papka",
+    "pendingOverdue": "{{count}} tasi 5 kundan oshdi",
+    "monitoringPending": "Monitoring moduli hali yoqilmagan",
+    "noActivity": "Hali faollik yo'q",
+    "noAttention": "E'tibor talab qiladigan narsa yo'q",
+    "viewNotification": "Ko'rish →",
+    "entity": {
+      "Document": "Hujjat",
+      "DocumentVersion": "Hujjat versiyasi",
+      "DocumentRelation": "Bog'lanish"
+    },
+    "action": {
+      "CREATE": "yaratildi",
+      "UPDATE": "yangilandi",
+      "DELETE": "o'chirildi",
+      "RESTORE": "tiklandi"
+    }
   },
   "vault": {
     "segmentTable": "Jadval",
@@ -151,7 +170,10 @@
   },
   "drawer": {
     "title": "Xabarnomalar",
-    "markAllRead": "hammasini o'qilgan qilish"
+    "markAllRead": "hammasini o'qilgan qilish",
+    "unreadCount": "{{count}} o'qilmagan",
+    "empty": "Bildirishnomalar yo'q",
+    "viewed": "Ko'rildi"
   },
   "wizard": {
     "title": "Yangi hujjat",
@@ -197,7 +219,21 @@
     "edit": "Tahrirlash",
     "delete": "O'chirish",
     "deleteConfirm": "Rostdan ham shu turni o'chirasizmi?",
-    "accessDenied": "Bu sahifa faqat administratorlar uchun"
+    "accessDenied": "Bu sahifa faqat administratorlar uchun",
+    "trash": "Chiqindilar qutisi",
+    "trashHint": "O'chirilgan hujjat va papkalar 30 kun shu yerda saqlanadi, keyin butunlay o'chiriladi.",
+    "trashEmpty": "Chiqindilar qutisi bo'sh.",
+    "trashTypeDocument": "Hujjat",
+    "trashTypeFolder": "Papka",
+    "trashPurgeAt": "{{date}}gacha saqlanadi",
+    "trashRestore": "Tiklash",
+    "trashRestored": "Tiklandi",
+    "auditLog": "Audit log",
+    "auditLogHint": "Tashkilotdagi barcha mutatsion amallar tarixi.",
+    "auditExportCsv": "CSV yuklab olish",
+    "auditAllActions": "Barcha amallar",
+    "auditEntityTypePlaceholder": "Obyekt turi (masalan: Document)",
+    "auditEmpty": "Yozuvlar topilmadi."
   },
   "common": {
     "uploading": "Yuklanmoqda...",

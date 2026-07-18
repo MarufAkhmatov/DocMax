@@ -13,6 +13,7 @@ import type {
   CreateDocumentVersionInput,
   CreateDocumentTypeInput,
   CreateFolderInput,
+  DashboardStats,
   DocumentDetail,
   DocumentRelationSummary,
   DocumentTypeSummary,
@@ -23,15 +24,19 @@ import type {
   FolderNode,
   ForgotPasswordInput,
   InviteInput,
+  ListAuditLogsQuery,
   ListDocumentsQuery,
   LoginInput,
   MoveFolderInput,
+  NotificationsList,
   OrganizationBranding,
+  PaginatedAuditLogs,
   PaginatedDocuments,
   PresignFileInput,
   PresignResult,
   ResetPasswordInput,
   SetupInput,
+  TrashItem,
   UpdateDocumentInput,
   UpdateDocumentTypeInput,
   UpdateFolderInput,
@@ -286,6 +291,9 @@ export const documentsApi = {
 
   templateJobStatus: (jobId: string) =>
     apiFetch<ComparisonTemplateStatus>(`/documents/template-jobs/${jobId}`),
+
+  /** TZ-2 §2.7 — DocDetail audit paneli (org-darajasidagi to'liq /audit-logs'dan farqli, ADMIN cheklovsiz). */
+  audit: (id: string) => apiFetch<PaginatedAuditLogs>(`/documents/${id}/audit`),
 };
 
 export const graphApi = {
@@ -328,4 +336,59 @@ export const relationsApi = {
 
   remove: (documentId: string, relationId: string) =>
     apiFetch<void>(`/documents/${documentId}/relations/${relationId}`, { method: 'DELETE' }),
+};
+
+export const notificationsApi = {
+  list: (unreadOnly = false) =>
+    apiFetch<NotificationsList>(`/notifications${unreadOnly ? '?unreadOnly=true' : ''}`),
+
+  markRead: (id: string) => apiFetch<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
+
+  markAllRead: () => apiFetch<void>('/notifications/read-all', { method: 'PATCH' }),
+};
+
+export const statsApi = {
+  dashboard: () => apiFetch<DashboardStats>('/stats/dashboard'),
+};
+
+export const trashApi = {
+  list: () => apiFetch<TrashItem[]>('/trash'),
+
+  restoreDocument: (id: string) => apiFetch<void>(`/trash/documents/${id}/restore`, { method: 'POST' }),
+
+  restoreFolder: (id: string) => apiFetch<void>(`/trash/folders/${id}/restore`, { method: 'POST' }),
+};
+
+export const auditLogsApi = {
+  list: (query: Partial<ListAuditLogsQuery> = {}) => {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, String(value));
+      }
+    }
+    const qs = search.toString();
+    return apiFetch<PaginatedAuditLogs>(`/audit-logs${qs ? `?${qs}` : ''}`);
+  },
+
+  /** Bearer auth kerak bo'lgani uchun to'g'ridan-to'g'ri href emas — blob sifatida olib,
+   * clientda vaqtinchalik <a download> orqali saqlanadi. */
+  exportCsv: async (query: Partial<ListAuditLogsQuery> = {}): Promise<Blob> => {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, String(value));
+      }
+    }
+    const qs = search.toString();
+    const accessToken = useAuthStore.getState().accessToken;
+    const res = await fetch(`${API_URL}/audit-logs/export.csv${qs ? `?${qs}` : ''}`, {
+      credentials: 'include',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    });
+    if (!res.ok) {
+      throw new Error('CSV eksportida xato yuz berdi');
+    }
+    return res.blob();
+  },
 };

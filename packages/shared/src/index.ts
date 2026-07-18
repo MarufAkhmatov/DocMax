@@ -10,3 +10,7 @@ export * from './organizations';
 export * from './document-relations';
 export * from './document-versions';
 export * from './graph';
+export * from './notifications';
+export * from './audit-logs';
+export * from './trash';
+export * from './stats';

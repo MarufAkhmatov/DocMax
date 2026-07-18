@@ -16,6 +16,10 @@ import { DocumentTypesModule } from './document-types/document-types.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { DocumentRelationsModule } from './document-relations/document-relations.module';
 import { GraphModule } from './graph/graph.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { TrashModule } from './trash/trash.module';
+import { StatsModule } from './stats/stats.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -44,6 +48,10 @@ import { AllExceptionsFilter } from './common/http-exception.filter';
     OrganizationsModule,
     DocumentRelationsModule,
     GraphModule,
+    NotificationsModule,
+    AuditLogsModule,
+    TrashModule,
+    StatsModule,
   ],
   controllers: [HealthController],
   providers: [

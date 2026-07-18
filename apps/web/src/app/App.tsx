@@ -8,9 +8,9 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as mammoth from "mammoth";
-import type { DocumentDetail, DocumentRelationSummary, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode, RelationType, VersionType } from "@docmax/shared";
+import type { AuditLogEntry, DashboardStats, DocumentDetail, DocumentRelationSummary, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode, NotificationSummary, RelationType, VersionType } from "@docmax/shared";
 import { RELATION_TYPES, nextVersionLabel } from "@docmax/shared";
-import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, relationsApi, filesApi, ApiRequestError } from "@/lib/api";
+import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, relationsApi, filesApi, notificationsApi, statsApi, ApiRequestError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
 import Login from "./Login";
@@ -428,6 +428,11 @@ export default function App() {
   const [treeOpen, setTreeOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+  // ── Dashboard statistikasi + bildirishnomalar (TZ-2 §2.7 — real, avval mock edi) ──
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [notifications, setNotifications] = useState<NotificationSummary[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   // ── Papkalar (real backend — TZ-1 §1.2, foldersApi.tree) ──────────────────
   // name: null → ildiz daraja, breadcrumb'da t('breadcrumb.vaultRoot') orqali reaktiv tarjima qilinadi
   const [folderStack, setFolderStack] = useState<{ id: string | null; name: string | null }[]>([
@@ -612,6 +617,29 @@ export default function App() {
     organizationsApi.branding().then(b => setOrgLogoUrl(b.logoUrl)).catch(() => {});
   }, [user]);
 
+  // Dashboard statistikasi (TZ-2 §2.7 — real, avval hardcoded 482/396 raqamlar edi)
+  useEffect(() => {
+    if (!user) { setDashboardStats(null); return; }
+    statsApi.dashboard().then(setDashboardStats).catch(() => {});
+  }, [user]);
+
+  // Bildirishnomalar markazi (TZ-2 §2.7 — drawer avval to'liq mock edi)
+  const refetchNotifications = useCallback(() => {
+    notificationsApi.list().then((res) => { setNotifications(res.items); setUnreadCount(res.unreadCount); }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!user) { setNotifications([]); setUnreadCount(0); return; }
+    refetchNotifications();
+  }, [user, refetchNotifications]);
+
+  const handleMarkNotificationRead = useCallback((id: string) => {
+    notificationsApi.markRead(id).then(refetchNotifications).catch(() => {});
+  }, [refetchNotifications]);
+
+  const handleMarkAllNotificationsRead = useCallback(() => {
+    notificationsApi.markAllRead().then(refetchNotifications).catch(() => {});
+  }, [refetchNotifications]);
+
   // Chap paneldagi "Papkalar" daraxti (real backend) — login qilingach ildiz darajasi yuklanadi
   const refetchSidebarRoots = useCallback(() => {
     foldersApi.tree({}).then(setSidebarRoots).catch(() => {});
@@ -728,6 +756,13 @@ export default function App() {
     setRelationNote("");
     setRelationType("RELATED");
   }, [selectedDocId, refetchRelations]);
+
+  // DocDetail audit paneli (TZ-2 §2.7 — avval mock edi)
+  const [docAuditLog, setDocAuditLog] = useState<AuditLogEntry[]>([]);
+  useEffect(() => {
+    if (!selectedDocId) { setDocAuditLog([]); return; }
+    documentsApi.audit(selectedDocId).then((res) => setDocAuditLog(res.items)).catch(() => setDocAuditLog([]));
+  }, [selectedDocId]);
 
   // Bog'lanish qo'shish formasida hujjat nomi/raqami bo'yicha qidiruv
   useEffect(() => {
@@ -1394,7 +1429,7 @@ export default function App() {
       <button onClick={() => setDrawerOpen(true)}
         className="relative flex items-center gap-2 font-bold text-[12.5px] transition-all cursor-pointer"
         style={{ background: panel, border: `1px solid ${panelBorder}`, borderRadius: 13, padding: "9px 14px", color: txt2 }}>
-        <span className="absolute top-[7px] right-[9px] w-[7px] h-[7px] rounded-full" style={{ background: "#F07A6B" }} />
+        {unreadCount > 0 && <span className="absolute top-[7px] right-[9px] w-[7px] h-[7px] rounded-full" style={{ background: "#F07A6B" }} />}
         <Bell size={16} />
       </button>
 
@@ -1430,6 +1465,17 @@ export default function App() {
   );
 
   // ── DASHBOARD ─────────────────────────────────────────────────────────────
+  const activityEntityLabel = (entityType: string): string => {
+    const key = `dashboard.entity.${entityType}`;
+    const translated = t(key);
+    return translated === key ? entityType : translated;
+  };
+  const activityActionLabel = (action: string): string => {
+    const key = `dashboard.action.${action}`;
+    const translated = t(key);
+    return translated === key ? action : translated;
+  };
+
   const Dashboard = (
     <div>
       <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
@@ -1438,7 +1484,10 @@ export default function App() {
             {t("dashboard.welcome")}{user ? `, ${user.fullName}` : ""}
           </h1>
           <p className="text-sm mt-1" style={{ color: txt2 }}>
-            Bugun: 2 ta yangi tashqi akt, 1 hujjat tasdiq kutmoqda
+            {t("dashboard.todaySummary", {
+              newExternalActs: dashboardStats?.newExternalActs ?? 0,
+              pendingApproval: dashboardStats?.pendingApproval ?? 0,
+            })}
           </p>
         </div>
       </div>
@@ -1447,7 +1496,7 @@ export default function App() {
       <div className="relative mb-6 overflow-hidden" style={{ height: 220, borderRadius: 20, background: isDark ? "rgba(255,255,255,.025)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}` }}>
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 text-[11.5px] font-bold whitespace-nowrap"
           style={{ background: panel, border: `1px solid ${panelBorder}`, borderRadius: 12, padding: "7px 14px", backdropFilter: "blur(14px)", color: txt2 }}>
-          Jami <strong style={{ color: lime }}>482 hujjat</strong> · 14 papka
+          {t("dashboard.totalPrefix")} <strong style={{ color: lime }}>{t("vault.folderMetaPlain", { count: dashboardStats?.totalDocuments ?? 0 })}</strong> · {t("dashboard.totalFolders", { count: dashboardStats?.totalFolders ?? 0 })}
         </div>
         <div className="absolute inset-x-0 bottom-4 flex items-end justify-center gap-[-20px]"
           style={{ paddingLeft: 32, paddingRight: 32 }}>
@@ -1485,10 +1534,24 @@ export default function App() {
       {/* Stat cards grid */}
       <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
         {[
-          { label: t("dashboard.statActiveDocs"), num: "396", sub: "+12 shu oyda", dotColor: lime, subAccent: true },
-          { label: t("dashboard.statPendingApproval"), num: "7", sub: "3 tasi 5 kundan oshdi", dotColor: "#F0C24B" },
-          { label: t("dashboard.statNewExternalActs"), num: "2", sub: "cbu.uz · lex.uz, bugun", dotColor: "#6BB4F5" },
-          { label: t("dashboard.statReviewSuggested"), num: "4", sub: "yangi aktlarga aloqador", dotColor: "#F07A6B" },
+          {
+            label: t("dashboard.statActiveDocs"), num: String(dashboardStats?.activeDocuments ?? 0),
+            sub: <><strong style={{ color: lime }}>+{dashboardStats?.activeDocumentsThisMonth ?? 0}</strong> {t("dashboard.statThisMonth")}</>,
+            dotColor: lime,
+          },
+          {
+            label: t("dashboard.statPendingApproval"), num: String(dashboardStats?.pendingApproval ?? 0),
+            sub: t("dashboard.pendingOverdue", { count: dashboardStats?.pendingApprovalOverdue ?? 0 }),
+            dotColor: "#F0C24B",
+          },
+          {
+            label: t("dashboard.statNewExternalActs"), num: String(dashboardStats?.newExternalActs ?? 0),
+            sub: "cbu.uz · lex.uz", dotColor: "#6BB4F5",
+          },
+          {
+            label: t("dashboard.statReviewSuggested"), num: "0",
+            sub: t("dashboard.monitoringPending"), dotColor: "#F07A6B",
+          },
         ].map((stat, i) => (
           <div key={i} style={{ ...glass(), padding: "18px 20px" }}>
             <div className="flex items-center gap-2 mb-2">
@@ -1496,9 +1559,7 @@ export default function App() {
               <span className="text-[11px] font-extrabold uppercase tracking-wide" style={{ color: txt3 }}>{stat.label}</span>
             </div>
             <p className="font-['Sora'] text-[28px] font-semibold tracking-tight" style={{ color: txt }}>{stat.num}</p>
-            <p className="text-[11.5px] font-semibold mt-1" style={{ color: txt2 }}>
-              {stat.subAccent ? <><strong style={{ color: lime }}>+12</strong> {t("dashboard.statThisMonth")}</> : stat.sub}
-            </p>
+            <p className="text-[11.5px] font-semibold mt-1" style={{ color: txt2 }}>{stat.sub}</p>
           </div>
         ))}
       </div>
@@ -1508,42 +1569,50 @@ export default function App() {
         {/* Activity feed */}
         <div style={{ ...glass(), padding: "20px 22px" }}>
           <h2 className="font-['Sora'] text-[15px] font-semibold mb-4" style={{ color: txt }}>{t("dashboard.recentActivity")}</h2>
-          {[
-            { icon: <Plus size={15} />, iconBg: `${lime}22`, iconColor: lime, bold: "Kredit berish tartibi N-12", rest: " — v2.0 yangi versiya", who: "A. Karimov · taqqoslama biriktirildi", when: "12 daq" },
-            { icon: <Activity size={15} />, iconBg: "rgba(107,180,245,.13)", iconColor: "#6BB4F5", bold: "CBU qarori № 145/2026", rest: " aniqlandi", who: "Monitoring · 4 aloqador ichki hujjat", when: "1 soat" },
-            { icon: <Clock size={15} />, iconBg: "rgba(240,194,75,.13)", iconColor: "#F0C24B", bold: "Axborot xavfsizligi siyosati S-03", rest: " tasdiq kutmoqda", who: "D. Rahimova yubordi · 6 kun", when: "kecha" },
-            { icon: <Check size={15} />, iconBg: `${lime}22`, iconColor: lime, bold: "Ichki nazorat reglamenti R-07", rest: " tasdiqlandi", who: "Sh. Tosheva · ACTIVE holatga o'tdi", when: "kecha" },
-          ].map((row, i) => (
-            <div key={i} className="flex gap-3 py-2.5 items-start" style={{ borderBottom: i < 3 ? `1px solid ${panelBorder}` : "none", fontSize: 12.5 }}>
-              <div className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
-                style={{ background: row.iconBg, color: row.iconColor }}>
-                {row.icon}
+          {dashboardStats?.recentActivity.length ? dashboardStats.recentActivity.map((row, i) => {
+            const iconByAction: Record<string, { icon: JSX.Element; bg: string; color: string }> = {
+              CREATE: { icon: <Plus size={15} />, bg: `${lime}22`, color: lime },
+              UPDATE: { icon: <Clock size={15} />, bg: "rgba(240,194,75,.13)", color: "#F0C24B" },
+              DELETE: { icon: <Trash2 size={15} />, bg: "rgba(240,122,107,.13)", color: "#F07A6B" },
+              RESTORE: { icon: <Check size={15} />, bg: `${lime}22`, color: lime },
+            };
+            const cfg = iconByAction[row.action] ?? { icon: <Activity size={15} />, bg: "rgba(107,180,245,.13)", color: "#6BB4F5" };
+            return (
+              <div key={row.id} className="flex gap-3 py-2.5 items-start" style={{ borderBottom: i < dashboardStats.recentActivity.length - 1 ? `1px solid ${panelBorder}` : "none", fontSize: 12.5 }}>
+                <div className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: cfg.bg, color: cfg.color }}>
+                  {cfg.icon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p style={{ color: txt }}><strong>{activityEntityLabel(row.entityType)}</strong> {activityActionLabel(row.action)}</p>
+                  {row.userName && <p className="mt-0.5 font-semibold" style={{ color: txt2 }}>{row.userName}</p>}
+                </div>
+                <span className="text-[11px] font-bold whitespace-nowrap flex-shrink-0" style={{ color: txt3 }}>{formatDate(row.createdAt)}</span>
               </div>
-              <div className="min-w-0 flex-1">
-                <p style={{ color: txt }}><strong>{row.bold}</strong>{row.rest}</p>
-                <p className="mt-0.5 font-semibold" style={{ color: txt2 }}>{row.who}</p>
-              </div>
-              <span className="text-[11px] font-bold whitespace-nowrap flex-shrink-0" style={{ color: txt3 }}>{row.when}</span>
-            </div>
-          ))}
+            );
+          }) : (
+            <p className="text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("dashboard.noActivity")}</p>
+          )}
         </div>
 
-        {/* Attention cards */}
+        {/* Attention cards — joriy user'ning o'qilmagan bildirishnomalari */}
         <div style={{ ...glass(), padding: "20px 22px" }}>
           <h2 className="font-['Sora'] text-[15px] font-semibold mb-4" style={{ color: txt }}>{t("dashboard.needsAttention")}</h2>
-          {[
-            { warn: true, title: "Lex.uz: yangi qonun O'RQ-812", body: '"Elektron hujjat aylanishi to\'g\'risida"gi qonunga o\'zgartirishlar. 3 ta ichki hujjat bilan yuqori o\'xshashlik.', go: "Monitoring'da ochish →", goAction: () => goView("mon") },
-            { warn: false, title: "Taqqoslama shablon tayyor", body: "N-12 v2.0 uchun avtomatik shablon generatsiya qilindi — yuklab olib to'ldirishingiz mumkin.", go: "Yuklab olish →", goAction: () => toast("Shablon yuklab olinmoqda...") },
-          ].map((notif, i) => (
-            <div key={i} className="rounded-[13px] mb-2.5 text-[12.5px]"
+          {notifications.filter(n => !n.isRead).length === 0 ? (
+            <p className="text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("dashboard.noAttention")}</p>
+          ) : notifications.filter(n => !n.isRead).slice(0, 5).map((notif) => (
+            <div key={notif.id} className="rounded-[13px] mb-2.5 text-[12.5px]"
               style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}`, padding: "12px 14px" }}>
               <p className="flex items-center gap-2 font-bold mb-1" style={{ color: txt }}>
-                <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: notif.warn ? "#F0C24B" : lime }} />
+                <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: lime }} />
                 {notif.title}
               </p>
               <p className="font-semibold leading-relaxed" style={{ color: txt2 }}>{notif.body}</p>
-              <span onClick={notif.goAction} className="inline-block mt-2 text-[11px] font-extrabold cursor-pointer" style={{ color: lime }}>
-                {notif.go}
+              <span onClick={() => {
+                handleMarkNotificationRead(notif.id);
+                const docId = notif.meta.documentId;
+                if (typeof docId === "string") openDocument(docId);
+              }} className="inline-block mt-2 text-[11px] font-extrabold cursor-pointer" style={{ color: lime }}>
+                {t("dashboard.viewNotification")}
               </span>
             </div>
           ))}
@@ -2210,18 +2279,16 @@ export default function App() {
             )}
           </div>
 
-          {/* Audit — mock (audit ko'rish UI'si TZ-1 §1.3 doirasida emas) */}
+          {/* Audit — real (TZ-2 §2.7, avval mock edi) */}
           <div style={{ ...glass(), padding: 20 }}>
             <h3 className="font-['Sora'] text-[13px] font-semibold mb-3.5" style={{ color: txt }}>{t("docDetail.audit")}</h3>
-            {[
-              { action: "A. Karimov v2.0 yukladi", when: "bugun 11:42" },
-              { action: "S. Nazarov PDF yuklab oldi", when: "bugun 09:15" },
-              { action: "Sh. Tosheva ochib ko'rdi", when: "kecha" },
-            ].map((a, i, arr) => (
-              <div key={i} className="flex justify-between gap-2.5 py-1.5 text-[11.5px] font-semibold"
+            {docAuditLog.length === 0 ? (
+              <p className="text-[11.5px] font-semibold" style={{ color: txt3 }}>{t("dashboard.noActivity")}</p>
+            ) : docAuditLog.map((a, i, arr) => (
+              <div key={a.id} className="flex justify-between gap-2.5 py-1.5 text-[11.5px] font-semibold"
                 style={{ borderBottom: i < arr.length - 1 ? `1px dashed ${panelBorder}` : "none", color: txt2 }}>
-                <span>{a.action}</span>
-                <span className="flex-shrink-0" style={{ color: txt3 }}>{a.when}</span>
+                <span>{a.userName ?? "—"} · {activityActionLabel(a.action)}</span>
+                <span className="flex-shrink-0" style={{ color: txt3 }}>{formatDate(a.createdAt)}</span>
               </div>
             ))}
           </div>
@@ -2558,23 +2625,26 @@ export default function App() {
         <button onClick={() => setDrawerOpen(false)} style={{ color: txt3, fontSize: 20, background: "none", border: "none", cursor: "pointer" }}>✕</button>
       </div>
       <p className="text-[11.5px] font-bold mb-4" style={{ color: txt3 }}>
-        2 o'qilmagan · <span className="cursor-pointer" style={{ color: lime }}>{t("drawer.markAllRead")}</span>
+        {t("drawer.unreadCount", { count: unreadCount })} ·{" "}
+        <span className="cursor-pointer" style={{ color: lime }} onClick={handleMarkAllNotificationsRead}>{t("drawer.markAllRead")}</span>
       </p>
-      {[
-        { warn: true, title: "CBU qarori № 145/2026 aniqlandi", body: "4 ta ichki hujjat bilan yuqori o'xshashlik. N-12 (91%) birinchi o'rinda.", go: "Monitoring'da ochish →", goAction: () => { setDrawerOpen(false); goView("mon"); } },
-        { warn: true, title: "Lex.uz: O'RQ-812 o'zgartirishlar", body: "S-03 va R-07 hujjatlaringizga aloqador bo'lishi mumkin.", go: "Ko'rish →", goAction: () => { setDrawerOpen(false); goView("mon"); } },
-        { warn: false, title: "Taqqoslama shablon tayyor", body: "N-12 v2.0 uchun shablon generatsiya qilindi (14 band).", go: "Yuklab olish →", goAction: () => toast("Shablon yuklab olinmoqda...") },
-        { warn: false, title: "S-03 tasdiq kutmoqda", body: "D. Rahimova 6 kun oldin yuborgan. Siz tasdiqlovchisiz.", go: "Ko'rib chiqish →", goAction: () => goView("doc") },
-        { warn: false, title: "R-07 tasdiqlandi", body: "Sh. Tosheva tasdiqladi, hujjat ACTIVE holatga o'tdi.", go: "", goAction: () => {} },
-      ].map((n, i) => (
-        <div key={i} className="rounded-[13px] mb-2.5 text-[12.5px]"
-          style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}`, padding: "12px 14px" }}>
+      {notifications.length === 0 ? (
+        <p className="text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("drawer.empty")}</p>
+      ) : notifications.map((n) => (
+        <div key={n.id} className="rounded-[13px] mb-2.5 text-[12.5px]"
+          style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}`, padding: "12px 14px", opacity: n.isRead ? 0.6 : 1 }}>
           <p className="flex items-center gap-2 font-bold mb-1" style={{ color: txt }}>
-            <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: n.warn ? "#F0C24B" : lime }} />
+            <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: n.isRead ? txt3 : lime }} />
             {n.title}
           </p>
           <p className="font-semibold leading-relaxed" style={{ color: txt2 }}>{n.body}</p>
-          {n.go && <span onClick={n.goAction} className="inline-block mt-2 text-[11px] font-extrabold cursor-pointer" style={{ color: lime }}>{n.go}</span>}
+          <span onClick={() => {
+            handleMarkNotificationRead(n.id);
+            const docId = n.meta.documentId;
+            if (typeof docId === "string") { setDrawerOpen(false); openDocument(docId); }
+          }} className="inline-block mt-2 text-[11px] font-extrabold cursor-pointer" style={{ color: lime }}>
+            {n.isRead ? t("drawer.viewed") : t("dashboard.viewNotification")}
+          </span>
         </div>
       ))}
     </div>

@@ -192,6 +192,7 @@ export class DiffGenerateService {
     });
     if (existing) {
       this.logger.log(`Shablon dedup: ${existing.id}`);
+      await this.notifyTemplateReady(data, doc.title);
       return { fileId: existing.id, fromPdfFallback };
     }
 
@@ -216,6 +217,21 @@ export class DiffGenerateService {
     this.logger.log(
       `Taqqoslama shablon tayyor: ${file.id} (${paragraphs.length} band, ${version.versionLabel} -> ${data.newVersionLabel}${fromPdfFallback ? ', PDF fallback' : ''})`,
     );
+    await this.notifyTemplateReady(data, doc.title);
     return { fileId: file.id, fromPdfFallback };
+  }
+
+  /** TZ-2 §2.7 — shablon so'ragan userga bildirishnoma (navigatsiyadan chiqib ketgan bo'lsa ham bilsin). */
+  private async notifyTemplateReady(data: DiffGenerateJobData, docTitle: string): Promise<void> {
+    await this.prisma.notification.create({
+      data: {
+        orgId: data.orgId,
+        userId: data.requestedBy,
+        type: 'TEMPLATE_READY',
+        title: docTitle,
+        body: `Taqqoslama shablon (${data.newVersionLabel}) tayyor`,
+        meta: { documentId: data.documentId },
+      },
+    });
   }
 }

@@ -36,7 +36,26 @@
     "statNewExternalActs": "New external acts",
     "statReviewSuggested": "Review suggested",
     "recentActivity": "Recent activity",
-    "needsAttention": "Needs attention"
+    "needsAttention": "Needs attention",
+    "todaySummary": "Today: {{newExternalActs}} new external acts, {{pendingApproval}} documents pending approval",
+    "totalPrefix": "Total",
+    "totalFolders": "{{count}} folders",
+    "pendingOverdue": "{{count}} overdue (5+ days)",
+    "monitoringPending": "Monitoring module not yet enabled",
+    "noActivity": "No activity yet",
+    "noAttention": "Nothing needs attention",
+    "viewNotification": "View →",
+    "entity": {
+      "Document": "Document",
+      "DocumentVersion": "Document version",
+      "DocumentRelation": "Relation"
+    },
+    "action": {
+      "CREATE": "created",
+      "UPDATE": "updated",
+      "DELETE": "deleted",
+      "RESTORE": "restored"
+    }
   },
   "vault": {
     "segmentTable": "Table",
@@ -151,7 +170,10 @@
   },
   "drawer": {
     "title": "Notifications",
-    "markAllRead": "mark all as read"
+    "markAllRead": "mark all as read",
+    "unreadCount": "{{count}} unread",
+    "empty": "No notifications",
+    "viewed": "Viewed"
   },
   "wizard": {
     "title": "New document",
@@ -197,7 +219,21 @@
     "edit": "Edit",
     "delete": "Delete",
     "deleteConfirm": "Really delete this type?",
-    "accessDenied": "This page is for administrators only"
+    "accessDenied": "This page is for administrators only",
+    "trash": "Trash",
+    "trashHint": "Deleted documents and folders are kept here for 30 days, then permanently removed.",
+    "trashEmpty": "Trash is empty.",
+    "trashTypeDocument": "Document",
+    "trashTypeFolder": "Folder",
+    "trashPurgeAt": "kept until {{date}}",
+    "trashRestore": "Restore",
+    "trashRestored": "Restored",
+    "auditLog": "Audit log",
+    "auditLogHint": "History of all mutating actions in the organization.",
+    "auditExportCsv": "Download CSV",
+    "auditAllActions": "All actions",
+    "auditEntityTypePlaceholder": "Entity type (e.g. Document)",
+    "auditEmpty": "No entries found."
   },
   "common": {
     "uploading": "Uploading...",

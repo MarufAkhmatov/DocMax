@@ -36,7 +36,26 @@
     "statNewExternalActs": "Новые внешние акты",
     "statReviewSuggested": "Рекомендуется проверить",
     "recentActivity": "Последняя активность",
-    "needsAttention": "Требует внимания"
+    "needsAttention": "Требует внимания",
+    "todaySummary": "Сегодня: новых внешних актов — {{newExternalActs}}, на согласовании — {{pendingApproval}}",
+    "totalPrefix": "Всего",
+    "totalFolders": "папок: {{count}}",
+    "pendingOverdue": "просрочено: {{count}}",
+    "monitoringPending": "Модуль мониторинга ещё не включён",
+    "noActivity": "Активности пока нет",
+    "noAttention": "Ничего не требует внимания",
+    "viewNotification": "Открыть →",
+    "entity": {
+      "Document": "Документ",
+      "DocumentVersion": "Версия документа",
+      "DocumentRelation": "Связь"
+    },
+    "action": {
+      "CREATE": "создан(а)",
+      "UPDATE": "обновлён(а)",
+      "DELETE": "удалён(а)",
+      "RESTORE": "восстановлен(а)"
+    }
   },
   "vault": {
     "segmentTable": "Таблица",
@@ -151,7 +170,10 @@
   },
   "drawer": {
     "title": "Уведомления",
-    "markAllRead": "отметить все как прочитанные"
+    "markAllRead": "отметить все как прочитанные",
+    "unreadCount": "непрочитанных: {{count}}",
+    "empty": "Уведомлений нет",
+    "viewed": "Просмотрено"
   },
   "wizard": {
     "title": "Новый документ",
@@ -197,7 +219,21 @@
     "edit": "Изменить",
     "delete": "Удалить",
     "deleteConfirm": "Действительно удалить этот тип?",
-    "accessDenied": "Эта страница только для администраторов"
+    "accessDenied": "Эта страница только для администраторов",
+    "trash": "Корзина",
+    "trashHint": "Удалённые документы и папки хранятся здесь 30 дней, затем удаляются безвозвратно.",
+    "trashEmpty": "Корзина пуста.",
+    "trashTypeDocument": "Документ",
+    "trashTypeFolder": "Папка",
+    "trashPurgeAt": "хранится до {{date}}",
+    "trashRestore": "Восстановить",
+    "trashRestored": "Восстановлено",
+    "auditLog": "Журнал аудита",
+    "auditLogHint": "История всех изменяющих действий в организации.",
+    "auditExportCsv": "Скачать CSV",
+    "auditAllActions": "Все действия",
+    "auditEntityTypePlaceholder": "Тип объекта (например: Document)",
+    "auditEmpty": "Записи не найдены."
   },
   "common": {
     "uploading": "Загрузка...",
