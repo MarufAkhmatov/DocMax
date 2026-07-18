@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2, Pencil, Loader2, X, RotateCcw, Download } from "lucide-react";
-import type { AuditLogEntry, TrashItem } from "@docmax/shared";
+import { Plus, Trash2, Pencil, Loader2, X, RotateCcw, Download, Check } from "lucide-react";
+import type { AuditLogEntry, TagSummary, TrashItem } from "@docmax/shared";
 import type { DocumentTypeSummary } from "@docmax/shared";
 import { AUDIT_ACTIONS } from "@docmax/shared";
-import { documentTypesApi, organizationsApi, filesApi, trashApi, auditLogsApi, ApiRequestError } from "@/lib/api";
+import { documentTypesApi, organizationsApi, filesApi, trashApi, auditLogsApi, tagsApi, ApiRequestError } from "@/lib/api";
 
 export interface AdminTheme {
   isDark: boolean;
@@ -75,6 +75,43 @@ export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLo
   };
 
   useEffect(load, []);
+
+  // TZ-2 §2.1 qoldig'i — teg boshqaruvi (rename/delete)
+  const [tags, setTags] = useState<TagSummary[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [tagEditingId, setTagEditingId] = useState<string | null>(null);
+  const [tagEditName, setTagEditName] = useState("");
+  const [tagSaving, setTagSaving] = useState(false);
+  const loadTags = () => {
+    setTagsLoading(true);
+    tagsApi.list().then(setTags).catch(() => {}).finally(() => setTagsLoading(false));
+  };
+  useEffect(loadTags, []);
+
+  const handleTagRename = async (id: string) => {
+    const name = tagEditName.trim();
+    if (!name) return;
+    setTagSaving(true);
+    try {
+      await tagsApi.update(id, { name });
+      setTagEditingId(null);
+      loadTags();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
+    } finally {
+      setTagSaving(false);
+    }
+  };
+
+  const handleTagDelete = async (tag: TagSummary) => {
+    if (!window.confirm(t("admin.tagDeleteConfirm", { name: tag.name }))) return;
+    try {
+      await tagsApi.remove(tag.id);
+      loadTags();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
+    }
+  };
 
   // TZ-2 §2.7 — Trash (30 kunlik saqlash, tiklash)
   const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
@@ -317,6 +354,56 @@ export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLo
                   <Pencil size={14} />
                 </button>
                 <button onClick={() => handleDelete(type.id)} title={t("admin.delete")}
+                  className="w-8 h-8 rounded-lg inline-grid place-items-center cursor-pointer"
+                  style={{ background: "transparent", border: "none", color: "#F07A6B" }}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* TZ-2 §2.1 qoldig'i — Teglar */}
+      <div style={{ ...glass, padding: 22, marginTop: 20 }}>
+        <h2 className="font-['Sora'] text-[15px] font-semibold mb-1.5" style={{ color: txt }}>{t("admin.tags")}</h2>
+        <p className="text-[12px] font-semibold mb-4" style={{ color: txt3 }}>{t("admin.tagsHint")}</p>
+        {tagsLoading ? (
+          <div className="space-y-2">
+            {[0, 1].map((i) => <div key={i} style={{ height: 44, borderRadius: 12, background: panel }} />)}
+          </div>
+        ) : tags.length === 0 ? (
+          <p className="text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("admin.tagsEmpty")}</p>
+        ) : (
+          <div>
+            {tags.map((tag) => (
+              <div key={tag.id} className="flex items-center gap-3 py-2.5"
+                style={{ borderBottom: `1px solid ${panelBorder}` }}>
+                {tagEditingId === tag.id ? (
+                  <input autoFocus value={tagEditName} onChange={(e) => setTagEditName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleTagRename(tag.id); if (e.key === "Escape") setTagEditingId(null); }}
+                    className="flex-1 outline-none rounded-lg text-[13px] font-semibold px-2.5 py-1.5"
+                    style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                ) : (
+                  <span className="flex-1 text-[13.5px] font-bold" style={{ color: txt }}>{tag.name}</span>
+                )}
+                <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: txt3 }}>
+                  {t("admin.tagDocCount", { count: tag.documentCount })}
+                </span>
+                {tagEditingId === tag.id ? (
+                  <button onClick={() => handleTagRename(tag.id)} disabled={tagSaving}
+                    className="w-8 h-8 rounded-lg inline-grid place-items-center cursor-pointer disabled:opacity-50"
+                    style={{ background: "transparent", border: "none", color: lime }}>
+                    {tagSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  </button>
+                ) : (
+                  <button onClick={() => { setTagEditingId(tag.id); setTagEditName(tag.name); }} title={t("admin.edit")}
+                    className="w-8 h-8 rounded-lg inline-grid place-items-center cursor-pointer"
+                    style={{ background: "transparent", border: "none", color: txt2 }}>
+                    <Pencil size={14} />
+                  </button>
+                )}
+                <button onClick={() => handleTagDelete(tag)} title={t("admin.delete")}
                   className="w-8 h-8 rounded-lg inline-grid place-items-center cursor-pointer"
                   style={{ background: "transparent", border: "none", color: "#F07A6B" }}>
                   <Trash2 size={14} />

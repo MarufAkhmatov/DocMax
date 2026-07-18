@@ -14,3 +14,5 @@ export * from './notifications';
 export * from './audit-logs';
 export * from './trash';
 export * from './stats';
+export * from './tags';
+export * from './workflow';

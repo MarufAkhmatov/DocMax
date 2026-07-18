@@ -112,6 +112,8 @@
     "searchDocument": "Найдите документ по названию или номеру...",
     "relationNotePlaceholder": "Комментарий (необязательно)",
     "noRelations": "Связей пока нет",
+    "removeRelationConfirm": "Удалить эту связь?",
+    "alsoExpireTarget": "Также сделать старый документ EXPIRED",
     "audit": "Аудит",
     "comingSoon": "Эта функция появится на следующем этапе",
     "current": "текущая",
@@ -233,7 +235,12 @@
     "auditExportCsv": "Скачать CSV",
     "auditAllActions": "Все действия",
     "auditEntityTypePlaceholder": "Тип объекта (например: Document)",
-    "auditEmpty": "Записи не найдены."
+    "auditEmpty": "Записи не найдены.",
+    "tags": "Теги",
+    "tagsHint": "Теги, добавленные к документам — здесь можно переименовать или полностью удалить.",
+    "tagsEmpty": "Теги ещё не созданы.",
+    "tagDocCount": "документов: {{count}}",
+    "tagDeleteConfirm": "Удалить тег «{{name}}»? Будет убран со всех документов."
   },
   "common": {
     "uploading": "Загрузка...",
@@ -276,6 +283,11 @@
     "today": "Сегодня",
     "docsCount": "{{count}} док.",
     "empty": "В этом периоде документов нет"
+  },
+  "workflow": {
+    "searchPlaceholder": "Поиск папки или документа...",
+    "empty": "Холст пуст — найдите слева и перетащите сюда",
+    "connectTitle": "Создать связь"
   },
   "version": {
     "title": "Новая версия",

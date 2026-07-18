@@ -17,6 +17,7 @@ import Login from "./Login";
 import AdminPanel from "./AdminPanel";
 import CalendarView from "./CalendarView";
 import GraphView from "./GraphView";
+import WorkflowView from "./WorkflowView";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type View = "dash" | "vault" | "doc" | "graph" | "mon" | "cal" | "admin";
@@ -427,6 +428,7 @@ export default function App() {
   const [monFilter, setMonFilter] = useState("all");
   const [treeOpen, setTreeOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [graphMode, setGraphMode] = useState<"graph" | "workflow">("graph");
 
   // ── Dashboard statistikasi + bildirishnomalar (TZ-2 §2.7 — real, avval mock edi) ──
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
@@ -516,6 +518,7 @@ export default function App() {
   const [relationType, setRelationType] = useState<RelationType>("RELATED");
   const [relationNote, setRelationNote] = useState("");
   const [relationSaving, setRelationSaving] = useState(false);
+  const [relationExpireTarget, setRelationExpireTarget] = useState(false);
 
   // Yuklash wizard'i — haqiqiy fayl/hujjat holati
   const [pdfUpload, setPdfUpload] = useState<FileSummary | null>(null);
@@ -833,7 +836,12 @@ export default function App() {
     if (!selectedDocId || !relationTargetId) return;
     setRelationSaving(true);
     try {
-      await relationsApi.create(selectedDocId, { targetDocumentId: relationTargetId, type: relationType, note: relationNote.trim() || null });
+      await relationsApi.create(selectedDocId, {
+        targetDocumentId: relationTargetId,
+        type: relationType,
+        note: relationNote.trim() || null,
+        alsoExpireTarget: relationType === "REPLACES" ? relationExpireTarget : undefined,
+      });
       setRelationAddOpen(false);
       setRelationSearch("");
       setRelationSearchResults([]);
@@ -841,23 +849,26 @@ export default function App() {
       setRelationTargetTitle("");
       setRelationNote("");
       setRelationType("RELATED");
+      setRelationExpireTarget(false);
       refetchRelations();
+      refetchDocuments();
     } catch (err) {
       toast(err instanceof ApiRequestError ? err.body.message : t("errors.relationAdd"));
     } finally {
       setRelationSaving(false);
     }
-  }, [selectedDocId, relationTargetId, relationType, relationNote, refetchRelations, toast]);
+  }, [selectedDocId, relationTargetId, relationType, relationNote, relationExpireTarget, refetchRelations, refetchDocuments, toast]);
 
   const handleRemoveRelation = useCallback(async (relationId: string) => {
     if (!selectedDocId) return;
+    if (!window.confirm(t("docDetail.removeRelationConfirm"))) return;
     try {
       await relationsApi.remove(selectedDocId, relationId);
       refetchRelations();
     } catch (err) {
       toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     }
-  }, [selectedDocId, refetchRelations, toast]);
+  }, [selectedDocId, refetchRelations, toast, t]);
 
   const toggleDoc = (id: string) =>
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -2241,6 +2252,12 @@ export default function App() {
                       placeholder={t("docDetail.relationNotePlaceholder")}
                       className="w-full outline-none rounded-lg text-[12.5px] font-semibold px-3 py-2 mb-2"
                       style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                    {relationType === "REPLACES" && (
+                      <label className="flex items-center gap-2 text-[12px] font-semibold mb-2 cursor-pointer" style={{ color: txt2 }}>
+                        <input type="checkbox" checked={relationExpireTarget} onChange={(e) => setRelationExpireTarget(e.target.checked)} />
+                        {t("docDetail.alsoExpireTarget")}
+                      </label>
+                    )}
                     <div className="flex gap-2 justify-end">
                       <button onClick={() => setRelationAddOpen(false)}
                         className="text-[11.5px] font-bold px-3 py-1.5 rounded-lg cursor-pointer"
@@ -2262,11 +2279,14 @@ export default function App() {
             {relations.length === 0 ? (
               <p className="text-[12px] font-semibold" style={{ color: txt3 }}>{t("docDetail.noRelations")}</p>
             ) : (
-              relations.map((rel) => (
-                <div key={rel.id} className="flex items-center gap-2.5 py-2 text-[12.5px] font-semibold" style={{ color: txt2 }}>
+              RELATION_TYPES.filter((rt) => relations.some((r) => r.type === rt)).map((rt) => (
+              <div key={rt} className="mb-2.5 last:mb-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t(`relationType.${rt}`)}</p>
+                {relations.filter((r) => r.type === rt).map((rel) => (
+                <div key={rel.id} className="flex items-center gap-2.5 py-1.5 text-[12.5px] font-semibold" style={{ color: txt2 }}>
                   <span className="text-[9.5px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-[6px] flex-shrink-0 whitespace-nowrap"
                     style={{ background: RELATION_TYPE_STYLE[rel.type].bg, color: RELATION_TYPE_STYLE[rel.type].color }}>
-                    {rel.direction === "INCOMING" ? "← " : ""}{t(`relationType.${rel.type}`)}
+                    {rel.direction === "INCOMING" ? "←" : "→"}
                   </span>
                   <span onClick={() => openDocument(rel.document.id)} className="flex-1 cursor-pointer truncate">{rel.document.title}</span>
                   {canEditDocuments && (
@@ -2275,6 +2295,8 @@ export default function App() {
                     </span>
                   )}
                 </div>
+                ))}
+              </div>
               ))
             )}
           </div>
@@ -2931,7 +2953,25 @@ export default function App() {
             {view === "dash" && Dashboard}
             {view === "vault" && Vault}
             {view === "doc" && DocDetail}
-            {view === "graph" && <GraphView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} docTypes={documentTypes} onOpenDocument={openDocument} />}
+            {view === "graph" && (
+              <div>
+                <div className="flex p-1 gap-0.5 rounded-[10px] mb-3 w-fit"
+                  style={{ background: isDark ? "rgba(26,26,26,.92)" : "rgba(255,255,255,.95)", border: `1px solid ${panelBorder}` }}>
+                  {([["graph", t("graph.modeGraph")], ["workflow", t("graph.modeWorkflow")]] as const).map(([m, label]) => (
+                    <span key={m} onClick={() => setGraphMode(m)}
+                      className="text-[11px] font-extrabold px-3 py-[5px] rounded-lg cursor-pointer"
+                      style={graphMode === m ? { background: isDark ? "rgba(255,255,255,.12)" : "#fff", color: txt } : { color: txt3 }}>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                {graphMode === "graph" ? (
+                  <GraphView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} docTypes={documentTypes} onOpenDocument={openDocument} />
+                ) : (
+                  <WorkflowView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} onOpenDocument={openDocument} />
+                )}
+              </div>
+            )}
             {view === "mon" && Monitoring}
             {view === "cal" && (
               <CalendarView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} onOpenDocument={openDocument} />

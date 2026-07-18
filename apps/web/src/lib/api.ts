@@ -4,6 +4,7 @@ import type {
   AuthUser,
   BulkDocumentsInput,
   BulkDocumentsResult,
+  CanvasLayout,
   ComparisonTemplateInput,
   ComparisonTemplateJob,
   ComparisonTemplateStatus,
@@ -35,12 +36,15 @@ import type {
   PresignFileInput,
   PresignResult,
   ResetPasswordInput,
+  SaveCanvasLayoutInput,
   SetupInput,
+  TagSummary,
   TrashItem,
   UpdateDocumentInput,
   UpdateDocumentTypeInput,
   UpdateFolderInput,
   UpdateProfileInput,
+  UpdateTagInput,
 } from '@docmax/shared';
 import { useAuthStore } from '@/stores/auth';
 
@@ -391,4 +395,18 @@ export const auditLogsApi = {
     }
     return res.blob();
   },
+};
+
+export const tagsApi = {
+  list: () => apiFetch<TagSummary[]>('/tags'),
+
+  update: (id: string, input: UpdateTagInput) => apiFetch<TagSummary>(`/tags/${id}`, { method: 'PATCH', body: input }),
+
+  remove: (id: string) => apiFetch<void>(`/tags/${id}`, { method: 'DELETE' }),
+};
+
+export const workflowApi = {
+  getLayout: () => apiFetch<CanvasLayout>('/workflow/layout'),
+
+  saveLayout: (input: SaveCanvasLayoutInput) => apiFetch<CanvasLayout>('/workflow/layout', { method: 'PUT', body: input }),
 };

@@ -112,6 +112,8 @@
     "searchDocument": "Search by document name or number...",
     "relationNotePlaceholder": "Note (optional)",
     "noRelations": "No relations yet",
+    "removeRelationConfirm": "Remove this relation?",
+    "alsoExpireTarget": "Also mark the old document as EXPIRED",
     "audit": "Audit",
     "comingSoon": "This feature will be added in a later stage",
     "current": "current",
@@ -233,7 +235,12 @@
     "auditExportCsv": "Download CSV",
     "auditAllActions": "All actions",
     "auditEntityTypePlaceholder": "Entity type (e.g. Document)",
-    "auditEmpty": "No entries found."
+    "auditEmpty": "No entries found.",
+    "tags": "Tags",
+    "tagsHint": "Tags added to documents — rename or fully delete them here.",
+    "tagsEmpty": "No tags created yet.",
+    "tagDocCount": "{{count}} documents",
+    "tagDeleteConfirm": "Delete tag \"{{name}}\"? It will be removed from all documents."
   },
   "common": {
     "uploading": "Uploading...",
@@ -276,6 +283,11 @@
     "today": "Today",
     "docsCount": "{{count}} docs",
     "empty": "No documents in this period"
+  },
+  "workflow": {
+    "searchPlaceholder": "Search folder or document...",
+    "empty": "Canvas is empty — search on the left and drag here",
+    "connectTitle": "Create relation"
   },
   "version": {
     "title": "New version",

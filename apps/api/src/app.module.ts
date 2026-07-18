@@ -20,6 +20,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { TrashModule } from './trash/trash.module';
 import { StatsModule } from './stats/stats.module';
+import { TagsModule } from './tags/tags.module';
+import { WorkflowModule } from './workflow/workflow.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
@@ -52,6 +54,8 @@ import { AllExceptionsFilter } from './common/http-exception.filter';
     AuditLogsModule,
     TrashModule,
     StatsModule,
+    TagsModule,
+    WorkflowModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -8,5 +8,6 @@ import { DocumentsService } from './documents.service';
   imports: [NotificationsModule, AuditLogsModule],
   controllers: [DocumentsController],
   providers: [DocumentsService],
+  exports: [DocumentsService],
 })
 export class DocumentsModule {}

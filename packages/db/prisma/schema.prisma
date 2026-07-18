@@ -129,6 +129,7 @@ model Organization {
   permissions   Permission[]
   auditLogs     AuditLog[]
   notifications Notification[]
+  canvasLayouts UserCanvasLayout[]
   embeddings    Embedding[]
 
   @@map("organizations")
@@ -183,6 +184,7 @@ model User {
   createdRelations  DocumentRelation[]
   auditLogs         AuditLog[]
   notifications     Notification[]
+  canvasLayouts       UserCanvasLayout[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
 
@@ -463,6 +465,21 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+/** TZ-2 §2.2 — Workflow canvas (n8n uslubi): har user o'z node joylashuvini saqlaydi. */
+model UserCanvasLayout {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  positions Json     @default("[]")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([orgId, userId])
+  @@map("user_canvas_layouts")
 }
 
 model ExternalAct {

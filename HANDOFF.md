@@ -1,6 +1,6 @@
 # DocMax — Handoff
 
-*Oxirgi yangilanish: 2026-07-18 (M7 — Boshqaruv yakuni bilan) · kanonik branch: **`main`** (= `claude/hand-off-task-c339c9` + real ⌘K/bulk/graf + M7-M12 yo'l xaritasi + Pre-M7 i18n + M7; c339c9 endi orqada qolgan, kerak emas)*
+*Oxirgi yangilanish: 2026-07-18 (M8 — Workflow canvas + Relations yakuni bilan) · kanonik branch: **`main`** (= `claude/hand-off-task-c339c9` + real ⌘K/bulk/graf + M7-M12 yo'l xaritasi + Pre-M7 i18n + M7 + M8; c339c9 endi orqada qolgan, kerak emas)*
 
 Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilingani va keyingi qadamlar shu yerda.
 
@@ -75,13 +75,29 @@ Frontend (`App.tsx`, `AdminPanel.tsx`):
 
 Brauzerda to'liq sinaldi (curl bilan API + Chrome preview bilan UI): status-change → bildirishnoma real userga keladi, Dashboard/Audit log/Trash sahifalari real ma'lumot bilan ishlaydi, pagination/CSV/CONTRIBUTOR cheklovlari tasdiqlandi, konsolda xato yo'q.
 
+## 1.4. Shu sessiyada qilinganlar (2026-07-18) — M8: Workflow canvas + Relations yakuni (TZ-2 §2.2 + §2.1 qoldiqlari)
+
+Backend:
+- **`document-relations.service.ts`**: PARENT_CHILD uchun DFS sikl tekshiruvi (`wouldCreateCycle` — target'dan boshlab mavjud PARENT_CHILD zanjirini yurib, source'ga qaytishni tekshiradi; topilsa 400). E2e sinaldi: A→B PARENT_CHILD yaratilgach B→A urinish to'g'ri bloklandi.
+- **REPLACES + avtomatik EXPIRED**: `createDocumentRelationSchema`ga `alsoExpireTarget?: boolean`; `document-relations.controller.ts` shu bayroq bilan `documentsService.update(...)`ni chaqirib target'ni EXPIRED qiladi (effectiveTo=now). E2e sinaldi: target ACTIVE→EXPIRED, audit trailda ikkalasi (relation CREATE + document UPDATE) ko'rindi.
+- **Audit context array'ga o'tkazildi** (`audit-context.ts`/`audit.interceptor.ts`): bitta so'rovda bir nechta `setAuditContext()` chaqiruvi endi HAMMASI yoziladi (avval oxirgisi avvalgilarini bosib qolar edi) — REPLACES+EXPIRE kabi bir so'rovda ikki entity o'zgaradigan holatlar uchun zarur, orqaga mos (bitta chaqiruv — bitta yozuv, eski xatti-harakat saqlangan).
+- **`apps/api/src/tags/*`** — `GET /tags` (ro'yxat+documentCount, typeahead uchun), `PATCH /tags/:id` / `DELETE /tags/:id` (ADMIN, Admin Panel boshqaruvi uchun).
+- **`apps/api/src/workflow/*`** + yangi **`UserCanvasLayout`** modeli/migratsiyasi (`user_canvas_layouts`, org+user bo'yicha unique) — `GET/PUT /workflow/layout`.
+
+Frontend:
+- DocDetail bog'lanishlar: tur bo'yicha guruhlangan ro'yxat, o'chirishda tasdiq (`window.confirm`), REPLACES tanlanganda "eski hujjatni ham EXPIRED qilish" checkbox'i.
+- Admin Panel'ga **Teglar** bo'limi (rename/delete, hujjat soni bilan).
+- **`WorkflowView.tsx`** (yangi, `@xyflow/react` asosida) — Graf sahifasida "Graf/Workflow" rejim almashtirgichi (mavjud `graph.modeGraph`/`modeWorkflow` kalitlari ishlatildi). Chap panel qidiruv (papka/hujjat) → canvas'ga drag&drop; ikki hujjat node'ini ulash → tur+izoh modali → real relation yaratadi; edge o'chirish (tanlab Delete) → relation o'chadi; joylashuv 600ms debounce bilan avtomatik saqlanadi; mavjud bog'lanishlar sahifa ochilganda avtomatik edge sifatida chiziladi.
+  - **Muhim topilma/tuzatish**: `@xyflow/react` v12 dinamik qo'shilgan node'lar uchun edge'larni ResizeObserver orqali handle o'lchamlari aniqlanmaguncha chizmaydi (`isNodeInitialized` — `internals.handleBounds` yoki statik `node.handles` talab qiladi); bu loyihada ResizeObserver "yetarlicha tez" ishlamas edi. Yechim: har node'ga statik `width/height/measured` + `handles` massivi (top/bottom, sabit x/y) qo'lda beriladi — ResizeObserver'ni butunlay chetlab o'tadi. Kelgusida shu componentga node qo'shilsa, xuddi shu naqshga amal qilinsin.
+
+E2e sinaldi (curl + brauzer + JS orqali drag&drop/connect/delete simulyatsiyasi): cikl bloklash, REPLACES+EXPIRE+audit, canvas'ga node qo'shish+saqlash+qayta yuklash, mavjud relation avtomatik edge sifatida chizilishi, edge o'chirish → backend'da relation ham o'chishi — barchasi tasdiqlandi.
+
 ## 2. Yo'l xaritasi (2026-07-17 auditi asosida)
 
-**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 qisman: §2.1 Relations (asos), §2.3 Graf (real), §2.6 ⌘K nom/raqam qidiruv, §2.7 to'liq (M7 — yuqorida) · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo) · i18n (Pre-M7 tuzatish bilan to'liqroq) · security hardening.
+**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 qisman: §2.1 Relations (to'liq — M8), §2.2 Workflow canvas (to'liq — M8), §2.3 Graf (real), §2.6 ⌘K nom/raqam qidiruv, §2.7 to'liq (M7) · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n · security hardening.
 
 **Keyingi milestonelar (tavsiya tartibi):**
 
-- **M8 — Workflow canvas + Relations yakuni (TZ-2 §2.2 + §2.1 qoldiqlari)**: React Flow canvas (drag&drop, edge=relation, layout `user_canvas_layouts`da saqlanadi — yangi migratsiya), PARENT_CHILD sikl tekshiruvi (DFS), REPLACES yaratilganda "target'ni EXPIRED qilaylikmi?" modali, DocDetail'da bog'lanishlarni tur bo'yicha guruhlash.
 - **M9 — Struktura + ACL (TZ-2 §2.4 + §2.5)**: org-units daraxti UI (CRUD, drag&drop, rahbar), remapping wizard + snapshots, papka ACL (guard bitta joyda, qulf ikonkalari, yuklab-olish-taqiq rejimi watermark bilan), permission-matrix e2e.
 - **M10 — Sifat/texnik qarz (TZ-0 §6 talabi)**: apps/web eslint+vitest (hozir stub), documents/files/versions/graph e2e testlari (TZ: versioning 100% test), TZ-1 DoD checklist yugurtirish, pdf.js integratsiyasi (hozir iframe), router/URL holati (view+folder), graf uchun podrazdeleniye rang rejimi.
 - **M11 — TZ-3 Monitoring**: scraper (lex.uz/cbu.uz, cron 2 soat) → external_acts + /monitoring real sahifa → xabarnomalar (in-app/Telegram/email) → embedding (multilingual-e5, LLM'siz) → semantik solishtirish/qidiruv → LLM toggle (default OFF). O'z ichida 3–4 kichik bosqich.

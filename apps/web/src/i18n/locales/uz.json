@@ -112,6 +112,8 @@
     "searchDocument": "Hujjat nomi yoki raqami bo'yicha qidiring...",
     "relationNotePlaceholder": "Izoh (ixtiyoriy)",
     "noRelations": "Hali bog'lanishlar yo'q",
+    "removeRelationConfirm": "Bu bog'lanishni o'chirasizmi?",
+    "alsoExpireTarget": "Eski hujjatni ham EXPIRED qilish",
     "audit": "Audit",
     "comingSoon": "Bu funksiya keyingi bosqichda qo'shiladi",
     "current": "joriy",
@@ -233,7 +235,12 @@
     "auditExportCsv": "CSV yuklab olish",
     "auditAllActions": "Barcha amallar",
     "auditEntityTypePlaceholder": "Obyekt turi (masalan: Document)",
-    "auditEmpty": "Yozuvlar topilmadi."
+    "auditEmpty": "Yozuvlar topilmadi.",
+    "tags": "Teglar",
+    "tagsHint": "Hujjatlarga qo'shilgan teglar — bu yerda nomini o'zgartirish yoki butunlay o'chirish mumkin.",
+    "tagsEmpty": "Hali teg yaratilmagan.",
+    "tagDocCount": "{{count}} hujjat",
+    "tagDeleteConfirm": "\"{{name}}\" tegini o'chirasizmi? Barcha hujjatlardan olib tashlanadi."
   },
   "common": {
     "uploading": "Yuklanmoqda...",
@@ -276,6 +283,11 @@
     "today": "Bugun",
     "docsCount": "{{count}} hujjat",
     "empty": "Bu davrda hujjatlar yo'q"
+  },
+  "workflow": {
+    "searchPlaceholder": "Papka yoki hujjat qidiring...",
+    "empty": "Canvas bo'sh — chap paneldan qidirib, sudrab qo'shing",
+    "connectTitle": "Bog'lanish yaratish"
   },
   "version": {
     "title": "Yangi versiya",

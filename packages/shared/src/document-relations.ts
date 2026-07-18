@@ -9,6 +9,8 @@ export const createDocumentRelationSchema = z.object({
   targetDocumentId: uuidSchema,
   type: relationTypeSchema,
   note: z.string().max(1000).nullable().optional(),
+  /** REPLACES yaratilganda: target hujjatni ham EXPIRED qilishni so'raydi (TZ-2 §2.1). */
+  alsoExpireTarget: z.boolean().optional(),
 });
 export type CreateDocumentRelationInput = z.infer<typeof createDocumentRelationSchema>;
 

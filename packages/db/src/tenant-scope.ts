@@ -17,6 +17,7 @@ export const TENANT_SCOPED_MODELS = [
   'Permission',
   'AuditLog',
   'Notification',
+  'UserCanvasLayout',
   'Embedding',
 ] as const;
 
