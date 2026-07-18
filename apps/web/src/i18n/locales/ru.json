@@ -71,7 +71,8 @@
     "tableTitle": "Документы",
     "treeFolders": "Папки",
     "savedFilters": "Сохранённые фильтры",
-    "timelineUploadedAt": "дата загрузки"
+    "timelineUploadedAt": "дата загрузки",
+    "folderDeleteConfirm": "Удалить папку «{{name}}»?"
   },
   "status": {
     "active": "Активен",
@@ -168,6 +169,7 @@
     "fieldApprovedDate": "Дата утверждения",
     "fieldDept": "Отдел",
     "fieldTags": "Теги",
+    "fieldTagsPlaceholder": "например: ЦБ, кредит",
     "relationsOptional": "Связи (необязательно)",
     "addRelationBtn": "+ Добавить связь",
     "noFolderSelected": "Сначала выберите папку",
@@ -208,7 +210,9 @@
     "confirm": "Подтвердить",
     "download": "Скачать",
     "save": "Сохранить",
-    "current": "текущая"
+    "current": "текущая",
+    "edit": "Изменить",
+    "delete": "Удалить"
   },
   "bulkBar": {
     "selectedSuffix": "документов выбрано",
@@ -256,5 +260,28 @@
     "save": "Сохранить",
     "saving": "Сохранение...",
     "created": "Версия {{label}} создана"
+  },
+  "errors": {
+    "folderCreate": "Ошибка при создании папки",
+    "folderRename": "Ошибка при переименовании папки",
+    "folderDelete": "Ошибка при удалении папки",
+    "foldersLoad": "Ошибка при загрузке папок",
+    "documentsLoad": "Ошибка при загрузке документов",
+    "docDetailLoad": "Ошибка при загрузке документа",
+    "relationAdd": "Ошибка при добавлении связи",
+    "generic": "Произошла ошибка",
+    "pdfOnly": "Принимаются только файлы PDF",
+    "docxOnly": "Принимаются только файлы DOCX",
+    "fileUpload": "Ошибка при загрузке файла",
+    "docSave": "Ошибка при сохранении документа",
+    "fileOpen": "Ошибка при открытии файла",
+    "docDelete": "Ошибка при удалении документа",
+    "bulkAction": "Ошибка при выполнении действия",
+    "templateRequest": "Ошибка при запросе шаблона",
+    "versionFileUpload": "Ошибка при загрузке файла",
+    "versionCreate": "Ошибка при создании версии",
+    "logoUpload": "Ошибка при загрузке логотипа",
+    "calendarLoad": "Ошибка при загрузке данных календаря",
+    "graphLoad": "Ошибка при загрузке графа"
   }
 }

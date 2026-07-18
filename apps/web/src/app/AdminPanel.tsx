@@ -36,7 +36,7 @@ export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLo
       const result = await organizationsApi.setLogo(summary.id);
       onLogoChanged(result.logoUrl);
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Logotipni yuklashda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.logoUpload"));
     } finally {
       setLogoUploading(false);
       if (logoInputRef.current) logoInputRef.current.value = "";
@@ -48,7 +48,7 @@ export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLo
       await organizationsApi.removeLogo();
       onLogoChanged(null);
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     }
   }
 
@@ -68,7 +68,7 @@ export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLo
     documentTypesApi
       .list()
       .then(setTypes)
-      .catch((err) => setError(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi"))
+      .catch((err) => setError(err instanceof ApiRequestError ? err.body.message : t("errors.generic")))
       .finally(() => setLoading(false));
   };
 
@@ -109,7 +109,7 @@ export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLo
       setFormOpen(false);
       onTypesChanged?.();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     } finally {
       setSaving(false);
     }
@@ -122,7 +122,7 @@ export default function AdminPanel({ theme, toast, onTypesChanged, logoUrl, onLo
       setTypes((prev) => prev.filter((t) => t.id !== id));
       onTypesChanged?.();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     }
   }
 

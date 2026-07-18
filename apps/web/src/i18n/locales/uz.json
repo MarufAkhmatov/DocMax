@@ -71,7 +71,8 @@
     "tableTitle": "Hujjatlar",
     "treeFolders": "Papkalar",
     "savedFilters": "Saqlangan filtrlar",
-    "timelineUploadedAt": "yuklangan sana"
+    "timelineUploadedAt": "yuklangan sana",
+    "folderDeleteConfirm": "\"{{name}}\" papkasini o'chirasizmi?"
   },
   "status": {
     "active": "Aktiv",
@@ -168,6 +169,7 @@
     "fieldApprovedDate": "Tasdiqlangan sana",
     "fieldDept": "Bo'lim",
     "fieldTags": "Teglar",
+    "fieldTagsPlaceholder": "masalan: CBU, kredit",
     "relationsOptional": "Bog'lanishlar (ixtiyoriy)",
     "addRelationBtn": "+ Bog'lanish qo'shish",
     "noFolderSelected": "Avval papkani tanlang",
@@ -208,7 +210,9 @@
     "confirm": "Tasdiqlash",
     "download": "Yuklab olish",
     "save": "Saqlash",
-    "current": "joriy"
+    "current": "joriy",
+    "edit": "Tahrirlash",
+    "delete": "O'chirish"
   },
   "bulkBar": {
     "selectedSuffix": "hujjat tanlandi",
@@ -256,5 +260,28 @@
     "save": "Saqlash",
     "saving": "Saqlanmoqda...",
     "created": "{{label}} versiyasi yaratildi"
+  },
+  "errors": {
+    "folderCreate": "Papka yaratishda xato yuz berdi",
+    "folderRename": "Papkani tahrirlashda xato yuz berdi",
+    "folderDelete": "Papkani o'chirishda xato yuz berdi",
+    "foldersLoad": "Papkalarni yuklashda xato yuz berdi",
+    "documentsLoad": "Hujjatlarni yuklashda xato yuz berdi",
+    "docDetailLoad": "Hujjatni yuklashda xato yuz berdi",
+    "relationAdd": "Bog'lanish qo'shishda xato yuz berdi",
+    "generic": "Xato yuz berdi",
+    "pdfOnly": "Faqat PDF fayl qabul qilinadi",
+    "docxOnly": "Faqat DOCX fayl qabul qilinadi",
+    "fileUpload": "Faylni yuklashda xato yuz berdi",
+    "docSave": "Hujjatni saqlashda xato yuz berdi",
+    "fileOpen": "Faylni ochishda xato yuz berdi",
+    "docDelete": "Hujjatni o'chirishda xato yuz berdi",
+    "bulkAction": "Amalni bajarishda xato yuz berdi",
+    "templateRequest": "Shablon so'rovida xato yuz berdi",
+    "versionFileUpload": "Fayl yuklashda xato yuz berdi",
+    "versionCreate": "Versiya yaratishda xato yuz berdi",
+    "logoUpload": "Logotipni yuklashda xato yuz berdi",
+    "calendarLoad": "Kalendar ma'lumotini yuklashda xato",
+    "graphLoad": "Grafni yuklashda xato"
   }
 }

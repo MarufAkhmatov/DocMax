@@ -71,7 +71,8 @@
     "tableTitle": "Documents",
     "treeFolders": "Folders",
     "savedFilters": "Saved filters",
-    "timelineUploadedAt": "upload date"
+    "timelineUploadedAt": "upload date",
+    "folderDeleteConfirm": "Delete folder \"{{name}}\"?"
   },
   "status": {
     "active": "Active",
@@ -168,6 +169,7 @@
     "fieldApprovedDate": "Approval date",
     "fieldDept": "Department",
     "fieldTags": "Tags",
+    "fieldTagsPlaceholder": "e.g. CBU, credit",
     "relationsOptional": "Relations (optional)",
     "addRelationBtn": "+ Add relation",
     "noFolderSelected": "Select a folder first",
@@ -208,7 +210,9 @@
     "confirm": "Confirm",
     "download": "Download",
     "save": "Save",
-    "current": "current"
+    "current": "current",
+    "edit": "Edit",
+    "delete": "Delete"
   },
   "bulkBar": {
     "selectedSuffix": "documents selected",
@@ -256,5 +260,28 @@
     "save": "Save",
     "saving": "Saving...",
     "created": "Version {{label}} created"
+  },
+  "errors": {
+    "folderCreate": "Something went wrong while creating the folder",
+    "folderRename": "Something went wrong while renaming the folder",
+    "folderDelete": "Something went wrong while deleting the folder",
+    "foldersLoad": "Something went wrong while loading folders",
+    "documentsLoad": "Something went wrong while loading documents",
+    "docDetailLoad": "Something went wrong while loading the document",
+    "relationAdd": "Something went wrong while adding the relation",
+    "generic": "Something went wrong",
+    "pdfOnly": "Only PDF files are accepted",
+    "docxOnly": "Only DOCX files are accepted",
+    "fileUpload": "Something went wrong while uploading the file",
+    "docSave": "Something went wrong while saving the document",
+    "fileOpen": "Something went wrong while opening the file",
+    "docDelete": "Something went wrong while deleting the document",
+    "bulkAction": "Something went wrong while performing the action",
+    "templateRequest": "Something went wrong while requesting the template",
+    "versionFileUpload": "Something went wrong while uploading the file",
+    "versionCreate": "Something went wrong while creating the version",
+    "logoUpload": "Something went wrong while uploading the logo",
+    "calendarLoad": "Something went wrong while loading calendar data",
+    "graphLoad": "Something went wrong while loading the graph"
   }
 }

@@ -77,7 +77,7 @@ export default function CalendarView({ theme, onOpenDocument }: {
         if (!cancelled) setDocs(res.items);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof ApiRequestError ? err.body.message : "Kalendar ma'lumotini yuklashda xato");
+        if (!cancelled) setError(err instanceof ApiRequestError ? err.body.message : t("errors.calendarLoad"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

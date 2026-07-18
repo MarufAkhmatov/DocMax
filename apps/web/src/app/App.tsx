@@ -250,6 +250,7 @@ function FolderTreeNode({
   toast: (msg: string) => void;
   lime: string; txt: string; txt2: string; txt3: string; panel: string; panelBorder: string; isDark: boolean;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<FolderNode[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -285,7 +286,7 @@ function FolderTreeNode({
       if (!expanded) setExpanded(true);
       loadChildren();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papka yaratishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderCreate"));
     } finally {
       setSaving(false);
     }
@@ -300,19 +301,19 @@ function FolderTreeNode({
       setEditOpen(false);
       onChanged();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papkani tahrirlashda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderRename"));
       setEditSaving(false);
     }
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(`"${folder.name}" papkasini o'chirasizmi?`)) return;
+    if (!window.confirm(t("vault.folderDeleteConfirm", { name: folder.name }))) return;
     try {
       await foldersApi.remove(folder.id);
       onChanged();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papkani o'chirishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderDelete"));
     }
   };
 
@@ -351,17 +352,17 @@ function FolderTreeNode({
         {showActions ? (
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <span onClick={(e) => { e.stopPropagation(); if (!expanded) { setExpanded(true); if (children === null) loadChildren(); } setCreateOpen((o) => !o); }}
-              title="+ Yangi papka"
+              title={t("vault.newFolder")}
               style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
               <Plus size={13} />
             </span>
             <span onClick={(e) => { e.stopPropagation(); setEditName(folder.name); setEditOpen(true); }}
-              title="Tahrirlash"
+              title={t("common.edit")}
               style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
               <Pencil size={12} />
             </span>
             <span onClick={handleDelete}
-              title="O'chirish"
+              title={t("common.delete")}
               style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: "#F07A6B" }}>
               <Trash2 size={12} />
             </span>
@@ -375,7 +376,7 @@ function FolderTreeNode({
         <div style={{ marginLeft: 20 + depth * 14, marginTop: 4, marginBottom: 4 }} onClick={(e) => e.stopPropagation()}>
           <input autoFocus value={createName} onChange={(e) => setCreateName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreateOpen(false); }}
-            placeholder="Papka nomi"
+            placeholder={t("vault.folderNamePlaceholder")}
             className="w-full outline-none rounded-lg text-[12px] font-semibold px-2.5 py-1.5"
             style={inputStyle} disabled={saving} />
         </div>
@@ -632,7 +633,7 @@ export default function App() {
       .then((data) => { if (!cancelled) setFolders(data); })
       .catch((err) => {
         if (!cancelled) {
-          setFoldersError(err instanceof ApiRequestError ? err.body.message : "Papkalarni yuklashda xato yuz berdi");
+          setFoldersError(err instanceof ApiRequestError ? err.body.message : t("errors.foldersLoad"));
         }
       })
       .finally(() => { if (!cancelled) setFoldersLoading(false); });
@@ -659,7 +660,7 @@ export default function App() {
       .then((res) => { if (!cancelled) { setDocuments(res.items); setDocumentsTotal(res.total); } })
       .catch((err) => {
         if (!cancelled) {
-          setDocumentsError(err instanceof ApiRequestError ? err.body.message : "Hujjatlarni yuklashda xato yuz berdi");
+          setDocumentsError(err instanceof ApiRequestError ? err.body.message : t("errors.documentsLoad"));
         }
       })
       .finally(() => { if (!cancelled) setDocumentsLoading(false); });
@@ -704,7 +705,7 @@ export default function App() {
       .then((data) => { if (!cancelled) setDocDetail(data); })
       .catch((err) => {
         if (!cancelled) {
-          setDocDetailError(err instanceof ApiRequestError ? err.body.message : "Hujjatni yuklashda xato yuz berdi");
+          setDocDetailError(err instanceof ApiRequestError ? err.body.message : t("errors.docDetailLoad"));
         }
       })
       .finally(() => { if (!cancelled) setDocDetailLoading(false); });
@@ -764,7 +765,7 @@ export default function App() {
       setFolderCreateName("");
       refetchFolders();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papka yaratishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderCreate"));
     } finally {
       setFolderCreateSaving(false);
     }
@@ -787,7 +788,7 @@ export default function App() {
       setSidebarCreateName("");
       refetchSidebarRoots();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papka yaratishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderCreate"));
     } finally {
       setSidebarCreateSaving(false);
     }
@@ -807,7 +808,7 @@ export default function App() {
       setRelationType("RELATED");
       refetchRelations();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Bog'lanish qo'shishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.relationAdd"));
     } finally {
       setRelationSaving(false);
     }
@@ -819,7 +820,7 @@ export default function App() {
       await relationsApi.remove(selectedDocId, relationId);
       refetchRelations();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     }
   }, [selectedDocId, refetchRelations, toast]);
 
@@ -854,7 +855,7 @@ export default function App() {
       ? "application/pdf"
       : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     if (file.type !== expectedMime) {
-      setWizError(kind === "pdf" ? "Faqat PDF fayl qabul qilinadi" : "Faqat DOCX fayl qabul qilinadi");
+      setWizError(kind === "pdf" ? t("errors.pdfOnly") : t("errors.docxOnly"));
       return;
     }
     const setUploading = kind === "pdf" ? setPdfUploading : setDocxUploading;
@@ -865,7 +866,7 @@ export default function App() {
       const result = await filesApi.upload(file);
       setUpload(result);
     } catch (err) {
-      setWizError(err instanceof ApiRequestError ? err.body.message : "Faylni yuklashda xato yuz berdi");
+      setWizError(err instanceof ApiRequestError ? err.body.message : t("errors.fileUpload"));
     } finally {
       setUploading(false);
     }
@@ -890,7 +891,7 @@ export default function App() {
       refetchDocuments();
       openDocument(created.id);
     } catch (err) {
-      setWizError(err instanceof ApiRequestError ? err.body.message : "Hujjatni saqlashda xato yuz berdi");
+      setWizError(err instanceof ApiRequestError ? err.body.message : t("errors.docSave"));
     } finally {
       setWizSaving(false);
     }
@@ -908,7 +909,7 @@ export default function App() {
       setDocDetail(updated);
       refetchDocuments();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     }
   }, [docDetail, refetchDocuments, toast]);
 
@@ -927,7 +928,7 @@ export default function App() {
       setStatusChangeNote("");
       setStatusChangeDate("");
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     } finally {
       setStatusChangeSaving(false);
     }
@@ -961,7 +962,7 @@ export default function App() {
       refetchDocuments();
       setDocEditOpen(false);
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Hujjatni saqlashda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.docSave"));
     } finally {
       setDocEditSaving(false);
     }
@@ -974,7 +975,7 @@ export default function App() {
       const { url } = await filesApi.downloadUrl(fileId, disposition);
       window.open(url, "_blank", "noopener");
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Faylni ochishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.fileOpen"));
     }
   }, [toast]);
 
@@ -1000,7 +1001,7 @@ export default function App() {
       refetchFolders();
       refetchSidebarRoots();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Hujjatni o'chirishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.docDelete"));
     }
   }, [t, toast, refetchDocuments, refetchFolders, refetchSidebarRoots]);
 
@@ -1014,7 +1015,7 @@ export default function App() {
       refetchFolders();
       refetchSidebarRoots();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Amalni bajarishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.bulkAction"));
     } finally {
       setBulkBusy(false);
     }
@@ -1139,7 +1140,7 @@ export default function App() {
       tplTimer.current = window.setTimeout(poll, 1200);
     } catch (err) {
       setTplState("failed");
-      toast(err instanceof ApiRequestError ? err.body.message : "Shablon so'rovida xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.templateRequest"));
     }
   }
 
@@ -1151,7 +1152,7 @@ export default function App() {
       else if (kind === "docx") setVerDocx(summary);
       else setVerDiff(summary);
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Fayl yuklashda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.versionFileUpload"));
     } finally {
       setVerUploading(null);
     }
@@ -1173,7 +1174,7 @@ export default function App() {
       closeVersionModal();
       toast(t("version.created", { label: updated.currentVersionLabel ?? "" }));
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Versiya yaratishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.versionCreate"));
     } finally {
       setVerSaving(false);
     }
@@ -1989,7 +1990,7 @@ export default function App() {
                   <div>
                     <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t("wizard.fieldTags")}</label>
                     <input value={docEditForm.tagsRaw} onChange={e => setDocEditForm(f => ({ ...f, tagsRaw: e.target.value }))}
-                      placeholder="CBU, Moliya, ..."
+                      placeholder={t("wizard.fieldTagsPlaceholder")}
                       className="w-full outline-none rounded-lg text-[13px] font-semibold px-3 py-2"
                       style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
                   </div>
@@ -2667,7 +2668,7 @@ export default function App() {
             <div>
               <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{t("wizard.fieldTags")}</label>
               <input value={docForm.tagsRaw} onChange={e => setDocForm(f => ({ ...f, tagsRaw: e.target.value }))}
-                placeholder="CBU, kredit" className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
+                placeholder={t("wizard.fieldTagsPlaceholder")} className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
                 style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />
             </div>
           </div>

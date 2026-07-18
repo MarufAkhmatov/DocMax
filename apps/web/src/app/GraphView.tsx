@@ -87,7 +87,7 @@ export default function GraphView({ theme, docTypes, onOpenDocument }: {
     graphApi
       .get({ status: statusFilter || undefined, docTypeId: typeFilter || undefined, includeIsolated: showIsolated })
       .then((res) => { if (!cancelled) setData(res); })
-      .catch((err) => { if (!cancelled) setError(err instanceof ApiRequestError ? err.body.message : "Grafni yuklashda xato"); })
+      .catch((err) => { if (!cancelled) setError(err instanceof ApiRequestError ? err.body.message : t("errors.graphLoad")); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [statusFilter, typeFilter, showIsolated]);

@@ -1,6 +1,6 @@
 # DocMax — Handoff
 
-*Oxirgi yangilanish: 2026-07-17 (milestone 6 bilan) · kanonik branch: **`claude/hand-off-task-c339c9`** (= eski `claude/vibrant-davinci-9d583f` + security audit + fayl-chip'lar)*
+*Oxirgi yangilanish: 2026-07-18 (Pre-M7 i18n tuzatish bilan) · kanonik branch: **`main`** (= `claude/hand-off-task-c339c9` + real ⌘K/bulk/graf + M7-M12 yo'l xaritasi; c339c9 endi orqada qolgan, kerak emas)*
 
 Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilingani va keyingi qadamlar shu yerda.
 
@@ -45,6 +45,17 @@ Batafsil tarix uchun: `git log --oneline` — har commit xabarida nima qilingani
 6. **Brendli fayl ikonkalari** — FAYLLAR ustunida matn o'rniga SVG fayl shakli (`FileTypeIcon`: PDF qizil, Word ko'k), hover amallari saqlangan.
 7. **Kartochka + Timeline** vault ko'rinishlari ishga tushirildi (avval faqat Jadval ishlar edi) — karta grid va oy bo'yicha guruhlangan xronologiya.
 8. **Kalendar** — yangi nav bandi (`CalendarView.tsx`): Oy/Hafta/Yil rejimlari, tasdiqlangan/yuklangan sana almashtirgichi, holat-rangli pill'lar (bosilsa hujjat ochiladi), bugungi kun halqasi, yil ko'rinishida 12 mini-oy. Backend: `listDocumentsQuerySchema`ga `dateField`/`from`/`to`. Eslatma: kalendar bitta so'rovda max 100 hujjat oladi (pagination cheklovi) — juda katta davrda kam ko'rsatishi mumkin.
+
+## 1.2. Shu sessiyada qilinganlar (2026-07-18) — Pre-M7 i18n tuzatish
+
+Foydalanuvchi so'rovi bilan: "frontga chiqadigan barcha tekstlar uz/ru/en'da lokalizatsiya qilinsin, ba'zi joylar (papka nomlari va h.k.) qolib ketayapti" — tekshirilib tuzatildi:
+
+- `apps/web/src/i18n/locales/{uz,ru,en}.json`ga yangi `errors.*` bo'limi (21 kalit) — `App.tsx`, `AdminPanel.tsx`, `CalendarView.tsx`, `GraphView.tsx` bo'ylab barcha runtime xato/toast xabarlari (avval hardcoded o'zbekcha, `t()`dan tashqarida) shu kalitlarga o'tkazildi.
+- `FolderTreeNode` komponenti (`App.tsx`) `useTranslation` hook'ini butunlay ishlatmas edi — endi qo'shildi; papka o'chirish tasdiq matni (`vault.folderDeleteConfirm`, interpolatsiya bilan), "+ Yangi papka"/"Tahrirlash"/"O'chirish" tooltip'lari (`common.edit`/`common.delete` yangi kalitlar), papka nomi placeholder — barchasi mavjud kalitlarga ulandi.
+- Teg input placeholder'lari (wizard + tahrirlash formasi) `wizard.fieldTagsPlaceholder`ga o'tkazildi.
+- **Ataylab tegilmagan**: Dashboard "Oxirgi faollik"/"E'tibor talab qiladi" va Monitoring sahifasidagi to'liq mock ma'lumotlar (masalan "CBU qarori № 145/2026", "482 hujjat") — bular M7 (real dashboard statistikasi) va M11 (real monitoring)da butunlay haqiqiy ma'lumot bilan almashtiriladi, hozir tarjima qilish bekor ish bo'lardi. "PDF"/"Word" tab yorliqlari ham (universal qisqartma, tarjima shart emas).
+- Uch tilda brauzerda sinaldi (locale-toggle orqali uz→ru→en aylanish): nav/vault/wizard chrome to'liq tarjima bo'ladi, konsolda xato yo'q.
+- **Yon topilma**: `pnpm --filter @docmax/web build` (production Rollup build) `packages/shared`dan `RELATION_TYPES` named export'ini topolmayapti — CJS `tsc` chiqishi (`__createBinding` interop)ni Rollup'ning statik export-aniqlashi yeta olmayapti. Bu **oldindan mavjud** muammo (import qatori `64ee6ba`da qo'shilgan, shu sessiyada tegilmagan) — loyiha hozirgacha faqat `pnpm dev` (Vite dev server) bilan ishlatilgan, `vite build` hech qachon sinalmagan. M10 (texnik qarz) doirasida hal qilinishi kerak — masalan `packages/shared`ni ESM'ga o'tkazish yoki tsconfig'da `module: "esnext"`.
 
 ## 2. Yo'l xaritasi (2026-07-17 auditi asosida)
 
