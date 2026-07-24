@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import type { PDFDocumentProxy } from "pdfjs-dist";
@@ -27,13 +26,11 @@ export default function PdfViewer({
   /** Yuklab olish taqiqlangan rejimida watermark kabi qatlamlar uchun (TZ-2 §2.5). */
   overlay?: React.ReactNode;
 }) {
-  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const docRef = useRef<PDFDocumentProxy | null>(null);
   const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [fallback, setFallback] = useState(false);
   const [numPages, setNumPages] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
@@ -43,7 +40,6 @@ export default function PdfViewer({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError(false);
     setFallback(false);
     setPageNumber(1);
     docRef.current?.destroy();
@@ -61,8 +57,11 @@ export default function PdfViewer({
         setLoading(false);
       })
       .catch(() => {
+        // pdf.js hujjatni yuklay olmasa ham (worker/render bilan bog'liq muhit-xos
+        // muammolar kuzatilgan) — foydalanuvchi xato xabari o'rniga brauzerning
+        // o'z PDF ko'rinishini ko'radi (pastdagi render-timeout fallback bilan bir xil falsafa).
         if (!cancelled) {
-          setError(true);
+          setFallback(true);
           setLoading(false);
         }
       });
@@ -121,14 +120,6 @@ export default function PdfViewer({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNumber, scale, loading, numPages]);
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center" style={{ height, color: txt3, fontSize: 12.5, fontWeight: 600 }}>
-        {t("errors.fileOpen")}
-      </div>
-    );
-  }
 
   if (fallback) {
     return (

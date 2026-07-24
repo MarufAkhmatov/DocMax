@@ -1,8 +1,6 @@
 # DocMax — Handoff
 
-*Oxirgi yangilanish: 2026-07-24 (M10 qisman — vite build tuzatildi + pdf.js) · kanonik branch: **`claude/handoff-ni-oqi-va-m9-e0ad4d`** (= `claude/handoff-update-f121b2`ning barcha commit'lari, ff-merge orqali + M9 + M10 qisman)*
-
-**MUHIM — Docker haqida hal qilinmagan savol:** foydalanuvchi "loyiha git repo'da HAM, lokal papkada HAM, docker'da HAM ishlayapti, bularni sinxron tutish kerak" dedi va "docker'ga o'tkazgandan keyin biror milestone ishlamay qoldi, uni ko'tar" so'radi. Butun `C:\Users\ASUS\Desktop\DocMax` daraxtida (barcha worktree'lar) **hech qanday Dockerfile yoki app-darajasidagi docker-compose topilmadi** — faqat infra uchun (`docker-compose.yml`: postgres/minio/redis/mailpit). Docker'da haqiqatan ishlab turgan `docmax-*` app konteyneri ham yo'q (`docker ps -a` tekshirilgan). Demak, foydalanuvchi aytgan "docker" repo tashqarisidagi biror joyda (boshqa mashina/serverda, yoki qo'lda alohida build qilingan) bo'lishi mumkin — **keyingi sessiya bu haqda foydalanuvchidan aniqlik so'rashi kerak** (Dockerfile'lar shu repo'da yaratilishi kerakmi, yoki allaqachon boshqa joyda bor-u shunchaki sinxronizatsiya/qayta build kerakmi).
+*Oxirgi yangilanish: 2026-07-24 (Docker deploy — api+worker+web konteynerlashtirildi, to'liq stack ishga tushirilib brauzerda tasdiqlandi) · kanonik branch: **`claude/handoff-ni-oqi-va-m9-e0ad4d`** (= `claude/handoff-update-f121b2`ning barcha commit'lari, ff-merge orqali + M9 + M10 qisman + Docker)*
 
 Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilingani va keyingi qadamlar shu yerda.
 
@@ -133,28 +131,61 @@ M10 ("Sifat/texnik qarz") 7 ta mustaqil bandga bo'lingan edi; foydalanuvchi shul
 
 **Qolgan M10 bandlar (hali tegilmagan, foydalanuvchi tanlamagan)**: apps/web eslint+vitest (hozir stub), versioning e2e testlari (TZ-0 §6: auth/permissions/versioning 100% test talabi — auth+permissions bor, versioning yo'q), documents/files/graph uchun kengroq e2e qamrov, router/URL holati (view+folder+hujjat URL'da aks etmaydi — faqat hujjat filtrlari URL'da saqlanadi), graf uchun podrazdeleniye rang rejimi (status/tur rejimi bor, uchinchi rejim kerak), `seed.ts` — hech bir hujjatga versiya yaratmaydi (TZ-1 DoD: "1 hujjatga 3 versiya" ssenariysi hali seed orqali avtomatik emas).
 
+## 1.7. Shu sessiyada qilinganlar (2026-07-24) — Docker deploy (api+worker+web)
+
+Foydalanuvchi so'rovi: loyiha git repo/lokal/docker uchtasida ham sinxron yurishi kerak, "docker'ga o'tkazgandan keyin qaysi milestone ishlamay qoldi — tekshir va tuzat". Tekshiruv natijasi: repoda **hech qanday app-darajasidagi Dockerfile yo'q edi** (faqat infra uchun `docker-compose.yml`: postgres/minio/redis/mailpit) — demak "docker'ga o'tkazish" hali umuman qilinmagan edi. AskUserQuestion orqali aniqlashtirilib, foydalanuvchi **"Dockerfile'larni hozir yarat"** variantini tanladi — shu sessiyada noldan qurildi.
+
+**Yaratilgan fayllar:**
+- `apps/api/Dockerfile`, `apps/worker/Dockerfile`, `apps/web/Dockerfile` (+ `apps/web/nginx.conf`) — barchasi `node:22-alpine` (pnpm@11.11.0 Node ≥22.13 talab qiladi — `node:20-alpine` bilan sinab ko'rilganda `ERR_UNKNOWN_BUILTIN_MODULE: node:sqlite` xatosi berdi). Multi-stage: `base`(pnpm o'rnatish) → `build`(`pnpm install --frozen-lockfile` + tegishli filter'lar bilan build) → `runtime`. `api`ning CMD'i konteyner ichida `prisma migrate deploy` qilib keyin serverni ishga tushiradi (avtomatik migratsiya). `web` — Vite build'ni `nginx:alpine`ga ko'chiradi.
+- `.dockerignore` (repo ildizida) — `node_modules`/`.git`/`dist` va h.k.
+- `docker-compose.yml` — mavjud 4 infra xizmatidan keyin **`api`/`worker`/`web`** qo'shildi (`depends_on: condition: service_healthy` zanjiri bilan). App xizmatlari ichki tarmoqda bir-biriga **Docker service nomlari** orqali ulanadi (`postgres`/`redis`/`minio`/`mailpit`), `localhost` orqali EMAS.
+
+**Docker'ga o'tkazishda topilgan va tuzatilgan 2 ta HAQIQIY bug** (`pnpm dev` bilan lokal ishlaganda hech qachon ko'rinmagan, faqat konteynerlashtirilgan tarmoq orqali chiqadi):
+
+1. **Presigned URL — brauzer "minio" xost nomini yecha olmaydi.** `StorageService` presigned URL'larni `S3_ENDPOINT` (`http://minio:9000`, konteyner-ichi DNS nomi) bilan generatsiya qilardi — API ichida ishlaydi, lekin brauzerga qaytarilgan URL sifatida butunlay yaroqsiz. Tuzatish: `apps/api/src/storage/storage.service.ts`ga ikkinchi `publicClient` qo'shildi (faqat imzolash uchun, tarmoq so'rovi qilmaydi) — yangi `S3_PUBLIC_ENDPOINT` env orqali (`docker-compose.yml`da `api` xizmatiga `${S3_PUBLIC_ENDPOINT:-http://localhost:9000}` beriladi). `getPresignedUploadUrl`/`getPresignedDownloadUrl` endi shu client bilan imzolaydi. Lokal (docker'siz) devda `S3_PUBLIC_ENDPOINT` berilmasa `S3_ENDPOINT` bilan bir xil bo'lib qoladi — orqaga mos.
+2. **nginx `.mjs` uchun noto'g'ri Content-Type.** nginx standart `mime.types`ida `.mjs` yo'q → `application/octet-stream` bo'lib beriladi → pdf.js'ning `new Worker(url, {type:"module"})` (M10'da qo'shilgan) buni rad etadi ("Setting up fake worker" ogohlantirishi bilan sekin/soxta ishlash rejimiga tushadi). Tuzatish: `apps/web/nginx.conf`ga **faqat shu kengaytmaga cheklangan** `location ~* \.mjs$ { default_type application/javascript; }` bloki (butun `types{}` jadvalini almashtiradigan variant ATAYLAB ishlatilmadi — aks holda css/js/font'lar sitewide buzilardi).
+
+**pdf.js — qo'shimcha topilma (Docker orqali chiqqan, lekin Docker'ga xos emas):** MIME tuzatilgandan keyin ham `pdfjsLib.getDocument(url).promise` konteynerlashtirilgan/production build muhitida rad etilgan holat kuzatildi (M10'da avval topilgan `page.render()` osilib qolish muammosidan FARQLI — bu holatda hujjat yuklashning o'zi muvaffaqiyatsiz tugaydi). Ikkalasi ham "avtomatlashtirilgan/notinch muhitga xos pdf.js muammosi" degan gipotezani mustahkamlaydi. Himoya choralari kuchaytirildi: `apps/web/src/app/PdfViewer.tsx`dagi `.catch()` endi xato xabari ko'rsatish o'rniga to'g'ridan-to'g'ri `fallback`(native `<iframe>`) holatiga o'tadi — 8 soniyalik render-timeout fallback bilan bir xil falsafa, foydalanuvchi hech qachon o'lik-oxirli xato ko'rmaydi.
+  - **Brauzerda to'liq tasdiqlandi** (`docmax-web` konteyneri, real production build orqali `http://localhost:3000`): hujjatga kirilganda PDF **to'g'ri presigned MinIO URL** (`http://localhost:9000/...`, imzoli) bilan `<iframe>` fallback'ga tushib toza render qildi — konsolda xato yo'q, tarmoq so'rovi 200 OK.
+
+**Ishga tushirish** (yangi, infra+app hammasi bitta buyruqda):
+```bash
+docker compose -p docmax up -d --build
+```
+**MUHIM — har doim `-p docmax` bilan ishlatilsin.** Compose loyiha nomi standart holda joriy papka nomidan olinadi (masalan worktree papkasi `vibrant-davinci-9d583f` bo'lsa, konteyner nomlari `docmax-postgres` kabi qattiq yozilgan bo'lsa ham, compose loyiha darajasida boshqa nom bilan yangi (bo'sh) resurslar yaratishga urinadi va mavjud `docmax-*` konteynerlar bilan nom to'qnashuvi beradi: "Conflict: container name already in use"). `-p docmax` doim mavjud named volume'lar (`docmax_postgres-data` va h.k.)ni qayta ishlatishini ta'minlaydi — **ma'lumot yo'qolmaydi**, tasdiqlangan (rebuild oldidan/keyin DB ichidagi qatorlar soni solishtirildi).
+
+Web `:3000` (nginx, production build) · API `:3001` · Postgres `:5433` · MinIO `:9000`/`:9001` · Mailpit `:8025` — barchasi bitta `docmax` tarmog'ida.
+
+**Docker vs `pnpm dev` — ikkalasi ham qo'llab-quvvatlanadi:** kundalik ishlab chiqish uchun hamon `pnpm dev` (HANDOFF §3) tavsiya etiladi (tezroq HMR). Docker — production-o'xshash tekshiruv/deploy uchun. **Ikkalasini bir vaqtda 3000-portda ishlatmang** — agar `pnpm --filter @docmax/web dev` ALLAQACHON 3000-portda ishlab tursa-yu, Docker `web` konteyneri ham shu portga bog'lansa, Windows/Docker Desktop (WSL2) ikkalasini alohida IP oilasida (IPv4 `0.0.0.0` docker uchun, IPv6 `[::1]` lokal dev uchun) qabul qilib ketishi mumkin — `http://localhost:3000` qaysi biriga borishi DNS/browser xatti-harakatiga bog'liq bo'lib qoladi, tekshirish paytida adashtirib yuboradi (shu sessiyada aynan shu holat yuz berdi: brauzer eski Vite dev-server ulanishini ko'rsatib turdi, Docker build tekshirilyapti deb o'ylangan). Ikkalovidan qaysi biriga ulanayotganingizni aniqlash uchun: `document.scripts[0].src` — agar `/assets/index-XXXX.js` bo'lsa Docker (build), agar `/src/...` yoki `@vite/client` ko'rinsa — lokal dev server.
+
 ## 2. Yo'l xaritasi (2026-07-17 auditi asosida)
 
-**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 to'liq: §2.1 Relations, §2.2 Workflow canvas, §2.3 Graf, §2.4 Struktura (M9), §2.5 Papka ACL (M9), §2.6 ⌘K nom/raqam qidiruv, §2.7 Boshqaruv yakuni · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n (to'liq) · security hardening · **`vite build` production tuzatildi + pdf.js (M10 qisman)**.
+**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 to'liq: §2.1 Relations, §2.2 Workflow canvas, §2.3 Graf, §2.4 Struktura (M9), §2.5 Papka ACL (M9), §2.6 ⌘K nom/raqam qidiruv, §2.7 Boshqaruv yakuni · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n (to'liq) · security hardening · **`vite build` production tuzatildi + pdf.js (M10 qisman)** · **Docker deploy (api+worker+web, §1.7)**.
 
 **Keyingi milestonelar (tavsiya tartibi):**
 
 - **M10 qoldig'i — Sifat/texnik qarz (TZ-0 §6 talabi)**: apps/web eslint+vitest (hozir stub), versioning e2e testlari (TZ-0 §6 aniq talabi), documents/files/graph uchun kengroq e2e, TZ-1 DoD checklist yugurtirish (`seed.ts`ga versiya fixture'lari kerak), router/URL holati (view+folder), graf uchun podrazdeleniye rang rejimi.
 - **M11 — TZ-3 Monitoring**: scraper (lex.uz/cbu.uz, cron 2 soat) → external_acts + /monitoring real sahifa → xabarnomalar (in-app/Telegram/email) → embedding (multilingual-e5, LLM'siz) → semantik solishtirish/qidiruv → LLM toggle (default OFF). O'z ichida 3–4 kichik bosqich.
 - **M12 — TZ-4 SaaS**: ochiq /register + trial, tariflar/limitlar, 2FA, ClamAV, API tokenlar, eksport/import/backup, CI/CD + monitoring infra.
-- **Docker/deploy** — yuqoridagi "MUHIM — Docker haqida hal qilinmagan savol"ni foydalanuvchi bilan aniqlashtirish, kerak bo'lsa `apps/api`/`apps/web` uchun Dockerfile yaratish (hozircha repo'da yo'q).
 
 **Mayda qoldiqlar (istalgan payt):** ⌘K'da klaviatura navigatsiyasi (↑↓/↵ hozir faqat hint), bulk uchun server ZIP, kalendarda 100+ hujjat sahifalash, ACL — bir nechta papka bitta org-unit'ga mapping bo'lganda remap-preview faqat "birinchi yaratilgan" papkani vakil sifatida oladi (kam uchraydigan holat, kodda izohlangan).
 
 ## 3. Ishga tushirish
 
+**A) Lokal dev (tavsiya, kundalik ish uchun — tezroq HMR):**
 ```bash
-docker compose up -d                                       # postgres(5433)/minio/redis/mailpit
+docker compose -p docmax up -d postgres minio redis mailpit   # faqat infra
 pnpm install && pnpm db:generate
 pnpm db:deploy && pnpm db:seed                             # birinchi marta yoki baza yangilanganda
 pnpm exec turbo run dev --filter=@docmax/api --filter=@docmax/worker   # backend (bitta terminal)
 pnpm --filter @docmax/web dev                              # web :3000 (yoki Claude Preview "web")
 ```
+
+**B) To'liq Docker (production-o'xshash, §1.7):**
+```bash
+docker compose -p docmax up -d --build   # infra + api + worker + web, hammasi konteynerda
+```
+Ikkalasini bir vaqtda 3000-portda ishlatmang (§1.7 oxiridagi eslatmaga qarang).
 
 | Rol | Email | Parol |
 |---|---|---|
@@ -180,6 +211,8 @@ Web `:3000` · API `:3001/api/v1` · MinIO konsol `:9001` (docmax/docmax-secret)
 - **Prisma tenant-client extension `createMany`/`create`da ham `orgId`ni qo'lda talab qiladi** (runtime'da extension qayta yozadi, lekin Prisma generatsiya qilingan tipi buni bilmaydi) — naqsh: `NotificationsService.notifyUsers`/`FolderPermissionsService.set` kabi joylarga qarang.
 - **Yangi Prisma modelida polimorfik `subjectId`/`entityId` kabi maydon bo'lsa — DIQQAT: `@db.Uuid` cheklovini oldindan tekshiring** (M9'da `Permission.subjectId` ROLE uchun "EDITOR" kabi enum qiymat saqlashi kerak edi, lekin `@db.Uuid` edi — jadval bo'sh bo'lgani uchun oson tuzatildi, lekin productionda data bo'lsa qiyin bo'lardi).
 - Preview serverlar uzoq sessiyada o'z-o'zidan to'xtab qolishi mumkin — `preview_start` bilan qayta ko'tarish kifoya.
+- **`docker compose` har doim `-p docmax` bilan ishlatilsin** (worktree papka nomidan avtomatik olinadigan standart loyiha nomi bilan EMAS) — aks holda mavjud `docmax-postgres` va h.k. konteynerlar bilan nom to'qnashuvi ("Conflict: container name already in use"). Tafsilot §1.7da.
+- **`localhost:3000`ga bir vaqtda ham Docker `web` konteyneri, ham `pnpm --filter @docmax/web dev` ulanmasin** — ikkalasi ham shu portni turli IP oilalarida (IPv4/IPv6) egallab, brauzer qaysi biriga ulanayotgani noaniq bo'lib qoladi (§1.7 oxiri). Qaysi biriga ulanganini `document.scripts[0].src` bilan tekshiring: `/assets/index-*.js` = Docker build, `/src/...` yoki `@vite/client` = lokal dev.
 
 ## 5. Fayl xaritasi (qisqa)
 
@@ -195,4 +228,5 @@ apps/api/src/{auth,folders(+folder-access,folder-permissions),files,documents,do
 apps/worker/src/{file-index,queue,prisma,storage}/
 packages/db/prisma/           ← schema + 10 migratsiya + seed (document_types bilan mos)
 packages/shared/src/          ← barcha zod sxemalar/DTO (front+back bitta manba) — org-units.ts, permissions.ts (M9)
+apps/{api,worker,web}/Dockerfile, apps/web/nginx.conf, docker-compose.yml, .dockerignore  ← Docker deploy (§1.7)
 ```

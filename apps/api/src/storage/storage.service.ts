@@ -32,19 +32,29 @@ const EXT_BY_MIME: Record<string, string> = {
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private readonly client: S3Client;
+  /** Presigned URL generatsiyasi uchun alohida client — hech qanday tarmoq so'rovi
+   * qilmaydi (imzo mahalliy hisoblanadi), shuning uchun endpoint faqat URL matnida
+   * ko'rinadi. Docker'da `S3_ENDPOINT` konteyner ichi xost nomi (masalan `http://minio:9000`)
+   * bo'lishi mumkin — brauzer buni yecha olmaydi; shu holatda `S3_PUBLIC_ENDPOINT`
+   * (brauzer ko'radigan manzil, masalan `http://localhost:9000`) ishlatiladi. Lokal
+   * (docker'siz) devda ikkalasi bir xil, shuning uchun `S3_PUBLIC_ENDPOINT` ixtiyoriy. */
+  private readonly publicClient: S3Client;
   private readonly bucket: string;
 
   constructor(config: ConfigService) {
     this.bucket = config.getOrThrow<string>('S3_BUCKET');
-    this.client = new S3Client({
-      endpoint: config.getOrThrow<string>('S3_ENDPOINT'),
-      region: config.get<string>('S3_REGION', 'us-east-1'),
-      forcePathStyle: true,
-      credentials: {
-        accessKeyId: config.getOrThrow<string>('S3_ACCESS_KEY'),
-        secretAccessKey: config.getOrThrow<string>('S3_SECRET_KEY'),
-      },
-    });
+    const endpoint = config.getOrThrow<string>('S3_ENDPOINT');
+    const region = config.get<string>('S3_REGION', 'us-east-1');
+    const credentials = {
+      accessKeyId: config.getOrThrow<string>('S3_ACCESS_KEY'),
+      secretAccessKey: config.getOrThrow<string>('S3_SECRET_KEY'),
+    };
+    this.client = new S3Client({ endpoint, region, forcePathStyle: true, credentials });
+    const publicEndpoint = config.get<string>('S3_PUBLIC_ENDPOINT', endpoint);
+    this.publicClient =
+      publicEndpoint === endpoint
+        ? this.client
+        : new S3Client({ endpoint: publicEndpoint, region, forcePathStyle: true, credentials });
   }
 
   /** Lokal/self-hosted MinIO'da bucket oldindan mavjud bo'lmasligi mumkin — idempotent yaratish. */
@@ -68,7 +78,7 @@ export class StorageService implements OnModuleInit {
 
   getPresignedUploadUrl(objectKey: string, mime: string, expiresIn = 600): Promise<string> {
     const command = new PutObjectCommand({ Bucket: this.bucket, Key: objectKey, ContentType: mime });
-    return getSignedUrl(this.client, command, { expiresIn });
+    return getSignedUrl(this.publicClient, command, { expiresIn });
   }
 
   getPresignedDownloadUrl(
@@ -84,7 +94,7 @@ export class StorageService implements OnModuleInit {
       Key: objectKey,
       ResponseContentDisposition: disposition,
     });
-    return getSignedUrl(this.client, command, { expiresIn });
+    return getSignedUrl(this.publicClient, command, { expiresIn });
   }
 
   /** confirm bosqichida haqiqatan yuklanganini tekshirish uchun — topilmasa null. */
