@@ -17,6 +17,7 @@ import Login from "./Login";
 import AdminPanel from "./AdminPanel";
 import CalendarView from "./CalendarView";
 import GraphView from "./GraphView";
+import PdfViewer from "./PdfViewer";
 import StructureView from "./StructureView";
 import WorkflowView from "./WorkflowView";
 
@@ -2358,11 +2359,12 @@ export default function App() {
             })}
           </div>
 
-          {/* PDF preview — brauzer native PDF renderi orqali */}
+          {/* PDF preview — pdf.js orqali (sahifama-sahifa + zoom) */}
           {docTab === "pdf" && currentVersion && (
-            <div className="relative mx-6 my-5 rounded-xl overflow-hidden" style={{ height: 600, border: `1px solid ${panelBorder}` }}>
-              <iframe src={currentVersion.pdf.downloadUrl} title="PDF" style={{ width: "100%", height: "100%", border: "none" }} />
-              {downloadBlocked && user?.email && <WatermarkOverlay email={user.email} />}
+            <div className="mx-6 my-5">
+              <PdfViewer url={currentVersion.pdf.downloadUrl} height={600}
+                panel={panel} panelBorder={panelBorder} txt={txt} txt2={txt2} txt3={txt3} isDark={isDark}
+                overlay={downloadBlocked && user?.email ? <WatermarkOverlay email={user.email} /> : undefined} />
             </div>
           )}
 

@@ -1,6 +1,8 @@
 # DocMax — Handoff
 
-*Oxirgi yangilanish: 2026-07-18 (M9 — Struktura + ACL bilan) · kanonik branch: **`claude/handoff-ni-oqi-va-m9-e0ad4d`** (= `claude/handoff-update-f121b2`ning barcha commit'lari, ff-merge orqali + shu sessiyaning M9 commit'i)*
+*Oxirgi yangilanish: 2026-07-24 (M10 qisman — vite build tuzatildi + pdf.js) · kanonik branch: **`claude/handoff-ni-oqi-va-m9-e0ad4d`** (= `claude/handoff-update-f121b2`ning barcha commit'lari, ff-merge orqali + M9 + M10 qisman)*
+
+**MUHIM — Docker haqida hal qilinmagan savol:** foydalanuvchi "loyiha git repo'da HAM, lokal papkada HAM, docker'da HAM ishlayapti, bularni sinxron tutish kerak" dedi va "docker'ga o'tkazgandan keyin biror milestone ishlamay qoldi, uni ko'tar" so'radi. Butun `C:\Users\ASUS\Desktop\DocMax` daraxtida (barcha worktree'lar) **hech qanday Dockerfile yoki app-darajasidagi docker-compose topilmadi** — faqat infra uchun (`docker-compose.yml`: postgres/minio/redis/mailpit). Docker'da haqiqatan ishlab turgan `docmax-*` app konteyneri ham yo'q (`docker ps -a` tekshirilgan). Demak, foydalanuvchi aytgan "docker" repo tashqarisidagi biror joyda (boshqa mashina/serverda, yoki qo'lda alohida build qilingan) bo'lishi mumkin — **keyingi sessiya bu haqda foydalanuvchidan aniqlik so'rashi kerak** (Dockerfile'lar shu repo'da yaratilishi kerakmi, yoki allaqachon boshqa joyda bor-u shunchaki sinxronizatsiya/qayta build kerakmi).
 
 Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilingani va keyingi qadamlar shu yerda.
 
@@ -113,15 +115,34 @@ Frontend:
 
 **Eslatma keyingi sessiyaga**: `computer` action `key: "Return"` inputlarda ba'zan yetib bormaydi (Enter bosilgan hodisa React'ga tarqalmaydi) — `javascript_tool` bilan `dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', bubbles:true}))` ishonchli muqobil. `computer` action `screenshot` bu sessiyada barqaror timeout berdi — vizual tekshiruv kerak bo'lsa avval qisqa `zoom` bilan sinab ko'ring yoki matn-asosidagi tekshiruvga tayaning.
 
+## 1.6. Shu sessiyada qilinganlar (2026-07-24) — M10 qisman: vite build tuzatildi + pdf.js
+
+M10 ("Sifat/texnik qarz") 7 ta mustaqil bandga bo'lingan edi; foydalanuvchi shulardan ikkitasini tanladi — **`vite build` tuzatish** va **pdf.js integratsiyasi**. Qolgan 5 band (pastda) hali tegilmagan.
+
+**1) `vite build` production'da singan edi — tuzatildi.** Ildiz sabab avvalgi sessiyalarda o'ylanganidan kengroq ekan: yolg'iz `RELATION_TYPES` emas — `packages/shared`ning BUTUN CJS chiqishi (`export * from './x'` orqali `__exportStar` bilan) Rollup uchun statik ko'rinmaydi, shuning uchun QAYSI nomlangan export birinchi ishlatilsa o'shanda xato beradi (`AUDIT_ACTIONS`, keyin `RELATION_TYPES`, va h.k. — istalgan kelgusi export ham xuddi shunday sinadi). Yechim: `packages/shared` endi **ikkita chiqish** beradi —
+  - `tsconfig.build.json` → `dist/` (CJS, `module:"commonjs"` — apps/api/worker `require()` bilan ishlatadi, o'zgarmagan)
+  - **yangi** `tsconfig.esm.json` → `dist/esm/` (haqiqiy ESM, `module:"ES2022"`, `moduleResolution:"bundler"`) — Rollup/Vite buni statik tahlil qila oladi
+  - `package.json`: `"module"` maydoni + `"exports"."."`ga `"import"`/`"require"` shartlari qo'shildi (avval faqat `"default"` bor edi — ikkalasi ham bitta CJS faylga ishora qilardi, shu Rollup'ni chalkashtirgan asosiy sabab).
+  - `pnpm --filter @docmax/web build` endi **muvaffaqiyatli** (tekshirildi: `vite preview` bilan ishga tushirib, login sahifasi konsolda xatosiz yuklandi).
+  - apps/api/apps/worker `nest build` ham sinaldi — CJS chiqish o'zgarmagani uchun regressiyasiz.
+
+**2) pdf.js integratsiyasi** — yangi `apps/web/src/app/PdfViewer.tsx`: sahifama-sahifa navigatsiya (◀/▶ + N/M ko'rsatkich) + zoom (60%–240%), `pdfjs-dist@4` bilan. DocDetail'dagi eski oddiy `<iframe>` shu component bilan almashtirildi (watermark `overlay` prop orqali saqlanadi — TZ-2 §2.5 bilan bir xil ishlaydi).
+  - **MUHIM topilma**: MinIO presigned URL'lar CORS'ni **avtomatik** qo'llab-quvvatlaydi (so'rovchi Origin'ni qaytarib beradi) — pdf.js'ning `fetch`/Range so'rovlari uchun qo'shimcha CORS sozlash SHART emas edi (dev muhitida tasdiqlangan; productionda boshqa S3-mos backend ishlatilsa buni qayta tekshirish kerak).
+  - **MUHIM xavfsizlik to'ri qo'shildi**: shu sessiyaning avtomatlashtirilgan brauzer muhitida `page.render()` **hech qachon tugamasligi** kuzatildi (hujjat yuklash/sahifa metadata/oddiy Canvas2D chizish — bularning barchasi ishladi, faqat pdf.js'ning ichki render pipeline'i osilib qoldi; hatto qo'lda yasalgan minimal "Hello PDF" bilan ham, ham worker bilan, ham `disableWorker:true` bilan — demak PDF mazmuniga bog'liq emas, balki shu avtomatlashtirilgan brauzer nusxasining pdf.js render bosqichi bilan moslashmasligi ehtimoli katta). Sababi noaniq qolgani uchun **`PdfViewer` endi 8 soniyalik render-timeout'ga ega**: agar `page.render()` shu muddatda tugallanmasa, komponent avtomatik ravishda brauzerning o'z native PDF ko'rinishiga (oddiy `<iframe>`, eski yagona yondashuv) tushadi — foydalanuvchi hech qachon cheksiz spinner ko'rmaydi. Bu fallback shu sessiyada haqiqatan ishga tushib, to'g'ri ishlashi tasdiqlandi.
+  - Haqiqiy Chrome/Firefox'da (bu avtomatlashtirilgan muhitdan tashqarida) pdf.js render qanday ishlashini **keyingi sessiya odatiy brauzerda qo'lda tekshirishi tavsiya etiladi** — agar u yerda ham osilsa, muammo koddan emas (standart pdf.js API namunasiga mos yozilgan), balki boshqa sabab (masalan pdfjs-dist versiyasi/GPU) qidirilishi kerak.
+
+**Qolgan M10 bandlar (hali tegilmagan, foydalanuvchi tanlamagan)**: apps/web eslint+vitest (hozir stub), versioning e2e testlari (TZ-0 §6: auth/permissions/versioning 100% test talabi — auth+permissions bor, versioning yo'q), documents/files/graph uchun kengroq e2e qamrov, router/URL holati (view+folder+hujjat URL'da aks etmaydi — faqat hujjat filtrlari URL'da saqlanadi), graf uchun podrazdeleniye rang rejimi (status/tur rejimi bor, uchinchi rejim kerak), `seed.ts` — hech bir hujjatga versiya yaratmaydi (TZ-1 DoD: "1 hujjatga 3 versiya" ssenariysi hali seed orqali avtomatik emas).
+
 ## 2. Yo'l xaritasi (2026-07-17 auditi asosida)
 
-**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 to'liq: §2.1 Relations, §2.2 Workflow canvas, §2.3 Graf, §2.4 Struktura (M9), §2.5 Papka ACL (M9), §2.6 ⌘K nom/raqam qidiruv, §2.7 Boshqaruv yakuni · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n (to'liq) · security hardening.
+**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 to'liq: §2.1 Relations, §2.2 Workflow canvas, §2.3 Graf, §2.4 Struktura (M9), §2.5 Papka ACL (M9), §2.6 ⌘K nom/raqam qidiruv, §2.7 Boshqaruv yakuni · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n (to'liq) · security hardening · **`vite build` production tuzatildi + pdf.js (M10 qisman)**.
 
 **Keyingi milestonelar (tavsiya tartibi):**
 
-- **M10 — Sifat/texnik qarz (TZ-0 §6 talabi)**: apps/web eslint+vitest (hozir stub), documents/files/versions/graph e2e testlari (TZ: versioning 100% test), TZ-1 DoD checklist yugurtirish, pdf.js integratsiyasi (hozir iframe), router/URL holati (view+folder), graf uchun podrazdeleniye rang rejimi, **`vite build` production'da singan** (`RELATION_TYPES` named export Rollup'da topilmaydi — §1.2'da batafsil, hali tegilmagan).
+- **M10 qoldig'i — Sifat/texnik qarz (TZ-0 §6 talabi)**: apps/web eslint+vitest (hozir stub), versioning e2e testlari (TZ-0 §6 aniq talabi), documents/files/graph uchun kengroq e2e, TZ-1 DoD checklist yugurtirish (`seed.ts`ga versiya fixture'lari kerak), router/URL holati (view+folder), graf uchun podrazdeleniye rang rejimi.
 - **M11 — TZ-3 Monitoring**: scraper (lex.uz/cbu.uz, cron 2 soat) → external_acts + /monitoring real sahifa → xabarnomalar (in-app/Telegram/email) → embedding (multilingual-e5, LLM'siz) → semantik solishtirish/qidiruv → LLM toggle (default OFF). O'z ichida 3–4 kichik bosqich.
 - **M12 — TZ-4 SaaS**: ochiq /register + trial, tariflar/limitlar, 2FA, ClamAV, API tokenlar, eksport/import/backup, CI/CD + monitoring infra.
+- **Docker/deploy** — yuqoridagi "MUHIM — Docker haqida hal qilinmagan savol"ni foydalanuvchi bilan aniqlashtirish, kerak bo'lsa `apps/api`/`apps/web` uchun Dockerfile yaratish (hozircha repo'da yo'q).
 
 **Mayda qoldiqlar (istalgan payt):** ⌘K'da klaviatura navigatsiyasi (↑↓/↵ hozir faqat hint), bulk uchun server ZIP, kalendarda 100+ hujjat sahifalash, ACL — bir nechta papka bitta org-unit'ga mapping bo'lganda remap-preview faqat "birinchi yaratilgan" papkani vakil sifatida oladi (kam uchraydigan holat, kodda izohlangan).
 
