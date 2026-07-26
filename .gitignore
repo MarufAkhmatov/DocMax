@@ -22,6 +22,9 @@ pnpm-debug.log*
 Thumbs.db
 .DS_Store
 
+# desktop launcher runtime state
+.devstack.pid
+
 # IDE
 .idea/
 .vscode/
