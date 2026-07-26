@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DocMax &mdash; papka kartochkasi (referens klon)</title>
+<!--
+  ============================================================================
+  PAPKA KARTOCHKASI &mdash; vizual referens
+  ----------------------------------------------------------------------------
+  Manba referens: Pinterest / nouf W
+    https://fr.pinterest.com/pin/150237337564659254/
+  Referens rasm piksel darajasida o'lchanib, quyidagi qiymatlar chiqarildi.
+  Barcha shakl CSS/SVG da qo'lda qurilgan; referens rasmning o'zi bu yerda yo'q.
+
+  BAZA KOORDINATA TIZIMI (SVG viewBox: 523 x 475)
+    korpus (front pocket) : x 0..523, y 37..475, rx 48        (rx = 9,2% kenglik)
+    til (tab)             : y 0..37, chapda; o'ng qirrasi kubik-Bezier bilan
+                            korpusning yuqori qirrasiga x=201 da qo'shiladi
+    tab burchak radiusi   : 41 (yuqori-chap)
+    korpus gradienti      : tik (180deg)
+                            0.0%  #adafff   <- 2 px yorug' qirra
+                            1.4%  #8180f5
+                            100%  #2221ec
+    orqa panel / til rangi: #6161f3 -> #4342e6  (korpusdan quyuqroq)
+
+  MATN VA IKONKALAR (bir xil koordinata tizimida)
+    "Projects"  : monoshirina, 25 px, chapdan 42, cap-top 79
+    "58 notes"  : monoshirina, 18.5 px, rgba(255,255,255,.60), top 114
+    ikonkalar   : 27x27, oq kontur, fonsiz; o'ngdan 38, orasi 17, top 76
+
+  OCHIQ HOLAT (blanka chiqib turgani)
+    orqa panel  : to'liq 0..523 / 37..475
+    blanka      : chetlardan 32, top 70, faqat yuqori burchaklari yumaloq (22);
+                  pastki qismi old panel ortiga o'tib ketadi
+    old panel   : yon tomondan 15 ichkariga surilgan, top 140 (ya'ni +103)
+
+  O'lchamni o'zgartirish: .pf ustida --fw ni bering, qolgani nisbatda ketadi.
+  ============================================================================
+-->
+<style>
+  :root{ --page:#f6f6f8; --ink:#16171c; --muted:#6d7280; --line:#e3e4ea; }
+  @media (prefers-color-scheme: dark){
+    :root{ --page:#0e1014; --ink:#eceef4; --muted:#8b90a0; --line:#242832; }
+  }
+  :root[data-theme="dark"]{ --page:#0e1014; --ink:#eceef4; --muted:#8b90a0; --line:#242832; }
+  :root[data-theme="light"]{ --page:#f6f6f8; --ink:#16171c; --muted:#6d7280; --line:#e3e4ea; }
+
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--page); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif; }
+  .wrap{ max-width:1120px; margin:0 auto; padding:36px 20px 80px; }
+  h1{ font-size:clamp(20px,3vw,26px); margin:0 0 6px; letter-spacing:-.02em; }
+  .lede{ color:var(--muted); font-size:14px; line-height:1.55; max-width:620px; margin:0 0 28px; }
+  .lede a{ color:inherit; }
+
+  .stage{ border-radius:16px; overflow:auto; border:1px solid var(--line);
+    background:#efefef;
+    background-image:repeating-linear-gradient(45deg, rgba(0,0,0,.022) 0 1px, rgba(0,0,0,0) 1px 26px); }
+  .stage-inner{ display:flex; align-items:flex-start; justify-content:center; gap:56px;
+    padding:64px 40px; min-width:max-content; }
+
+  .caption{ color:var(--muted); font-size:12.5px; line-height:1.6; margin:14px 0 0; }
+  .caption code{ font-size:12px; }
+
+  /* ======================================================================
+     .pf &mdash; papka kartochkasi
+     Uch qatlam: orqa panel + til | blanka | old cho'ntak
+     ====================================================================== */
+  .pf{ --u:calc(var(--fw) / 523); width:var(--fw); aspect-ratio:523 / 475; position:relative;
+       font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+       filter:drop-shadow(0 calc(16*var(--u)) calc(20*var(--u)) rgba(28,28,140,.20))
+              drop-shadow(0 calc(4*var(--u)) calc(6*var(--u)) rgba(28,28,140,.14)); }
+  .pf-shape{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .pf-back{ z-index:1; }
+  .pf-note{ z-index:2; }
+  .pf-front{ z-index:3; }
+  .pf-title,.pf-sub,.pf-icons{ z-index:4; }
+
+  .pf-title{ position:absolute; left:calc(42*var(--u)); top:calc(79*var(--u));
+    font-size:calc(25*var(--u)); line-height:1; color:#fff; letter-spacing:calc(-0.2*var(--u)); }
+  .pf-sub{ position:absolute; left:calc(42*var(--u)); top:calc(114*var(--u));
+    font-size:calc(18.5*var(--u)); line-height:1; color:rgba(255,255,255,.60); }
+  .pf-icons{ position:absolute; right:calc(38*var(--u)); top:calc(76*var(--u));
+    display:flex; gap:calc(17*var(--u)); }
+  .pf-icons svg{ width:calc(27*var(--u)); height:calc(27*var(--u)); display:block; }
+
+  /* Blanka: orqa panel bilan old cho'ntak orasidan chiqib turadi. Faqat yuqori
+     burchaklari yumaloq &mdash; qolgani cho'ntak ortiga o'tib ketadi. */
+  .pf-note{ position:absolute; left:calc(32*var(--u)); right:calc(32*var(--u));
+    top:calc(70*var(--u)); height:calc(280*var(--u)); background:#fff;
+    border-radius:calc(22*var(--u)) calc(22*var(--u)) 0 0;
+    padding:0 calc(26*var(--u)); box-shadow:0 calc(7*var(--u)) calc(15*var(--u)) rgba(20,20,90,.20); }
+  .pf-note .nrow{ height:calc(72*var(--u)); display:flex; align-items:center; justify-content:space-between; }
+  .pf-note .nd{ font-size:calc(19*var(--u)); color:#1b1c22; white-space:nowrap; }
+  .pf-note .np{ font-size:calc(19*var(--u)); color:#4b48d8; background:#e9e8fb;
+    border-radius:calc(6*var(--u)); padding:calc(3*var(--u)) calc(8*var(--u)); margin-left:calc(10*var(--u)); }
+  .pf-note .nm{ font-size:calc(22*var(--u)); color:#8f909c; letter-spacing:calc(1.5*var(--u)); line-height:.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Papka kartochkasi &mdash; vizual referens</h1>
+  <p class="lede">
+    Uch holat: yopiq papka &middot; blanka chiqib turgan papka &middot; ochilgan blanka.
+    Barcha o'lcham <code>--fw</code> ga nisbatan hisoblanadi, shuning uchun kartochkani
+    istalgan kenglikda ishlatish mumkin. To'liq spetsifikatsiya shu faylning yuqorisidagi izohda.
+    Manba: <a href="https://fr.pinterest.com/pin/150237337564659254/" target="_blank" rel="noopener">Pinterest / nouf W</a>.
+  </p>
+
+  <div class="stage"><div class="stage-inner" id="stage"></div></div>
+
+  <p class="caption">
+    O'lchangan qiymatlar: korpus 523&times;438, burchak radiusi 48 (9,2%); til balandligi 37,
+    korpusga x=201 da qo'shiladi; gradient tik <code>#8180f5 &rarr; #2221ec</code>, yuqori qirrada
+    2 px <code>#a8aaff</code> yorug'lik; shrift monoshirina 25 / 18,5.
+  </p>
+</div>
+
+<script>
+(function(){
+  var H = 475;
+  var TAB_D = 'M0 120 L0 42 A41 41 0 0 1 43 1 L118 0 C140 3 175 22 201 37 L201 120 Z';
+
+  function svgOpen(cls){
+    return '<svg class="pf-shape ' + cls + '" viewBox="0 0 523 ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+  }
+
+  /* 1-qatlam: til + orqa panel. Ochiq holatda panel to'liq balandlikda &mdash; blanka
+     unga suyanib turadi. */
+  function pfBack(uid, open){
+    var backEnd = open ? H : 130;
+    return svgOpen('pf-back') +
+      '<defs><linearGradient id="t' + uid + '" x1="0" y1="0" x2="0" y2="' + backEnd + '" gradientUnits="userSpaceOnUse">' +
+        '<stop offset="0" stop-color="#6161f3"/><stop offset="1" stop-color="#4342e6"/>' +
+      '</linearGradient></defs>' +
+      '<path d="' + TAB_D + '" fill="url(#t' + uid + ')"/>' +
+      (open ? '<rect x="0" y="37" width="523" height="438" rx="48" fill="url(#t' + uid + ')"/>' : '') +
+    '</svg>';
+  }
+
+  /* 3-qatlam: old cho'ntak. Oxirgi bo'lib chiziladi, shuning uchun blanka uning
+     ortiga kirib ketadi. */
+  function pfFront(uid, open){
+    var top = open ? 140 : 37, inset = open ? 15 : 0;
+    return svgOpen('pf-front') +
+      '<defs><linearGradient id="b' + uid + '" x1="0" y1="' + top + '" x2="0" y2="' + H + '" gradientUnits="userSpaceOnUse">' +
+        '<stop offset="0" stop-color="#adafff"/>' +
+        '<stop offset="0.014" stop-color="#8180f5"/>' +
+        '<stop offset="1" stop-color="#2221ec"/>' +
+      '</linearGradient></defs>' +
+      '<rect x="' + inset + '" y="' + top + '" width="' + (523 - inset * 2) + '" height="' + (H - top) +
+        '" rx="48" fill="url(#b' + uid + ')"/>' +
+    '</svg>';
+  }
+
+  var ICON_ARCHIVE =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="3.2" y="4.4" width="17.6" height="5" rx="2"/>' +
+      '<path d="M5 9.4v8.2c0 1.2 1 2.2 2.2 2.2h9.6c1.2 0 2.2-1 2.2-2.2V9.4"/>' +
+      '<path d="M9.8 13.2h4.4"/>' +
+    '</svg>';
+  var ICON_GEAR =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="12" cy="12" r="3.1"/>' +
+      '<path d="M19.3 14.6a1.5 1.5 0 00.3 1.65l.06.06a1.82 1.82 0 11-2.58 2.58l-.06-.06a1.5 1.5 0 00-1.65-.3 1.5 1.5 0 00-.91 1.37v.17a1.82 1.82 0 11-3.64 0v-.09a1.5 1.5 0 00-.98-1.37 1.5 1.5 0 00-1.65.3l-.06.06a1.82 1.82 0 11-2.58-2.58l.06-.06a1.5 1.5 0 00.3-1.65 1.5 1.5 0 00-1.37-.91h-.17a1.82 1.82 0 110-3.64h.09a1.5 1.5 0 001.37-.98 1.5 1.5 0 00-.3-1.65l-.06-.06a1.82 1.82 0 112.58-2.58l.06.06a1.5 1.5 0 001.65.3h.07a1.5 1.5 0 00.91-1.37v-.17a1.82 1.82 0 113.64 0v.09a1.5 1.5 0 00.91 1.37 1.5 1.5 0 001.65-.3l.06-.06a1.82 1.82 0 112.58 2.58l-.06.06a1.5 1.5 0 00-.3 1.65v.07a1.5 1.5 0 001.37.91h.17a1.82 1.82 0 110 3.64h-.09a1.5 1.5 0 00-1.37.91z"/>' +
+    '</svg>';
+
+  function folderCard(uid, opts){
+    var el = document.createElement('div');
+    el.className = 'pf';
+    el.style.setProperty('--fw', opts.width + 'px');
+
+    var html = pfBack(uid, opts.open);
+    if (opts.open) {
+      html += '<div class="pf-note"><div class="nrow">' +
+                '<span class="nd">' + opts.noteDate + '<span class="np">' + opts.noteTime + '</span></span>' +
+                '<span class="nm">&bull;&bull;&bull;</span>' +
+              '</div></div>';
+    }
+    html += pfFront(uid, opts.open);
+
+    var shift = opts.open ? 103 : 0;   /* old cho'ntak 140-37 = 103 ga pastga suriladi */
+    html += '<div class="pf-title" style="top:calc(' + (79 + shift) + '*var(--u))">' + opts.title + '</div>' +
+            '<div class="pf-sub" style="top:calc(' + (114 + shift) + '*var(--u))">' + opts.meta + '</div>' +
+            '<div class="pf-icons" style="top:calc(' + (76 + shift) + '*var(--u))">' + ICON_ARCHIVE + ICON_GEAR + '</div>';
+    el.innerHTML = html;
+    return el;
+  }
+
+  /* Ochilgan blanka &mdash; papkadan chiqarib olingan holat */
+  function noteSheet(width){
+    var u = width / 523;
+    var el = document.createElement('div');
+    el.style.cssText =
+      'width:' + width + 'px;' +
+      'font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;' +
+      'background:#eaeaec;border-radius:' + (34 * u) + 'px;padding:' + (22 * u) + 'px;' +
+      'box-shadow:0 ' + (16 * u) + 'px ' + (26 * u) + 'px rgba(30,30,50,.10);';
+
+    var items = [
+      ['Reach 600 followers', true],
+      ['Post on X', true],
+      ['Client work', true],
+      ['Work on miniKIT', false],
+      ['Work on flielist', false]
+    ];
+    var rows = items.map(function(it){
+      var box = it[1]
+        ? '<span style="width:' + (26 * u) + 'px;height:' + (26 * u) + 'px;border-radius:' + (7 * u) + 'px;background:#5b5bf0;' +
+          'display:inline-flex;align-items:center;justify-content:center;flex:none">' +
+          '<svg width="' + (16 * u) + '" height="' + (16 * u) + '" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.4l3 3 6-6.5"/></svg>' +
+          '</span>'
+        : '<span style="width:' + (26 * u) + 'px;height:' + (26 * u) + 'px;border-radius:' + (7 * u) + 'px;border:' + (2.2 * u) + 'px solid #cfcfd6;flex:none"></span>';
+      var txt = it[1]
+        ? '<span style="color:#a2a2aa;text-decoration:line-through">' + it[0] + '</span>'
+        : '<span style="color:#26262c">' + it[0] + '</span>';
+      return '<div style="display:flex;align-items:center;gap:' + (14 * u) + 'px;font-size:' + (19 * u) + 'px;margin-bottom:' + (20 * u) + 'px">' + box + txt + '</div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:' + (10 * u) + 'px ' + (16 * u) + 'px ' + (20 * u) + 'px">' +
+        '<span style="font-size:' + (19 * u) + 'px;color:#26262c">Wed, 07 May 2025' +
+          '<span style="background:#d9d9de;color:#5c5c66;border-radius:' + (6 * u) + 'px;padding:' + (3 * u) + 'px ' + (8 * u) + 'px;margin-left:' + (10 * u) + 'px">16:34</span>' +
+        '</span>' +
+        '<span style="font-size:' + (22 * u) + 'px;color:#9a9aa4;letter-spacing:' + (1.5 * u) + 'px;line-height:.6">&bull;&bull;&bull;</span>' +
+      '</div>' +
+      '<div style="background:#fdfdfe;border-radius:' + (26 * u) + 'px;padding:' + (30 * u) + 'px ' + (28 * u) + 'px ' + (12 * u) + 'px">' +
+        '<div style="font-size:' + (19 * u) + 'px;letter-spacing:' + (1.4 * u) + 'px;color:#26262c;margin-bottom:' + (26 * u) + 'px">THINGS TO DO TODAY</div>' +
+        rows +
+        '<div style="display:flex;align-items:center;gap:' + (14 * u) + 'px;font-size:' + (19 * u) + 'px;color:#9a9aa4;padding-bottom:' + (10 * u) + 'px">' +
+          '<span style="width:' + (26 * u) + 'px;text-align:center;flex:none">+</span><span>Add new</span>' +
+        '</div>' +
+      '</div>';
+    return el;
+  }
+
+  var base = { title:'Projects', meta:'58 notes', noteDate:'Wed, 07 May 2025', noteTime:'16:34', width:300 };
+  function withOpen(o){ var c={}; for(var k in base) c[k]=base[k]; c.open=o; return c; }
+
+  var stage = document.getElementById('stage');
+  stage.appendChild(folderCard('a', withOpen(false)));
+  stage.appendChild(folderCard('b', withOpen(true)));
+  stage.appendChild(noteSheet(300));
+})();
+</script>
+</body>
+</html>
