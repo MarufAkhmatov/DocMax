@@ -29,10 +29,12 @@ export class GraphService {
         title: true,
         docNumber: true,
         status: true,
+        orgUnitId: true,
         docType: { select: { name: true } },
       },
     });
     const idSet = new Set(docs.map((d) => d.id));
+    const orgUnitNames = await this.orgUnitNamesFor(docs.map((d) => d.orgUnitId));
 
     // Faqat filtrga tushgan hujjatlar orasidagi bog'lanishlar (ikkala uchi ham to'plamda)
     const relations = await this.tenant.client.documentRelation.findMany({
@@ -57,6 +59,8 @@ export class GraphService {
       docTypeName: d.docType.name,
       status: d.status,
       degree: degree.get(d.id) ?? 0,
+      orgUnitId: d.orgUnitId,
+      orgUnitName: d.orgUnitId ? (orgUnitNames.get(d.orgUnitId) ?? null) : null,
     }));
 
     if (!query.includeIsolated) {
@@ -64,5 +68,19 @@ export class GraphService {
     }
 
     return { nodes, edges };
+  }
+
+  // documents.service.ts'dagi orgUnitNamesFor()ning aynan nusxasi — Document.orgUnitId'ga
+  // mos Prisma relation() yo'q (faqat FK ustuni), shuning uchun nom alohida so'rov bilan olinadi.
+  private async orgUnitNamesFor(orgUnitIds: (string | null)[]): Promise<Map<string, string>> {
+    const ids = [...new Set(orgUnitIds.filter((id): id is string => id !== null))];
+    if (!ids.length) {
+      return new Map();
+    }
+    const rows = await this.tenant.client.orgUnit.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true },
+    });
+    return new Map(rows.map((r) => [r.id, r.name]));
   }
 }

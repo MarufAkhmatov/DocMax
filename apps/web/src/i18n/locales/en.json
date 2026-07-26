@@ -153,6 +153,8 @@
     "modeWorkflow": "Workflow",
     "colorByStatus": "By status",
     "colorByType": "By type",
+    "colorByOrgUnit": "By department",
+    "orgUnitUnassigned": "No department",
     "allStatuses": "All statuses",
     "allTypes": "All types",
     "isolatedToggle": "Isolated",

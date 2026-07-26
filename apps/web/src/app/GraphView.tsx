@@ -9,7 +9,7 @@ import type { AdminTheme } from "./AdminPanel";
 // rang rejimi toggle (tur / holat), hover'da qo'shnilarni highlight, click → yon panel + ochish.
 // Etalon build canvas force-layout (react-force-graph-2d o'rniga — kam bog'liqlik, TZ-0 pdf.js→iframe kabi).
 
-type ColorMode = "type" | "status";
+type ColorMode = "type" | "status" | "orgUnit";
 
 const STATUS_COLOR: Record<DocStatus, string> = {
   ACTIVE: "#C6F24E",
@@ -77,7 +77,24 @@ export default function GraphView({ theme, docTypes, onOpenDocument }: {
     };
   }, [docTypes]);
 
-  const nodeColor = (n: GraphNode) => (colorModeRef.current === "status" ? STATUS_COLOR[n.status] : typeColorOf(n.docTypeName));
+  // Bo'linma nomi → barqaror rang — graf ichidagi distinct nomlar tartibi bo'yicha
+  // (docTypes kabi oldindan berilgan ro'yxat yo'q). Ref orqali — animatsiya tick'i
+  // (pastda, faqat [isDark]ga bog'liq effekt) `data` o'zgarganda eskirib qolmasligi uchun
+  // (colorModeRef bilan bir xil sabab).
+  const orgUnitNamesRef = useRef<string[]>([]);
+  const orgUnitColorOf = (name: string | null) => {
+    if (!name) return "#8FA0A8";
+    const i = orgUnitNamesRef.current.indexOf(name);
+    return TYPE_PALETTE[(i >= 0 ? i : name.length) % TYPE_PALETTE.length];
+  };
+
+  const nodeColor = (n: GraphNode) => {
+    switch (colorModeRef.current) {
+      case "status": return STATUS_COLOR[n.status];
+      case "orgUnit": return orgUnitColorOf(n.orgUnitName);
+      default: return typeColorOf(n.docTypeName);
+    }
+  };
 
   // Ma'lumot yuklash (filtrlar o'zgarganda)
   useEffect(() => {
@@ -98,6 +115,9 @@ export default function GraphView({ theme, docTypes, onOpenDocument }: {
   useEffect(() => {
     if (!data) return;
     dataRef.current = data;
+    const orgUnitNameSet = new Set<string>();
+    data.nodes.forEach((n) => { if (n.orgUnitName) orgUnitNameSet.add(n.orgUnitName); });
+    orgUnitNamesRef.current = [...orgUnitNameSet].sort();
     const wrap = canvasRef.current?.parentElement;
     const W = wrap?.clientWidth ?? 800, H = wrap?.clientHeight ?? 500;
     const prev = new Map(nodesRef.current.map((n) => [n.id, n]));
@@ -235,8 +255,27 @@ export default function GraphView({ theme, docTypes, onOpenDocument }: {
   const panelBorderC = isDark ? "rgba(255,255,255,.09)" : "rgba(10,30,20,.09)";
   const selDegree = selected ? selected.degree : 0;
 
+  // Legenda render-vaqtida hisoblanadi (tick animatsiya loop'idan farqli — ref kerak emas,
+  // har `data` yangilanishida komponent normal qayta render bo'ladi).
+  const graphOrgUnitNames = useMemo(() => {
+    const names = new Set<string>();
+    let hasUnassigned = false;
+    data?.nodes.forEach((n) => { if (n.orgUnitName) names.add(n.orgUnitName); else hasUnassigned = true; });
+    return { names: [...names].sort(), hasUnassigned };
+  }, [data]);
+  const legendOrgUnitColorOf = (name: string | null) => {
+    if (!name) return "#8FA0A8";
+    const i = graphOrgUnitNames.names.indexOf(name);
+    return TYPE_PALETTE[(i >= 0 ? i : name.length) % TYPE_PALETTE.length];
+  };
+
   const legend = colorMode === "status"
     ? (["ACTIVE", "IN_REVIEW", "DRAFT", "EXPIRED"] as DocStatus[]).map((s) => ({ color: STATUS_COLOR[s], label: t(STATUS_I18N[s]) }))
+    : colorMode === "orgUnit"
+    ? [
+        ...graphOrgUnitNames.names.map((name) => ({ color: legendOrgUnitColorOf(name), label: name })),
+        ...(graphOrgUnitNames.hasUnassigned ? [{ color: legendOrgUnitColorOf(null), label: t("graph.orgUnitUnassigned") }] : []),
+      ]
     : docTypes.slice(0, 8).map((d) => ({ color: typeColorOf(d.name), label: d.name }));
 
   return (
@@ -249,7 +288,7 @@ export default function GraphView({ theme, docTypes, onOpenDocument }: {
         <div className="flex items-center gap-2 flex-wrap">
           {/* Rang rejimi */}
           <div className="flex p-1 gap-0.5 rounded-[10px]" style={{ background: panelBg, border: `1px solid ${panelBorderC}` }}>
-            {([["status", t("graph.colorByStatus")], ["type", t("graph.colorByType")]] as const).map(([m, label]) => (
+            {([["status", t("graph.colorByStatus")], ["type", t("graph.colorByType")], ["orgUnit", t("graph.colorByOrgUnit")]] as const).map(([m, label]) => (
               <span key={m} onClick={() => setColorMode(m)}
                 className="text-[11px] font-extrabold px-3 py-[5px] rounded-lg cursor-pointer"
                 style={colorMode === m ? { background: isDark ? "rgba(255,255,255,.12)" : "#fff", color: txt } : { color: txt3 }}>

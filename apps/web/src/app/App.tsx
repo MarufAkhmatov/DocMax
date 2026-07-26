@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   LayoutDashboard, FolderOpen, Network, Activity, Settings,
   Sun, Moon, Bell, Search, Plus, Download, Upload, X, Lock,
-  FileText, Check, Eye, Clock, Shield, Tag, Move, Trash2,
-  ChevronRight, ChevronDown, GitBranch, Globe, BookOpen,
-  ArrowRight, MoreHorizontal, Zap, Command, Loader2, Pencil, CalendarDays
+  FileText, Check, Eye, Clock, Tag, Move, Trash2,
+  ChevronRight, ChevronDown, GitBranch,
+  Loader2, Pencil, CalendarDays
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as mammoth from "mammoth";
@@ -24,6 +25,22 @@ import WorkflowView from "./WorkflowView";
 // ─── Types ──────────────────────────────────────────────────────────────────
 type View = "dash" | "vault" | "doc" | "graph" | "mon" | "cal" | "admin" | "struct";
 type DocTab = "pdf" | "word" | "diff" | "history";
+
+// ─── Router — view/hujjat/papka URL'da aks etadi (M10 texnik qarz) ────────────
+// "doc" bundan mustasno — o'z yo'liga id qo'shib navigate qilinadi (openDocument orqali).
+const VIEW_TO_PATH: Record<Exclude<View, "doc">, string> = {
+  dash: "/", vault: "/vault", graph: "/graph", mon: "/monitoring", cal: "/calendar", admin: "/admin", struct: "/structure",
+};
+function pathToView(pathname: string): View {
+  if (pathname.startsWith("/document/")) return "doc";
+  const entry = (Object.entries(VIEW_TO_PATH) as [View, string][]).find(([, p]) => p === pathname);
+  return entry?.[0] ?? "dash";
+}
+/** react-router `<Routes>` daraxti yo'q (bitta-sahifali view-switching, useParams() ishlamaydi) —
+ * shuning uchun pathToView bilan bir xil naqshda pathname'dan qo'lda ajratib olinadi. */
+function docIdFromPath(pathname: string): string | null {
+  return pathname.startsWith("/document/") ? decodeURIComponent(pathname.slice("/document/".length)) : null;
+}
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 interface FolderCardData {
@@ -618,8 +635,11 @@ export default function App() {
   const user = useAuthStore((s) => s.user);
   const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+  const view = useMemo(() => pathToView(location.pathname), [location.pathname]);
+
   const [isDark, setIsDark] = useState(true);
-  const [view, setView] = useState<View>("dash");
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [wizOpen, setWizOpen] = useState(false);
@@ -637,7 +657,6 @@ export default function App() {
   const [bulkMoveFolders, setBulkMoveFolders] = useState<{ id: string; name: string; depth: number }[]>([]);
   const [vaultSeg, setVaultSeg] = useState<"table" | "card" | "timeline">("table");
   const [monFilter, setMonFilter] = useState("all");
-  const [treeOpen, setTreeOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [graphMode, setGraphMode] = useState<"graph" | "workflow">("graph");
 
@@ -655,6 +674,49 @@ export default function App() {
   const [foldersLoading, setFoldersLoading] = useState(false);
   const [foldersError, setFoldersError] = useState<string | null>(null);
   const currentFolder = folderStack[folderStack.length - 1];
+  const [folderSearchParams] = useSearchParams();
+
+  // Deep-link (`/vault?folder=X` to'g'ridan-to'g'ri ochilganda) — breadcrumb'ni ota-bola
+  // zanjiri bo'yicha yuqoriga yurib qayta quradi. FolderTreeNode'ning `path` qurish
+  // naqshiga mos (yuqorida, `[...ancestors, {id, name}]`) — tizim papkalari (masalan
+  // "Barcha hujjatlar") ham ODDIY papka sifatida zanjirga kiradi, alohida holat emas.
+  useEffect(() => {
+    const folderId = folderSearchParams.get("folder");
+    if (!folderId) return;
+    let cancelled = false;
+    (async () => {
+      const chain: { id: string; name: string }[] = [];
+      let current: string | null = folderId;
+      const seen = new Set<string>();
+      while (current && !seen.has(current)) {
+        seen.add(current);
+        try {
+          const folder = await foldersApi.getById(current);
+          chain.unshift({ id: folder.id, name: folder.name });
+          current = folder.parentId;
+        } catch {
+          break;
+        }
+      }
+      if (!cancelled && chain.length > 0) {
+        setFolderStack([{ id: null, name: null }, ...chain]);
+      }
+    })();
+    return () => { cancelled = true; };
+    // Faqat mount'da — foydalanuvchi keyinchalik navigatsiya qilganda folderStack o'zi manba.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Joriy (eng oxirgi) papka id'i URL query'da saqlanadi — refresh/link ulashish uchun
+  // (docFilters'dagi mavjud naqshga o'xshash, lekin history push/pop to'g'ri ishlashi uchun
+  // react-router'ning o'z navigate()i orqali, xom history.replaceState emas).
+  useEffect(() => {
+    if (view !== "vault") return;
+    const qs = currentFolder.id ? `?folder=${currentFolder.id}` : "";
+    if (location.pathname === "/vault" && location.search === qs) return;
+    navigate(`/vault${qs}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, currentFolder.id]);
 
   // Yangi papka yaratish (faqat ADMIN/SUPER_ADMIN, backend @Roles('ADMIN') bilan mos)
   const [folderCreateOpen, setFolderCreateOpen] = useState(false);
@@ -688,7 +750,7 @@ export default function App() {
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeSummary[]>([]);
   const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
 
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const selectedDocId = useMemo(() => docIdFromPath(location.pathname), [location.pathname]);
   const [docDetail, setDocDetail] = useState<DocumentDetail | null>(null);
   const [docDetailLoading, setDocDetailLoading] = useState(false);
   const [docDetailError, setDocDetailError] = useState<string | null>(null);
@@ -742,7 +804,6 @@ export default function App() {
 
   const lime = isDark ? "#C6F24E" : "#2FA45B";
   const bg = isDark ? "#0D0D0D" : "#EFF2EE";
-  const cardBg = isDark ? "#1A1A1A" : "#FFFFFF";
   const panel = isDark ? "rgba(255,255,255,.055)" : "rgba(255,255,255,.75)";
   const panelBorder = isDark ? "rgba(255,255,255,.09)" : "rgba(10,30,20,.09)";
   const txt = isDark ? "#EDF3F0" : "#0B1A16";
@@ -1030,7 +1091,11 @@ export default function App() {
     }
   }, [folderCreateName, currentFolder.id, refetchFolders, toast]);
 
-  const goView = (v: View) => { setView(v); window.scrollTo({ top: 0 }); };
+  const goView = (v: View) => {
+    if (v === "doc") return; // "doc" faqat openDocument orqali (id kerak)
+    navigate(VIEW_TO_PATH[v]);
+    window.scrollTo({ top: 0 });
+  };
 
   const handleSidebarNavigate = useCallback((path: FolderPathEntry[]) => {
     setFolderStack(path);
@@ -1092,12 +1157,12 @@ export default function App() {
   }, [selectedDocId, refetchRelations, toast, t]);
 
   const toggleDoc = (id: string) =>
-    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+    setSelected(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; });
 
   const toggleAll = () =>
     setSelected(selected.size === documents.length ? new Set() : new Set(documents.map(d => d.id)));
 
-  const openDocument = (id: string) => { setSelectedDocId(id); goView("doc"); };
+  const openDocument = (id: string) => { navigate(`/document/${id}`); window.scrollTo({ top: 0 }); };
 
   // ── Wizard handlerlari (real upload + hujjat yaratish, TZ-1 §1.3) ─────────
   const openWizard = useCallback(() => {
@@ -2363,7 +2428,7 @@ export default function App() {
           {docTab === "pdf" && currentVersion && (
             <div className="mx-6 my-5">
               <PdfViewer url={currentVersion.pdf.downloadUrl} height={600}
-                panel={panel} panelBorder={panelBorder} txt={txt} txt2={txt2} txt3={txt3} isDark={isDark}
+                panel={panel} panelBorder={panelBorder} txt2={txt2} txt3={txt3} isDark={isDark}
                 overlay={downloadBlocked && user?.email ? <WatermarkOverlay email={user.email} /> : undefined} />
             </div>
           )}

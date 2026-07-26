@@ -202,7 +202,7 @@ function OrgUnitNodeRow({
 
 function RemapWizardModal({ unit, onClose, toast, theme }: { unit: OrgUnitNode; onClose: () => void; toast: (msg: string) => void; theme: AdminTheme }) {
   const { t } = useTranslation();
-  const { lime, txt, txt2, txt3, panel, panelBorder, isDark } = theme;
+  const { lime, txt, txt2, txt3, panelBorder, isDark } = theme;
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [entries, setEntries] = useState<RemapPreviewEntry[]>([]);
@@ -217,7 +217,7 @@ function RemapWizardModal({ unit, onClose, toast, theme }: { unit: OrgUnitNode; 
   }, [unit.id]);
 
   const toggleExclude = (folderId: string) =>
-    setExcluded((prev) => { const next = new Set(prev); next.has(folderId) ? next.delete(folderId) : next.add(folderId); return next; });
+    setExcluded((prev) => { const next = new Set(prev); if (next.has(folderId)) next.delete(folderId); else next.add(folderId); return next; });
 
   const handleApply = async () => {
     const moves = entries.filter((e) => !e.unchanged && !excluded.has(e.folderId)).map((e) => ({ folderId: e.folderId, newParentId: e.proposedParentId }));
@@ -318,7 +318,6 @@ export default function StructureView({ theme, toast, isAdmin }: { theme: AdminT
   useEffect(() => {
     loadRoots();
     if (isAdmin) authApi.listUsers().then(setUsers).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
   const handleCreateRoot = async () => {

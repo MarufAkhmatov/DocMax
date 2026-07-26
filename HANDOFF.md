@@ -1,6 +1,6 @@
 # DocMax — Handoff
 
-*Oxirgi yangilanish: 2026-07-26 (Org-struktura canvas — n8n-uslubidagi vizual sxema, §1.8) · kanonik branch: **`claude/handoff-ni-oqi-va-m9-e0ad4d`** (= `claude/handoff-update-f121b2`ning barcha commit'lari, ff-merge orqali + M9 + M10 qisman + Docker + Org-struktura canvas)*
+*Oxirgi yangilanish: 2026-07-26 (M10 qoldig'i to'liq yakunlandi — §1.9) · kanonik branch: **`claude/handoff-ni-oqi-va-m9-e0ad4d`** (= `claude/handoff-update-f121b2`ning barcha commit'lari, ff-merge orqali + M9 + M10 to'liq + Docker + Org-struktura canvas)*
 
 Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilingani va keyingi qadamlar shu yerda.
 
@@ -186,13 +186,35 @@ API_HOST_PORT=4001 WEB_HOST_PORT=4000 VITE_API_URL=http://localhost:4001/api/v1 
 
 **Tekshirilmagan qoldiq (vosita cheklovi, kod muammosi emas)**: Node'lar orasida **chiziq tortish** (unit↔unit qayta-ota-tayinlash, unit↔folder bog'lash) — React Flow'ning handle-drag mexanizmi haqiqiy OS-darajasidagi pointer event (`isTrusted:true`) talab qiladi, bu sessiyaning Browser paneli screenshot/coordinate-asoslangan amallarni qo'llab-quvvatlamadi ("Browser pane is not displayed, so the page is not compositing frames"). Shuning uchun `onConnect`/`onEdgesDelete` handler'lari faqat KOD KO'RIB CHIQISH orqali tekshirildi (chaqirilgan `orgUnitsApi.move`/`setFolderLink` metodlari alohida to'g'ridan-to'g'ri ishlashi tasdiqlangan). **Keyingi sessiya odatiy brauzerda qo'lda chiziq tortib ko'rishi tavsiya etiladi** (pdf.js render-hang uchun ilgari qo'llanilgan xuddi shu "keyinroq qo'lda tekshirish" pattern).
 
+## 1.9. Shu sessiyada qilinganlar (2026-07-26) — M10 qoldig'i to'liq yakunlandi
+
+Foydalanuvchi "davom et m10" deb so'radi — M10'ning qolgan 6 bandi (avvalgi sessiyada tanlanmagan) barchasi shu sessiyada bajarildi.
+
+**1) apps/web — real ESLint + Vitest** (avval `echo 'lint: TODO'` stub edi):
+- `apps/web/eslint.config.mjs` (yangi) — root `eslint.base.mjs` naqshi + `eslint-plugin-react-hooks`/`react-refresh`, `globals.browser`.
+- `apps/web/vitest.config.ts` + `vitest.setup.ts` (yangi) — `jsdom`, `@testing-library/*`.
+- **Yon topilma**: `apps/web`da HECH QANDAY `tsconfig.json` yo'q edi (faqat api/worker/db/shared'da bor) — Vite/esbuild tsconfig'siz ham ishlayveradi (typecheck qilmasdan, faqat strip qiladi), lekin editor/eslint uchun kerak. Yangi `tsconfig.json`+`tsconfig.node.json` qo'shildi (**strict:true YOQILMADI** — mavjud ~3000 qatorlik App.tsx retroaktiv strict-mode xatolar toshqiniga sabab bo'lardi, bu alohida katta ish; hozircha faqat asosiy compiler options, kelgusi ish sifatida qoldirildi).
+- `pnpm --filter @docmax/web lint` yugurtirildi — chiqqan 14 ta HAQIQIY xato (ishlatilmagan import/o'zgaruvchi, ternary-side-effect naqshi) tuzatildi (`App.tsx`, `StructureView.tsx`, `PdfViewer.tsx`). Qolgan ogohlantirishlar (i18next `t` exhaustive-deps, shadcn UI fayllaridagi fast-refresh) ataylab tegilmadi — keng tarqalgan, zararsiz naqshlar.
+- 2 ta yengil, real test: `src/i18n/locale-parity.test.ts` (uz/ru/en bir xil kalitga ega ekanini tekshiradi) va `src/lib/sha256File.test.ts` (`@vitest-environment node` — jsdom Web Crypto'ni to'liq implement qilmaydi).
+
+**2) Versioning e2e testlari** (TZ-0 §6 qat'iy talabi — "auth, permissions, versioning 100% test"; auth+permissions bor edi, versioning yo'q edi): yangi `apps/api/src/documents/documents-versioning.e2e.test.ts` (6 test) — versiya yaratish tranzaksiyasi to'g'riligi (eski `isCurrent=false`+yangi+`currentVersionId` — DB'dan to'g'ridan-to'g'ri tekshirilgan), ketma-ket 3 versiya (`v1.0→v1.1→v2.0`, TZ-1 DoD ssenariysi), VIEWER 403, comparison-template enqueue+poll (worker orqali `completed`gacha KUTILMAYDI — beqaror bo'lardi), hujjat CRUD asoslari.
+
+**3) Graf — bo'linma (org-unit) bo'yicha rang rejimi** (TZ-2 §2.3, uchinchi rejim yo'q edi): backend (`GraphNode`ga `orgUnitId`/`orgUnitName`, `GraphService.build()`) + frontend (`GraphView.tsx`: `ColorMode` uchinchi qiymat, `orgUnitColorOf()` — animatsiya tick-loop'i uchun REF orqali, staleness'siz; legenda uchinchi filial). i18n: `graph.colorByOrgUnit`/`orgUnitUnassigned`.
+
+**4) `seed.ts` — 3-versiyali demo hujjat** (TZ-1 DoD): `packages/db`ga `@aws-sdk/client-s3` qo'shildi — seed endi MinIO'ga **haqiqiy** demo-PDF yozadi (faqat DB metadata emas, aks holda "yuklab olish" 404 berardi). Fixture: `pdf-parse`ning o'z test-PDF'i repo ichiga nusxalandi (`packages/db/prisma/fixtures/demo-version.pdf`) — node_modules'ga mo'rt yo'l bilan murojaat qilishdan qochish uchun. Bitta demo hujjat (`createMany`dan chiqarib olingan) 3 ta versiya bilan yaratiladi (`nextVersionLabel()` shared'dan foydalanib). **Alohida vaqtinchalik baza (`docmax_seed_test`) bilan tekshirildi** (mavjud dev bazaga tegilmadi) — muvaffaqiyatli.
+
+**5) Router — view/papka/hujjat URL'da** (`react-router` — allaqachon dependency edi, lekin ishlatilmagan): `main.tsx` `<BrowserRouter>` bilan o'raldi. `App.tsx`: `view` endi `useLocation().pathname`dan hisoblanadi (`pathToView()`), `selectedDocId` — `/document/:id`dan (**`useParams()` ISHLATILMADI** — `<Routes>` daraxti yo'q, shuning uchun param ishlamas edi; buning o'rniga `pathToView` bilan bir xil naqshda qo'lda parse qilindi). Papka: joriy (oxirgi) papka id'i `?folder=`da; deep-link'da ota-bola zanjiri `GET /folders/:id` (yangi, minimal — ACL `assertView` bilan) orqali qayta quriladi.
+  - **Muhim topilgan va tuzatilgan xato**: dastlab tizim papkalarini (`isSystem:true`, masalan "Barcha hujjatlar") ancestor-zanjiridan CHIQARIB tashlagan edim ("root sentinel bilan bir xil" deb noto'g'ri taxmin qilib) — lekin mavjud `FolderTreeNode`ning `path` qurish naqshi (`[...ancestors, {id, name}]`) tizim papkalarini ODDIY papka sifatida ANIQ kiritadi (chetlab o'tmaydi). Brauzerda sinab ko'rilganda bu xato darhol aniqlandi (deep-link "Barcha hujjatlar"ga emas, undan bir daraja yuqoriga tushirardi) va mavjud naqshga moslab tuzatildi.
+  - `docFilters`ning mavjud URL-sinxronizatsiyasi (xom `history.replaceState`) **tegilmadi**; yangi kod `navigate(...,{replace:true})` ishlatadi (haqiqiy `pushState` semantikasi — view/hujjat almashtirishda orqaga/oldinga tugmasi ishlashi uchun; papka ichida drill-down qilish esa REPLACE bilan — bosqichma-bosqich orqaga qaytish ataylab soddalashtirilgan, URL asosiy maqsad: refresh/link ulashish).
+
+**Sinov jarayonida topilgan va tuzatilgan 2 ta MAVJUD (mendan oldingi) flaky e2e test**: to'liq suite (5 fayl) birga yugurganda (yangi `documents-versioning.e2e.test.ts` qo'shilgach) ikkita boshqa faylda tasodifiy muvaffaqiyatsizlik chiqdi — ikkalasi ham MENING kodimdagi xato emas, balki umumiy dev bazada bir nechta test fayli parallel ishlaganda yuzaga chiqadigan haqiqiy zaifliklar: (a) `org-units.e2e.test.ts`ning "remap-preview mutatsiyasiz" testi butun org bo'yicha umumiy papka sonini solishtirardi (boshqa fayllar parallel papka yaratsa ham ta'sirlanadi) — endi faqat shu testning O'Z tegiga cheklandi; (b) `folder-permissions.e2e.test.ts`ning audit testi `AuditInterceptor`ning ataylab fire-and-forget (javobni bloklamaydigan) yozish xatti-harakatidan keyin DARHOL DB'ni tekshirardi — endi qisqa poll (`waitForAuditLogs`, 2s gacha) bilan kutadi. Ikkalasi ham tuzatilgach to'liq suite (35/35) barqaror yashil.
+
 ## 2. Yo'l xaritasi (2026-07-17 auditi asosida)
 
-**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 to'liq: §2.1 Relations, §2.2 Workflow canvas, §2.3 Graf, §2.4 Struktura (M9, + n8n-uslubidagi canvas §1.8), §2.5 Papka ACL (M9), §2.6 ⌘K nom/raqam qidiruv, §2.7 Boshqaruv yakuni · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n (to'liq) · security hardening · **`vite build` production tuzatildi + pdf.js (M10 qisman)** · **Docker deploy (api+worker+web, §1.7)** · **Org-struktura n8n-canvas (§1.8)**.
+**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 to'liq: §2.1 Relations, §2.2 Workflow canvas, §2.3 Graf (+ bo'linma rang rejimi, §1.9), §2.4 Struktura (M9, + n8n-uslubidagi canvas §1.8), §2.5 Papka ACL (M9), §2.6 ⌘K nom/raqam qidiruv, §2.7 Boshqaruv yakuni · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n (to'liq) · security hardening · **Docker deploy (api+worker+web, §1.7)** · **Org-struktura n8n-canvas (§1.8)** · **M10 to'liq (vite build+pdf.js avvalgi sessiyada, qolgan 6 band §1.9'da — eslint/vitest, versioning e2e, graf rang rejimi, seed fixture, router)**.
 
 **Keyingi milestonelar (tavsiya tartibi):**
 
-- **M10 qoldig'i — Sifat/texnik qarz (TZ-0 §6 talabi)**: apps/web eslint+vitest (hozir stub), versioning e2e testlari (TZ-0 §6 aniq talabi), documents/files/graph uchun kengroq e2e, TZ-1 DoD checklist yugurtirish (`seed.ts`ga versiya fixture'lari kerak), router/URL holati (view+folder), graf uchun podrazdeleniye rang rejimi.
 - **M11 — TZ-3 Monitoring**: scraper (lex.uz/cbu.uz, cron 2 soat) → external_acts + /monitoring real sahifa → xabarnomalar (in-app/Telegram/email) → embedding (multilingual-e5, LLM'siz) → semantik solishtirish/qidiruv → LLM toggle (default OFF). O'z ichida 3–4 kichik bosqich.
 - **M12 — TZ-4 SaaS**: ochiq /register + trial, tariflar/limitlar, 2FA, ClamAV, API tokenlar, eksport/import/backup, CI/CD + monitoring infra.
 
@@ -250,12 +272,13 @@ apps/web/src/app/App.tsx      ← BARCHA asosiy UI (~3000+ qator): view-switchin
 apps/web/src/app/StructureView.tsx ← M9: org-unit daraxti, remapping wizard, snapshot viewer + Daraxt/Sxema toggle (§1.8)
 apps/web/src/app/OrgStructureCanvas.tsx ← §1.8: org-struktura n8n-uslubidagi canvas (@xyflow/react)
 apps/web/src/app/Login.tsx    ← Login ekrani;  AdminPanel.tsx ← Admin Panel (brend + hujjat turlari + teglar + trash + audit)
-apps/web/src/lib/api.ts       ← authApi(+listUsers), foldersApi(+access), permissionsApi, orgUnitsApi, filesApi, documentsApi, ...
-apps/web/src/i18n/            ← uz(asosiy)/ru/en lug'atlar — 327 kalit, uchchalasida bir xil
-apps/api/src/{auth,folders(+folder-access,folder-permissions),files,documents,document-types,document-relations,
-  organizations,org-units,storage,queue,audit,common,prisma,mailer}/
+apps/web/src/lib/api.ts       ← authApi(+listUsers), foldersApi(+access,+getById), permissionsApi, orgUnitsApi, filesApi, documentsApi, ...
+apps/web/src/i18n/            ← uz(asosiy)/ru/en lug'atlar — 327+ kalit, uchchalasida bir xil
+apps/web/eslint.config.mjs, vitest.config.ts, vitest.setup.ts, tsconfig.json  ← §1.9: real lint/test infra (avval stub)
+apps/api/src/{auth,folders(+folder-access,folder-permissions),files,documents(+documents-versioning.e2e.test),
+  document-types,document-relations,organizations,org-units,storage,queue,audit,common,prisma,mailer,graph}/
 apps/worker/src/{file-index,queue,prisma,storage}/
-packages/db/prisma/           ← schema + 10 migratsiya + seed (document_types bilan mos)
+packages/db/prisma/           ← schema + 10 migratsiya + seed (document_types bilan mos) + fixtures/demo-version.pdf (§1.9)
 packages/shared/src/          ← barcha zod sxemalar/DTO (front+back bitta manba) — org-units.ts, permissions.ts (M9)
 apps/{api,worker,web}/Dockerfile, apps/web/nginx.conf, docker-compose.yml, .dockerignore  ← Docker deploy (§1.7)
 ```

@@ -1,12 +1,35 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import argon2 from 'argon2';
 import { PrismaClient } from '@prisma/client';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { nextVersionLabel } from '@docmax/shared';
 
 const prisma = new PrismaClient();
 
 const DEMO_PASSWORD = 'Password123!';
 const ADMIN_EMAIL = 'admin@docmax.local';
 const ADMIN_PASSWORD = 'Admin2026';
+
+// TZ-1 DoD — "1 hujjatga 3 versiya" ssenariysi uchun MinIO'ga haqiqiy demo-fayl yuklanadi
+// (faqat DB metadata bo'lsa, "yuklab olish" 404 berardi). Fixture — pdf-parse'ning o'z test
+// PDF'i (node_modules ichidan emas, mo'rt yo'ldan qochish uchun repo ichiga nusxalangan) —
+// worker'ning file.index vazifasi (pdf-parse) uni tekshirilgan holda o'qiy oladi (HANDOFF.md
+// §4 eslatmasi: qo'lda yasalgan minimal PDF'lar "bad XRef entry" beradi).
+const DEMO_PDF_PATH = join(__dirname, 'fixtures', 'demo-version.pdf');
+
+function s3ClientFromEnv(): S3Client {
+  return new S3Client({
+    endpoint: process.env.S3_ENDPOINT ?? 'http://localhost:9000',
+    region: process.env.S3_REGION ?? 'us-east-1',
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY ?? 'docmax',
+      secretAccessKey: process.env.S3_SECRET_KEY ?? 'docmax-secret',
+    },
+  });
+}
 
 async function upsertFolder(params: {
   id: string;
@@ -139,8 +162,12 @@ async function main() {
     { folderId: moliyaId, title: 'Moliyaviy hisobot tartibi', docNumber: '№8', typeName: 'Siyosat', status: 'DRAFT', authorUserId: editor.id },
   ];
 
+  // Birinchi hujjat alohida yaratiladi (id'i kerak — 3 versiyali demo ssenariysi uchun),
+  // qolganlari avvalgidek createMany bilan (versiyasiz).
+  const [versionedDoc, ...restDocuments] = documents;
+
   await prisma.document.createMany({
-    data: documents.map((doc) => ({
+    data: restDocuments.map((doc) => ({
       orgId: org.id,
       folderId: doc.folderId,
       title: doc.title,
@@ -152,7 +179,70 @@ async function main() {
       effectiveFrom: doc.effectiveFrom,
     })),
   });
-  console.log(`${documents.length} ta demo hujjat yaratildi.`);
+  console.log(`${restDocuments.length} ta demo hujjat yaratildi.`);
+
+  const createdVersionedDoc = await prisma.document.create({
+    data: {
+      orgId: org.id,
+      folderId: versionedDoc.folderId,
+      title: versionedDoc.title,
+      docNumber: versionedDoc.docNumber,
+      docTypeId: typeIds.get(versionedDoc.typeName)!,
+      status: versionedDoc.status,
+      authorUserId: versionedDoc.authorUserId,
+      approvedAt: versionedDoc.approvedAt,
+      effectiveFrom: versionedDoc.effectiveFrom,
+    },
+  });
+
+  // 3-versiyali demo: bitta MinIO obyekti (mazmuni bir xil — maqsad UI/versiya tarixi
+  // ssenariysini ko'rsatish, real diff kontenti emas), 3 ta alohida File+DocumentVersion qatori.
+  const pdfBuffer = readFileSync(DEMO_PDF_PATH);
+  const sha256 = createHash('sha256').update(pdfBuffer).digest('hex');
+  const bucket = process.env.S3_BUCKET ?? 'docmax';
+  const objectKey = `org-${org.id}/${sha256}.pdf`;
+  const s3 = s3ClientFromEnv();
+  await s3.send(new PutObjectCommand({ Bucket: bucket, Key: objectKey, Body: pdfBuffer, ContentType: 'application/pdf' }));
+
+  let versionLabel: string | null = null;
+  let currentVersionId = '';
+  for (const versionType of ['MINOR', 'MINOR', 'MAJOR'] as const) {
+    versionLabel = nextVersionLabel(versionLabel, versionType);
+    const file = await prisma.file.create({
+      data: {
+        orgId: org.id,
+        bucket,
+        objectKey,
+        originalName: `${versionedDoc.title} ${versionLabel}.pdf`,
+        mime: 'application/pdf',
+        sizeBytes: BigInt(pdfBuffer.length),
+        sha256,
+        uploadedBy: versionedDoc.authorUserId,
+        status: 'READY',
+      },
+    });
+    const maxVersionNo = await prisma.documentVersion.aggregate({
+      where: { documentId: createdVersionedDoc.id },
+      _max: { versionNo: true },
+    });
+    const versionNo = (maxVersionNo._max.versionNo ?? 0) + 1;
+    if (versionNo > 1) {
+      await prisma.documentVersion.updateMany({ where: { documentId: createdVersionedDoc.id, isCurrent: true }, data: { isCurrent: false } });
+    }
+    const version = await prisma.documentVersion.create({
+      data: {
+        documentId: createdVersionedDoc.id,
+        versionLabel,
+        versionNo,
+        pdfFileId: file.id,
+        createdBy: versionedDoc.authorUserId,
+        isCurrent: true,
+      },
+    });
+    currentVersionId = version.id;
+  }
+  await prisma.document.update({ where: { id: createdVersionedDoc.id }, data: { currentVersionId } });
+  console.log(`1 ta demo hujjat 3 versiya bilan yaratildi ("${versionedDoc.title}", oxirgi: ${versionLabel}).`);
 
   console.log('Seed yakunlandi. Login ma\'lumotlari:');
   console.log(`  ADMIN:  ${admin.email} / ${ADMIN_PASSWORD}`);

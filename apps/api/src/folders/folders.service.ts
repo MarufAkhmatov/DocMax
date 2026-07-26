@@ -79,6 +79,20 @@ export class FoldersService {
     return folders.map((f) => toFolderNode(f, hasChildrenSet.has(f.id), docCountMap.get(f.id) ?? 0));
   }
 
+  /** Yagona papka — deep-link'da (URL'dan `?folder=id`) breadcrumb'ni ota-bola zanjiri
+   * bo'yicha qayta qurish uchun (frontend `parentId` bo'yicha yuqoriga yuradi). */
+  async getById(id: string): Promise<FolderNode> {
+    const folder = await this.folder.findFirst({ where: { id, deletedAt: null } });
+    if (!folder) {
+      throw notFound('Papka topilmadi');
+    }
+    const [childCount, docCount] = await Promise.all([
+      this.folder.count({ where: { parentId: id, deletedAt: null } }),
+      this.tenant.client.document.count({ where: { folderId: id, deletedAt: null } }),
+    ]);
+    return toFolderNode(folder, childCount > 0, docCount);
+  }
+
   private async pathOf(id: string): Promise<string> {
     const rows = await this.prisma.$queryRaw<{ path: string }[]>`
       SELECT path::text as path FROM folders WHERE id = ${id}::uuid

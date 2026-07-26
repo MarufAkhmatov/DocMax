@@ -153,6 +153,8 @@
     "modeWorkflow": "Процесс",
     "colorByStatus": "По статусу",
     "colorByType": "По типу",
+    "colorByOrgUnit": "По подразделению",
+    "orgUnitUnassigned": "Без подразделения",
     "allStatuses": "Все статусы",
     "allTypes": "Все типы",
     "isolatedToggle": "Одиночные",

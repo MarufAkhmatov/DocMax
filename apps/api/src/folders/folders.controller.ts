@@ -54,6 +54,14 @@ export class FoldersController {
     return filtered.map((n) => ({ ...n, locked: locked.has(n.id) }));
   }
 
+  /** Yagona papka — frontend'da URL'dan deep-link breadcrumb qayta qurish uchun
+   * (ota-bola zanjiri bo'yicha yuqoriga yurish). ACL: ko'ra olmasa 404 (umuman ko'rinmaydi). */
+  @Get(':id')
+  async getById(@Param('id', new UuidParamPipe()) id: string) {
+    await this.access.assertView(id);
+    return this.folders.getById(id);
+  }
+
   /** Joriy foydalanuvchining shu papkadagi effektiv huquqlari — ACL drawer/preview uchun
    * yengil endpoint (barcha rollarga ochiq, ADMIN-only to'liq konfiguratsiyadan farqli). */
   @Get(':id/access')

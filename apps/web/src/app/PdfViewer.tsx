@@ -18,11 +18,11 @@ const RENDER_TIMEOUT_MS = 8000;
  * render() muvaffaqiyatsiz/osilib qolsa (ba'zi muhitlarda kuzatilgan), brauzerning
  * o'zining PDF ko'rinishiga (oddiy <iframe>, avvalgi yagona yondashuv) qaytadi. */
 export default function PdfViewer({
-  url, height = 600, panel, panelBorder, txt, txt2, txt3, isDark, overlay,
+  url, height = 600, panel, panelBorder, txt2, txt3, isDark, overlay,
 }: {
   url: string;
   height?: number;
-  panel: string; panelBorder: string; txt: string; txt2: string; txt3: string; isDark: boolean;
+  panel: string; panelBorder: string; txt2: string; txt3: string; isDark: boolean;
   /** Yuklab olish taqiqlangan rejimida watermark kabi qatlamlar uchun (TZ-2 §2.5). */
   overlay?: React.ReactNode;
 }) {
@@ -118,7 +118,6 @@ export default function PdfViewer({
       cancelled = true;
       clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNumber, scale, loading, numPages]);
 
   if (fallback) {

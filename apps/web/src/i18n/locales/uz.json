@@ -153,6 +153,8 @@
     "modeWorkflow": "Workflow",
     "colorByStatus": "Holat bo'yicha",
     "colorByType": "Tur bo'yicha",
+    "colorByOrgUnit": "Bo'linma bo'yicha",
+    "orgUnitUnassigned": "Bo'linmasiz",
     "allStatuses": "Barcha holatlar",
     "allTypes": "Barcha turlar",
     "isolatedToggle": "Yolg'izlar",

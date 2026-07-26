@@ -148,6 +148,20 @@ describe('Folder ACL / permission matrix (e2e) — TZ-2 §2.5', () => {
     return res.body;
   }
 
+  /** AuditInterceptor javobni bloklamaydigan tarzda yozadi (fire-and-forget, tap() ichida
+   * await qilinmaydi — asosiy so'rov audit sekin/xato bo'lsa ham to'xtamasin uchun ataylab
+   * shunday) — javob qaytgach yozuv hali commit bo'lmagan bo'lishi mumkin, shuning uchun bu
+   * yerda qisqa poll bilan kutiladi. */
+  async function waitForAuditLogs(where: Parameters<typeof db.auditLog.findMany>[0]['where']) {
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline) {
+      const logs = await db.auditLog.findMany({ where });
+      if (logs.length > 0) return logs;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return db.auditLog.findMany({ where });
+  }
+
   describe('ADMIN bypass', () => {
     it('ADMIN har doim to\'liq huquqqa ega — ACL hech kimga ruxsat bermasa ham', async () => {
       const folder = await createFolder('admin-bypass');
@@ -297,7 +311,7 @@ describe('Folder ACL / permission matrix (e2e) — TZ-2 §2.5', () => {
       await setPermissions(folder.id, true, [
         { subjectType: 'ROLE', subjectId: 'VIEWER', canView: true, canEdit: false, canDownload: false, inherit: true },
       ]);
-      const logs = await db.auditLog.findMany({ where: { entityType: 'Folder', entityId: folder.id, action: 'PERMISSION_CHANGE' } });
+      const logs = await waitForAuditLogs({ entityType: 'Folder', entityId: folder.id, action: 'PERMISSION_CHANGE' });
       expect(logs.length).toBe(1);
     });
   });

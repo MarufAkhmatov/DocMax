@@ -140,10 +140,12 @@ describe('Org units — struktura (e2e) — TZ-2 §2.4', () => {
     await db.folder.update({ where: { id: parentFolder.id }, data: { orgUnitId: parentUnit.id } });
     await db.folder.update({ where: { id: childFolder.id }, data: { orgUnitId: childUnit.id } });
 
-    const beforeCount = await db.folder.count({ where: { orgId } });
+    // orgId bo'yicha butun org'dagi umumiy son EMAS — parallel ishlayotgan boshqa e2e test
+    // fayllari ham shu orgda papka yaratishi mumkin (race); shu testning O'Z tegiga cheklanadi.
+    const beforeCount = await db.folder.count({ where: { orgId, name: { contains: testTag } } });
     const res = await http().get(`/api/v1/org-units/${parentUnit.id}/remap-preview`).set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
-    const afterCount = await db.folder.count({ where: { orgId } });
+    const afterCount = await db.folder.count({ where: { orgId, name: { contains: testTag } } });
     expect(afterCount).toBe(beforeCount); // hech narsa o'zgarmadi
 
     const childEntry = res.body.find((e: { folderId: string }) => e.folderId === childFolder.id);

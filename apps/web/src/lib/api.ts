@@ -212,6 +212,9 @@ export const foldersApi = {
     return apiFetch<FolderNode[]>(`/folders/tree${qs ? `?${qs}` : ''}`);
   },
 
+  /** Deep-link breadcrumb qayta qurish uchun (URL'dan `?folder=id`) — bitta papka. */
+  getById: (id: string) => apiFetch<FolderNode>(`/folders/${id}`),
+
   create: (input: CreateFolderInput) =>
     apiFetch<FolderNode>('/folders', { method: 'POST', body: input }),
 
