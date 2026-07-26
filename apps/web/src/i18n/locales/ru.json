@@ -372,6 +372,13 @@
     "snapshotViewerTitle": "История структуры",
     "snapshotReadOnlyNote": "Только для просмотра — состояние структуры на выбранную дату, восстановление недоступно.",
     "snapshotDatePicker": "Показать",
-    "snapshotEmpty": "Нет данных за эту дату"
+    "snapshotEmpty": "Нет данных за эту дату",
+    "viewTree": "Дерево",
+    "viewCanvas": "Схема",
+    "canvasSearchPlaceholder": "Поиск непривязанной папки...",
+    "canvasUnlink": "Отвязать",
+    "canvasUnlinkedHint": "Ещё не привязана — протяните линию к подразделению",
+    "canvasLegendHierarchy": "Иерархия",
+    "canvasLegendLink": "Привязанная папка"
   }
 }

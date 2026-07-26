@@ -18,3 +18,4 @@ export * from './tags';
 export * from './workflow';
 export * from './org-units';
 export * from './permissions';
+export * from './org-structure-canvas';

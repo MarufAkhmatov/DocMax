@@ -36,6 +36,7 @@ import type {
   MoveOrgUnitInput,
   NotificationsList,
   OrganizationBranding,
+  OrgCanvasLayout,
   OrgStructureSnapshotDetail,
   OrgStructureSnapshotSummary,
   OrgUnitNode,
@@ -47,6 +48,7 @@ import type {
   RemapPreviewEntry,
   ResetPasswordInput,
   SaveCanvasLayoutInput,
+  SaveOrgCanvasLayoutInput,
   SetFolderPermissionsInput,
   SetupInput,
   TagSummary,
@@ -73,7 +75,7 @@ export class ApiRequestError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
   /** Refresh muvaffaqiyatsiz bo'lsa qayta urinmaslik (refresh so'rovining o'zi uchun) */
   skipAuthRetry?: boolean;
@@ -268,6 +270,18 @@ export const orgUnitsApi = {
   },
 
   snapshotAt: (date: string) => apiFetch<OrgStructureSnapshotDetail | null>(`/org-units/snapshots/at?date=${date}`),
+
+  /** Canvas (n8n-uslubidagi vizualizatsiya) uchun BUTUN struktura bir so'rovda. */
+  treeAll: () => apiFetch<OrgUnitNode[]>('/org-units/tree?all=true'),
+
+  /** Papkani org-unit'ga bog'lash (`orgUnitId`) yoki uzish (`null`) — canvas'da chiziq tortish/o'chirish. */
+  setFolderLink: (folderId: string, orgUnitId: string | null) =>
+    apiFetch<void>(`/org-units/folders/${folderId}/link`, { method: 'PATCH', body: { orgUnitId } }),
+
+  getCanvasLayout: () => apiFetch<OrgCanvasLayout>('/org-units/canvas-layout'),
+
+  saveCanvasLayout: (input: SaveOrgCanvasLayoutInput) =>
+    apiFetch<OrgCanvasLayout>('/org-units/canvas-layout', { method: 'PUT', body: input }),
 };
 
 /** Fayl bayt'laridan sha256 hex — dedup uchun (TZ-1 §1.3 qabul mezoni). */

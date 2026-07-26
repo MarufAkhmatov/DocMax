@@ -372,6 +372,13 @@
     "snapshotViewerTitle": "Structure history",
     "snapshotReadOnlyNote": "Read-only — the structure state as of the selected date, no restore.",
     "snapshotDatePicker": "View",
-    "snapshotEmpty": "No data for this date"
+    "snapshotEmpty": "No data for this date",
+    "viewTree": "Tree",
+    "viewCanvas": "Canvas",
+    "canvasSearchPlaceholder": "Search unlinked folders...",
+    "canvasUnlink": "Unlink",
+    "canvasUnlinkedHint": "Not linked yet — drag a line to a unit",
+    "canvasLegendHierarchy": "Hierarchy",
+    "canvasLegendLink": "Linked folder"
   }
 }

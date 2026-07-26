@@ -1,14 +1,18 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import {
   closeOrgUnitSchema,
   createOrgUnitSchema,
   moveOrgUnitSchema,
   remapApplySchema,
+  saveOrgCanvasLayoutSchema,
+  setFolderOrgUnitSchema,
   updateOrgUnitSchema,
   type CloseOrgUnitInput,
   type CreateOrgUnitInput,
   type MoveOrgUnitInput,
   type RemapApplyInput,
+  type SaveOrgCanvasLayoutInput,
+  type SetFolderOrgUnitInput,
   type UpdateOrgUnitInput,
 } from '@docmax/shared';
 import { setAuditContext } from '../audit/audit-context';
@@ -19,6 +23,7 @@ import { UuidParamPipe } from '../common/uuid-param.pipe';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { OrgUnitsService } from './org-units.service';
 import { OrgStructureSnapshotsService } from './org-structure-snapshots.service';
+import { OrgStructureCanvasService } from './org-structure-canvas.service';
 
 /** TZ-2 §2.4 — korxona strukturasi. O'qish barcha rollarga (papka mapping ko'rinishi
  * uchun), mutatsiya faqat ADMIN — folders.controller.ts bilan bir xil naqsh. */
@@ -27,11 +32,41 @@ export class OrgUnitsController {
   constructor(
     private readonly orgUnits: OrgUnitsService,
     private readonly snapshots: OrgStructureSnapshotsService,
+    private readonly canvas: OrgStructureCanvasService,
   ) {}
 
+  /** `all=true` — canvas (n8n-uslubidagi vizualizatsiya) uchun BUTUN struktura bir
+   * so'rovda; aks holda mavjud lazy-per-level xatti-harakat (daraxt ko'rinishi). */
   @Get('tree')
-  getTree(@CurrentUser() user: RequestUser, @Query('parentId') parentId?: string, @Query('q') q?: string) {
+  getTree(@CurrentUser() user: RequestUser, @Query('parentId') parentId?: string, @Query('q') q?: string, @Query('all') all?: string) {
+    if (all === 'true') {
+      return this.orgUnits.getAllFlat(user.orgId);
+    }
     return this.orgUnits.getTree(user.orgId, parentId ?? null, q);
+  }
+
+  /** Canvas joylashuvi — har userniki, shaxsiy UI holati (workflow.controller.ts bilan
+   * bir xil falsafa: rol cheklovisiz, audit shart emas). */
+  @Get('canvas-layout')
+  getCanvasLayout(@CurrentUser() user: RequestUser) {
+    return this.canvas.getLayout(user.orgId, user.sub);
+  }
+
+  @Put('canvas-layout')
+  saveCanvasLayout(@CurrentUser() user: RequestUser, @Body(new ZodValidationPipe(saveOrgCanvasLayoutSchema)) body: unknown) {
+    return this.canvas.saveLayout(user.orgId, user.sub, body as SaveOrgCanvasLayoutInput);
+  }
+
+  /** Papkani org-unit'ga bog'lash/uzish — canvas'da chiziq tortish/o'chirish shu endpoint'ga tushadi. */
+  @Roles('ADMIN')
+  @Patch('folders/:folderId/link')
+  async setFolderLink(
+    @CurrentUser() user: RequestUser,
+    @Param('folderId', new UuidParamPipe()) folderId: string,
+    @Body(new ZodValidationPipe(setFolderOrgUnitSchema)) body: unknown,
+  ) {
+    const input = body as SetFolderOrgUnitInput;
+    await this.orgUnits.setFolderLink(user.orgId, folderId, input.orgUnitId, user.sub);
   }
 
   @Roles('ADMIN')

@@ -372,6 +372,13 @@
     "snapshotViewerTitle": "Struktura tarixi",
     "snapshotReadOnlyNote": "Faqat o'qish uchun — tanlangan sanadagi struktura holati, tiklash imkoni yo'q.",
     "snapshotDatePicker": "Ko'rish",
-    "snapshotEmpty": "Bu sana uchun ma'lumot yo'q"
+    "snapshotEmpty": "Bu sana uchun ma'lumot yo'q",
+    "viewTree": "Daraxt",
+    "viewCanvas": "Sxema",
+    "canvasSearchPlaceholder": "Bog'lanmagan papka qidiring...",
+    "canvasUnlink": "Bog'lanishni uzish",
+    "canvasUnlinkedHint": "Hali bog'lanmagan — unit'ga chiziq torting",
+    "canvasLegendHierarchy": "Ierarxiya",
+    "canvasLegendLink": "Bog'langan papka"
   }
 }

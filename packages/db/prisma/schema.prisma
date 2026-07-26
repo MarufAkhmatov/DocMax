@@ -132,6 +132,7 @@ model Organization {
   canvasLayouts UserCanvasLayout[]
   embeddings    Embedding[]
   structureSnapshots OrgStructureSnapshot[]
+  orgUnitCanvasLayouts OrgUnitCanvasLayout[]
 
   @@map("organizations")
 }
@@ -189,6 +190,7 @@ model User {
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   triggeredStructureSnapshots OrgStructureSnapshot[]
+  orgUnitCanvasLayouts OrgUnitCanvasLayout[]
 
   @@unique([orgId, email])
   @@index([orgId])
@@ -506,6 +508,23 @@ model OrgStructureSnapshot {
 
   @@index([orgId, createdAt])
   @@map("org_structure_snapshots")
+}
+
+/** TZ-2 §2.4 — org-struktura n8n-uslubidagi canvas: har user o'z node joylashuvini
+ * saqlaydi. `UserCanvasLayout`dan alohida — workflow (hujjat-bog'lanish) canvas'i bilan
+ * TOQNASHMASLIGI uchun (bitta userning ikkita mustaqil canvas'i bor). */
+model OrgUnitCanvasLayout {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  positions Json     @default("[]")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([orgId, userId])
+  @@map("org_unit_canvas_layouts")
 }
 
 model ExternalAct {

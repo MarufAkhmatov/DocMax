@@ -1,6 +1,6 @@
 # DocMax — Handoff
 
-*Oxirgi yangilanish: 2026-07-24 (Docker deploy — api+worker+web konteynerlashtirildi, to'liq stack ishga tushirilib brauzerda tasdiqlandi) · kanonik branch: **`claude/handoff-ni-oqi-va-m9-e0ad4d`** (= `claude/handoff-update-f121b2`ning barcha commit'lari, ff-merge orqali + M9 + M10 qisman + Docker)*
+*Oxirgi yangilanish: 2026-07-26 (Org-struktura canvas — n8n-uslubidagi vizual sxema, §1.8) · kanonik branch: **`claude/handoff-ni-oqi-va-m9-e0ad4d`** (= `claude/handoff-update-f121b2`ning barcha commit'lari, ff-merge orqali + M9 + M10 qisman + Docker + Org-struktura canvas)*
 
 Bu fayl har sessiya boshida o'qilishi SHART. Loyihaning joriy holati, nima qilingani va keyingi qadamlar shu yerda.
 
@@ -158,9 +158,37 @@ Web `:3000` (nginx, production build) · API `:3001` · Postgres `:5433` · MinI
 
 **Docker vs `pnpm dev` — ikkalasi ham qo'llab-quvvatlanadi:** kundalik ishlab chiqish uchun hamon `pnpm dev` (HANDOFF §3) tavsiya etiladi (tezroq HMR). Docker — production-o'xshash tekshiruv/deploy uchun. **Ikkalasini bir vaqtda 3000-portda ishlatmang** — agar `pnpm --filter @docmax/web dev` ALLAQACHON 3000-portda ishlab tursa-yu, Docker `web` konteyneri ham shu portga bog'lansa, Windows/Docker Desktop (WSL2) ikkalasini alohida IP oilasida (IPv4 `0.0.0.0` docker uchun, IPv6 `[::1]` lokal dev uchun) qabul qilib ketishi mumkin — `http://localhost:3000` qaysi biriga borishi DNS/browser xatti-harakatiga bog'liq bo'lib qoladi, tekshirish paytida adashtirib yuboradi (shu sessiyada aynan shu holat yuz berdi: brauzer eski Vite dev-server ulanishini ko'rsatib turdi, Docker build tekshirilyapti deb o'ylangan). Ikkalovidan qaysi biriga ulanayotganingizni aniqlash uchun: `document.scripts[0].src` — agar `/assets/index-XXXX.js` bo'lsa Docker (build), agar `/src/...` yoki `@vite/client` ko'rinsa — lokal dev server.
 
+## 1.8. Shu sessiyada qilinganlar (2026-07-26) — Org-struktura canvas (n8n uslubi)
+
+Foydalanuvchi so'rovi: `/structure` sahifasida org-strukturani **n8n-uslubidagi vizual canvas**da chizish — unit'lar node, ierarxiya+papka-bog'lanish chiziq, canvas ichida create/rename/close/delete/link imkoniyati, zoom, plus tavsiya etilgan qo'shimcha ko'rinish. ("Ilgari qilib bergan eding" degani — bunday canvas ILGARI UMUMAN qurilmagan edi, `git log --all` bilan tekshirildi; ehtimol M8'dagi hujjat-bog'lanish uchun qurilgan `WorkflowView.tsx` (xuddi shunday n8n-uslubidagi canvas, lekin org-struktura uchun EMAS) bilan aralashtirilgan.)
+
+**Muhim topilgan bo'shliq**: `Folder.orgUnitId` DB'da bor va o'qishda ishlatilardi, lekin **uni yozadigan hech qanday API endpoint yo'q edi** (faqat e2e testlarda to'g'ridan-to'g'ri DB orqali). Papkani org-unit'ga bog'lash birinchi marta shu sessiyada yozildi.
+
+**Backend**:
+- Schema: yangi `OrgUnitCanvasLayout` modeli (`UserCanvasLayout`ning aynan nusxasi, alohida jadval `org_unit_canvas_layouts` — workflow canvas joylashuvi bilan aralashmasligi uchun). Migratsiya: `20260724130000_org_unit_canvas_layout`.
+- `packages/shared/src/org-structure-canvas.ts` (yangi) — `orgCanvasNodeSchema`, `saveOrgCanvasLayoutSchema`. `org-units.ts`ga `setFolderOrgUnitSchema` qo'shildi.
+- `org-units.service.ts`: `getAllFlat()` (canvas uchun BUTUN struktura bir so'rovda), `setFolderLink()` (papka↔unit bog'lash/uzish + snapshot capture).
+- Yangi `org-structure-canvas.service.ts` (`workflow.service.ts`ning aynan nusxasi, alohida jadval bilan).
+- `org-units.controller.ts`: `GET tree?all=true`, `GET/PUT canvas-layout`, `PATCH folders/:folderId/link` (ADMIN). **Diqqat**: bu endpoint `/org-units/folders/:folderId/link` ostida, `/folders/:id` EMAS — `OrgUnitsModule` allaqachon `FoldersModule`ni import qiladi, aksincha yo'nalish circular dependency berardi (`OrgStructureSnapshotsService`ga kirish uchun).
+
+**Frontend**:
+- Yangi `apps/web/src/app/OrgStructureCanvas.tsx` — `WorkflowView.tsx` naqshi asosida (`@xyflow/react`, statik `handles`/`width`/`height` workaround — HANDOFF §4'dagi eslatmaga qarang). Node turlari: `unit` (nom/kod/rahbar/papka soni, hover-reveal rename/add-child/close-reopen) va `folder` (nom/hujjat soni, hover-reveal unlink). Edge'lar: ierarxiya (ko'k, strelka) va papka-bog'lanish (lime, tire chiziq) — `treeAll()`dan avtomatik quriladi. `onConnect`: unit↔unit = qayta ota tayinlash, unit↔folder = bog'lash; muvaffaqiyatli amaldan keyin **butun ro'yxat qayta yuklanadi** (edge'larni qo'lda yamashdan ko'ra soddaroq). Chap panelda bog'lanmagan papka qidiruv+drag&drop. Toolbar'da yangi ildiz bo'linma yaratish. Joylashuv o'zgarganda 600ms debounce bilan saqlanadi (yo'q node'lar uchun oddiy qatlamli daraxt-layout avtomatik hisoblanadi).
+- `StructureView.tsx`ga **"Daraxt / Sxema" view-toggle** qo'shildi (GraphView'dagi Graf/Workflow toggle bilan bir xil uslub) — ikkalasi ham saqlanadi: daraxt tezkor admin amallar (rahbar tanlash, remap wizard, snapshot) uchun, sxema vizual umumiy ko'rinish+bog'lash uchun.
+- `apps/web/src/lib/api.ts`: `orgUnitsApi.treeAll()/setFolderLink()/getCanvasLayout()/saveCanvasLayout()`. **Yon topilma**: `RequestOptions.method` tipida `'PUT'` yo'q edi (3 joyda `method:'PUT'` ishlatilsa ham) — shu sessiyada tuzatildi.
+- i18n: `structure.viewTree/viewCanvas/canvasSearchPlaceholder/canvasUnlink/canvasUnlinkedHint/canvasLegendHierarchy/canvasLegendLink` — uz/ru/en uch tilda ham qo'shildi.
+
+**Muhim muhit-xos to'siq (shu sessiyada topildi)**: Windows dinamik ravishda TCP port oralig'ini (WSL2/Hyper-V NAT) vaqtincha "excluded" deb belgilab qo'yadi — bu sessiyada aynan **2933–3232** oralig'i band bo'lib qoldi, ya'ni **3000/3001 portlar** (lokal `pnpm dev` HAM, docker container bind ham) `bind: An attempt was made to access a socket in a way forbidden by its access permissions` xatosi bilan ishlamay qoldi (`netsh interface ipv4 show excludedportrange protocol=tcp` bilan tasdiqlandi). Doimiy yechim emas (Windows tarmoq holatiga bog'liq, ehtimol restart/WSL qayta ishga tushirilgach o'zi tuzaladi), lekin **`docker-compose.yml`ga `api`/`web` xizmatlari uchun `API_HOST_PORT`/`WEB_HOST_PORT` env-parametrlari qo'shildi** (standart holatda hamon 3001/3000 — orqaga to'liq mos), shunday holat qaytarilib qolsa muqobil portlar bilan ishga tushirish mumkin:
+```bash
+API_HOST_PORT=4001 WEB_HOST_PORT=4000 VITE_API_URL=http://localhost:4001/api/v1 WEB_ORIGIN=http://localhost:4000 docker compose -p docmax up -d --build api web worker
+```
+
+**Tekshirildi**: `pnpm --filter @docmax/shared build` + `pnpm --filter @docmax/api build` + `pnpm --filter @docmax/web build` — barchasi toza (yangi kod tufayli xato yo'q). `org-units.e2e.test.ts` + `folder-permissions.e2e.test.ts` — 14/14 yashil, regressiyasiz. Brauzerda (Docker, muqobil 4000/4001 portlarda, chunki yuqoridagi port-band muammosi): login → Структура → Схема — real `tree?all=true`/`canvas-layout` 200 OK, mavjud unit node to'g'ri chizildi; **yangi bola bo'linma yaratish** (canvas'dagi "+" tugma orqali) → `POST /org-units` 201 → ro'yxat qayta yuklandi → **Daraxt tab'da ham bir xil ko'rindi** (ikkala ko'rinish bir manbadan); **inline rename** (Pencil tugma) → `PATCH` 200; bog'lanmagan papkani chapdan qidirib canvas'ga tashlash → to'g'ri "hali bog'lanmagan" (tire chegarali) node yaratdi; to'liq sahifa reload (silent refresh-cookie orqali qayta login) → canvas barqaror qayta chizildi, konsolda xato yo'q.
+
+**Tekshirilmagan qoldiq (vosita cheklovi, kod muammosi emas)**: Node'lar orasida **chiziq tortish** (unit↔unit qayta-ota-tayinlash, unit↔folder bog'lash) — React Flow'ning handle-drag mexanizmi haqiqiy OS-darajasidagi pointer event (`isTrusted:true`) talab qiladi, bu sessiyaning Browser paneli screenshot/coordinate-asoslangan amallarni qo'llab-quvvatlamadi ("Browser pane is not displayed, so the page is not compositing frames"). Shuning uchun `onConnect`/`onEdgesDelete` handler'lari faqat KOD KO'RIB CHIQISH orqali tekshirildi (chaqirilgan `orgUnitsApi.move`/`setFolderLink` metodlari alohida to'g'ridan-to'g'ri ishlashi tasdiqlangan). **Keyingi sessiya odatiy brauzerda qo'lda chiziq tortib ko'rishi tavsiya etiladi** (pdf.js render-hang uchun ilgari qo'llanilgan xuddi shu "keyinroq qo'lda tekshirish" pattern).
+
 ## 2. Yo'l xaritasi (2026-07-17 auditi asosida)
 
-**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 to'liq: §2.1 Relations, §2.2 Workflow canvas, §2.3 Graf, §2.4 Struktura (M9), §2.5 Papka ACL (M9), §2.6 ⌘K nom/raqam qidiruv, §2.7 Boshqaruv yakuni · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n (to'liq) · security hardening · **`vite build` production tuzatildi + pdf.js (M10 qisman)** · **Docker deploy (api+worker+web, §1.7)**.
+**Bajarilgan:** TZ-1 to'liq (m1–m6) · TZ-2 to'liq: §2.1 Relations, §2.2 Workflow canvas, §2.3 Graf, §2.4 Struktura (M9, + n8n-uslubidagi canvas §1.8), §2.5 Papka ACL (M9), §2.6 ⌘K nom/raqam qidiruv, §2.7 Boshqaruv yakuni · bulk amallar · kalendar · kartochka/timeline · Admin Panel (turlar+logo+teglar) · i18n (to'liq) · security hardening · **`vite build` production tuzatildi + pdf.js (M10 qisman)** · **Docker deploy (api+worker+web, §1.7)** · **Org-struktura n8n-canvas (§1.8)**.
 
 **Keyingi milestonelar (tavsiya tartibi):**
 
@@ -219,7 +247,8 @@ Web `:3000` · API `:3001/api/v1` · MinIO konsol `:9001` (docmax/docmax-secret)
 ```
 apps/web/src/app/App.tsx      ← BARCHA asosiy UI (~3000+ qator): view-switching, Vault, DocDetail, wizard,
                                  FileChip, FolderTreeNode, FolderAclModal, WatermarkOverlay
-apps/web/src/app/StructureView.tsx ← M9: org-unit daraxti, remapping wizard, snapshot viewer
+apps/web/src/app/StructureView.tsx ← M9: org-unit daraxti, remapping wizard, snapshot viewer + Daraxt/Sxema toggle (§1.8)
+apps/web/src/app/OrgStructureCanvas.tsx ← §1.8: org-struktura n8n-uslubidagi canvas (@xyflow/react)
 apps/web/src/app/Login.tsx    ← Login ekrani;  AdminPanel.tsx ← Admin Panel (brend + hujjat turlari + teglar + trash + audit)
 apps/web/src/lib/api.ts       ← authApi(+listUsers), foldersApi(+access), permissionsApi, orgUnitsApi, filesApi, documentsApi, ...
 apps/web/src/i18n/            ← uz(asosiy)/ru/en lug'atlar — 327 kalit, uchchalasida bir xil

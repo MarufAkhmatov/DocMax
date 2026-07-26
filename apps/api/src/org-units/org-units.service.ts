@@ -97,6 +97,68 @@ export class OrgUnitsService {
     );
   }
 
+  /** Butun org uchun BARCHA unit'lar (faol+yopiq) bitta so'rovda, batafsil `OrgUnitNode`
+   * shaklida — canvas (n8n-uslubidagi vizualizatsiya) birinchi yuklanishda butun
+   * strukturani bir martada ko'rishi kerak, `getTree()`dagi kabi lazy-per-level emas. */
+  async getAllFlat(orgId: string): Promise<OrgUnitNode[]> {
+    const units = await this.unit.findMany({ orderBy: { sortOrder: 'asc' } });
+    if (units.length === 0) {
+      return [];
+    }
+
+    const ids = units.map((u) => u.id);
+    const headUserIds = units.map((u) => u.headUserId).filter((id): id is string => !!id);
+
+    const [childRows, headUsers, mappedFolders] = await Promise.all([
+      this.unit.findMany({ where: { parentId: { in: ids } }, select: { parentId: true }, distinct: ['parentId'] }),
+      headUserIds.length
+        ? this.tenant.client.user.findMany({ where: { id: { in: headUserIds } }, select: { id: true, fullName: true } })
+        : Promise.resolve([]),
+      this.tenant.client.folder.findMany({
+        where: { orgUnitId: { in: ids }, deletedAt: null },
+        select: { id: true, name: true, orgUnitId: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
+
+    const hasChildrenSet = new Set(childRows.map((c) => c.parentId));
+    const headNameMap = new Map(headUsers.map((u) => [u.id, u.fullName]));
+    const docCounts = await this.tenant.client.document.groupBy({
+      by: ['folderId'],
+      where: { folderId: { in: mappedFolders.map((f) => f.id) }, deletedAt: null },
+      _count: { _all: true },
+    });
+    const docCountMap = new Map(docCounts.map((d) => [d.folderId, d._count._all]));
+    const foldersByUnit = new Map<string, OrgUnitFolderSummary[]>();
+    for (const f of mappedFolders) {
+      const list = foldersByUnit.get(f.orgUnitId as string) ?? [];
+      list.push({ id: f.id, name: f.name, documentCount: docCountMap.get(f.id) ?? 0 });
+      foldersByUnit.set(f.orgUnitId as string, list);
+    }
+
+    return units.map((u) =>
+      toOrgUnitNode(u, hasChildrenSet.has(u.id), u.headUserId ? (headNameMap.get(u.headUserId) ?? null) : null, foldersByUnit.get(u.id) ?? []),
+    );
+  }
+
+  /** Papkani org-unit'ga bog'lash/uzish (canvas'da chiziq tortish/o'chirish) — `folder.orgUnitId`.
+   * Ikkalasi ham org ichida ekanligi tekshiriladi, keyin struktura snapshot yoziladi (mapping
+   * ham "struktura holati"ning bir qismi — boshqa mutatsiyalar bilan bir xil naqsh). */
+  async setFolderLink(orgId: string, folderId: string, newOrgUnitId: string | null, triggeredBy: string): Promise<void> {
+    const folder = await this.tenant.client.folder.findFirst({ where: { id: folderId, deletedAt: null } });
+    if (!folder) {
+      throw notFound('Papka topilmadi');
+    }
+    if (newOrgUnitId) {
+      const unit = await this.unit.findFirst({ where: { id: newOrgUnitId } });
+      if (!unit) {
+        throw notFound("Bo'linma topilmadi");
+      }
+    }
+    await this.tenant.client.folder.update({ where: { id: folderId }, data: { orgUnitId: newOrgUnitId } });
+    await this.snapshots.capture(orgId, newOrgUnitId ? 'FOLDER_LINKED' : 'FOLDER_UNLINKED', triggeredBy, newOrgUnitId ?? undefined);
+  }
+
   private async assertHeadUserBelongsToOrg(headUserId?: string | null): Promise<void> {
     if (!headUserId) {
       return;

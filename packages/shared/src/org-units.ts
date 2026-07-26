@@ -29,6 +29,12 @@ export const closeOrgUnitSchema = z.object({
 });
 export type CloseOrgUnitInput = z.infer<typeof closeOrgUnitSchema>;
 
+/** Papkani org-unit'ga bog'lash/uzish (n8n-uslubidagi canvas'da chiziq tortish/o'chirish orqali) — `folder.orgUnitId`. */
+export const setFolderOrgUnitSchema = z.object({
+  orgUnitId: uuidSchema.nullable(),
+});
+export type SetFolderOrgUnitInput = z.infer<typeof setFolderOrgUnitSchema>;
+
 export const remapApplySchema = z.object({
   moves: z
     .array(

@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Loader2, Pencil, Plus, RotateCcw, Trash2, Us
 import type { OrgStructureSnapshotDetail, OrgUnitNode, RemapPreviewEntry, UserSummary } from "@docmax/shared";
 import { authApi, orgUnitsApi, ApiRequestError } from "@/lib/api";
 import type { AdminTheme } from "./AdminPanel";
+import OrgStructureCanvas from "./OrgStructureCanvas";
 
 // TZ-2 §2.4 — Korxona strukturasi: org-unit daraxti (CRUD, drag&drop, rahbar),
 // remapping wizard, struktura snapshot (faqat o'qish). FolderTreeNode'dagi hover-reveal
@@ -294,6 +295,7 @@ export default function StructureView({ theme, toast, isAdmin }: { theme: AdminT
   const { t } = useTranslation();
   const { lime, txt, txt2, txt3, panel, panelBorder, isDark } = theme;
 
+  const [viewMode, setViewMode] = useState<"tree" | "canvas">("tree");
   const [roots, setRoots] = useState<OrgUnitNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<OrgUnitNode | null>(null);
@@ -367,6 +369,21 @@ export default function StructureView({ theme, toast, isAdmin }: { theme: AdminT
 
   return (
     <div>
+      <div className="flex p-1 gap-0.5 rounded-[10px] mb-3 w-fit"
+        style={{ background: isDark ? "rgba(26,26,26,.92)" : "rgba(255,255,255,.95)", border: `1px solid ${panelBorder}` }}>
+        {([["tree", t("structure.viewTree")], ["canvas", t("structure.viewCanvas")]] as const).map(([m, label]) => (
+          <span key={m} onClick={() => setViewMode(m)}
+            className="text-[11px] font-extrabold px-3 py-[5px] rounded-lg cursor-pointer"
+            style={viewMode === m ? { background: isDark ? "rgba(255,255,255,.12)" : "#fff", color: txt } : { color: txt3 }}>
+            {label}
+          </span>
+        ))}
+      </div>
+
+      {viewMode === "canvas" ? (
+        <OrgStructureCanvas theme={theme} toast={toast} />
+      ) : (
+      <>
       <div className="grid gap-4" style={{ gridTemplateColumns: "320px 1fr" }}>
         {/* Org-unit daraxti */}
         <div style={{ ...glass, padding: 18 }}>
@@ -474,6 +491,8 @@ export default function StructureView({ theme, toast, isAdmin }: { theme: AdminT
 
       {wizardUnit && (
         <RemapWizardModal unit={wizardUnit} onClose={() => { setWizardUnit(null); loadRoots(); }} toast={toast} theme={theme} />
+      )}
+      </>
       )}
     </div>
   );
