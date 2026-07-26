@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DOC_STATUSES, LOCALES, RELATION_TYPES, ROLES, THEMES } from './enums';
+import { DOC_STATUSES, LOCALES, PERMISSION_SUBJECT_TYPES, RELATION_TYPES, ROLES, THEMES } from './enums';
 
 // Baza zod sxemalar (CLAUDE.md 4-qoida: validatsiya faqat zod, front+back bitta manba).
 // Endpoint'larga bog'liq DTO'lar tegishli milestone'larda shu yerga qo'shiladi.
@@ -19,6 +19,7 @@ export const docStatusSchema = z.enum(DOC_STATUSES);
 export const localeSchema = z.enum(LOCALES);
 export const themeSchema = z.enum(THEMES);
 export const relationTypeSchema = z.enum(RELATION_TYPES);
+export const permissionSubjectTypeSchema = z.enum(PERMISSION_SUBJECT_TYPES);
 
 export const emailSchema = z.string().email().max(320);
 export const passwordSchema = z.string().min(8).max(128);

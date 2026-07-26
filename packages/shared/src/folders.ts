@@ -38,6 +38,11 @@ export interface FolderNode {
   isSystem: boolean;
   hasChildren: boolean;
   documentCount: number;
+  orgUnitId: string | null;
+  /** Shu papkaning o'z "Kirishni cheklash" tumbleri (TZ-2 §2.5). */
+  aclEnabled: boolean;
+  /** Shu papka yoki bironta ota-papkasi ACL chegarasi — qulf ikonkasi shunga qarab chiziladi. */
+  locked: boolean;
   createdAt: string;
   updatedAt: string;
 }

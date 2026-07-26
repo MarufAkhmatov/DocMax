@@ -20,6 +20,9 @@ export interface GraphNode {
   docTypeName: string;
   status: DocStatus;
   degree: number; // bog'lanishlar soni — node o'lchami uchun
+  /** Hujjat papkasining org-unit'i (TZ-2 §2.3 — "podrazdeleniye bo'yicha" rang rejimi). */
+  orgUnitId: string | null;
+  orgUnitName: string | null;
 }
 
 export interface GraphEdge {

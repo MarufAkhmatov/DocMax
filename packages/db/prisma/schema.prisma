@@ -129,7 +129,10 @@ model Organization {
   permissions   Permission[]
   auditLogs     AuditLog[]
   notifications Notification[]
+  canvasLayouts UserCanvasLayout[]
   embeddings    Embedding[]
+  structureSnapshots OrgStructureSnapshot[]
+  orgUnitCanvasLayouts OrgUnitCanvasLayout[]
 
   @@map("organizations")
 }
@@ -183,8 +186,11 @@ model User {
   createdRelations  DocumentRelation[]
   auditLogs         AuditLog[]
   notifications     Notification[]
+  canvasLayouts       UserCanvasLayout[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  triggeredStructureSnapshots OrgStructureSnapshot[]
+  orgUnitCanvasLayouts OrgUnitCanvasLayout[]
 
   @@unique([orgId, email])
   @@index([orgId])
@@ -231,6 +237,9 @@ model Folder {
   description String?
   sortOrder   Int       @default(0) @map("sort_order")
   isSystem    Boolean   @default(false) @map("is_system")
+  // TZ-2 §2.5 — "Kirishni cheklash" yoqilganmi. false bo'lsa bu papka ACL chegarasi
+  // emas (ota-papkadagi cheklov, agar bo'lsa, pastga tushishda davom etadi).
+  aclEnabled  Boolean   @default(false) @map("acl_enabled")
   deletedAt   DateTime? @map("deleted_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
@@ -411,7 +420,9 @@ model Permission {
   folderId    String                @map("folder_id") @db.Uuid
   folder      Folder                @relation(fields: [folderId], references: [id], onDelete: Cascade)
   subjectType PermissionSubjectType @map("subject_type")
-  subjectId   String                @map("subject_id") @db.Uuid
+  // ROLE bo'lsa Role enum qiymati (masalan "EDITOR"), USER/ORG_UNIT bo'lsa uuid —
+  // shuning uchun oddiy matn ustuni (uuid emas).
+  subjectId   String                @map("subject_id")
   canView     Boolean               @default(false) @map("can_view")
   canEdit     Boolean               @default(false) @map("can_edit")
   canDownload Boolean               @default(false) @map("can_download")
@@ -419,6 +430,7 @@ model Permission {
   createdAt   DateTime              @default(now()) @map("created_at")
   updatedAt   DateTime              @updatedAt @map("updated_at")
 
+  @@unique([folderId, subjectType, subjectId])
   @@index([orgId])
   @@index([folderId])
   @@map("permissions")
@@ -463,6 +475,56 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+/** TZ-2 §2.2 — Workflow canvas (n8n uslubi): har user o'z node joylashuvini saqlaydi. */
+model UserCanvasLayout {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  positions Json     @default("[]")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([orgId, userId])
+  @@map("user_canvas_layouts")
+}
+
+/** TZ-2 §2.4 — korxona strukturasi o'zgargan har safar to'liq daraxt+papka-mapping
+ * holati saqlanadi ("N-sana holati" faqat o'qish uchun ko'rish; tiklash yo'q). */
+model OrgStructureSnapshot {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  // { orgUnits: [...], folderMappings: [...] } — capture vaqtidagi to'liq holat
+  data        Json     @default("{}")
+  reason      String
+  orgUnitId   String?  @map("org_unit_id") @db.Uuid
+  triggeredBy String?  @map("triggered_by") @db.Uuid
+  triggeredByUser User? @relation(fields: [triggeredBy], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([orgId, createdAt])
+  @@map("org_structure_snapshots")
+}
+
+/** TZ-2 §2.4 — org-struktura n8n-uslubidagi canvas: har user o'z node joylashuvini
+ * saqlaydi. `UserCanvasLayout`dan alohida — workflow (hujjat-bog'lanish) canvas'i bilan
+ * TOQNASHMASLIGI uchun (bitta userning ikkita mustaqil canvas'i bor). */
+model OrgUnitCanvasLayout {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  positions Json     @default("[]")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([orgId, userId])
+  @@map("org_unit_canvas_layouts")
 }
 
 model ExternalAct {

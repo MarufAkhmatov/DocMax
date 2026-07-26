@@ -15,6 +15,7 @@ import type {
   ResetPasswordInput,
   SetupInput,
   UpdateProfileInput,
+  UserSummary,
 } from '@docmax/shared';
 import { conflict, expired, notFound, unauthorized } from '../common/api-error';
 import { MailerService } from '../mailer/mailer.service';
@@ -307,5 +308,15 @@ export class AuthService {
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<AuthUser> {
     const user = await this.prisma.user.update({ where: { id: userId }, data: input });
     return toAuthUser(user);
+  }
+
+  /** Org-unit rahbar tanlash (TZ-2 §2.4) va ACL USER-subject tanlash (§2.5) uchun. */
+  async listUsers(orgId: string): Promise<UserSummary[]> {
+    const users = await this.prisma.user.findMany({
+      where: { orgId, isActive: true },
+      select: { id: true, fullName: true, email: true, role: true },
+      orderBy: { fullName: 'asc' },
+    });
+    return users;
   }
 }

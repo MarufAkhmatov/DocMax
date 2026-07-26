@@ -14,14 +14,16 @@
     "doc": "Документ",
     "graph": "Граф",
     "mon": "Мониторинг",
-    "cal": "Календарь"
+    "cal": "Календарь",
+    "struct": "Структура"
   },
   "breadcrumb": {
     "dash": "Главная",
     "graph": "Связи",
     "mon": "Мониторинг",
     "vaultRoot": "Хранилище",
-    "cal": "Календарь"
+    "cal": "Календарь",
+    "struct": "Структура"
   },
   "topbar": {
     "searchPlaceholder": "Поиск: по названию, номеру или смыслу...",
@@ -36,7 +38,26 @@
     "statNewExternalActs": "Новые внешние акты",
     "statReviewSuggested": "Рекомендуется проверить",
     "recentActivity": "Последняя активность",
-    "needsAttention": "Требует внимания"
+    "needsAttention": "Требует внимания",
+    "todaySummary": "Сегодня: новых внешних актов — {{newExternalActs}}, на согласовании — {{pendingApproval}}",
+    "totalPrefix": "Всего",
+    "totalFolders": "папок: {{count}}",
+    "pendingOverdue": "просрочено: {{count}}",
+    "monitoringPending": "Модуль мониторинга ещё не включён",
+    "noActivity": "Активности пока нет",
+    "noAttention": "Ничего не требует внимания",
+    "viewNotification": "Открыть →",
+    "entity": {
+      "Document": "Документ",
+      "DocumentVersion": "Версия документа",
+      "DocumentRelation": "Связь"
+    },
+    "action": {
+      "CREATE": "создан(а)",
+      "UPDATE": "обновлён(а)",
+      "DELETE": "удалён(а)",
+      "RESTORE": "восстановлен(а)"
+    }
   },
   "vault": {
     "segmentTable": "Таблица",
@@ -71,7 +92,18 @@
     "tableTitle": "Документы",
     "treeFolders": "Папки",
     "savedFilters": "Сохранённые фильтры",
-    "timelineUploadedAt": "дата загрузки"
+    "timelineUploadedAt": "дата загрузки",
+    "folderDeleteConfirm": "Удалить папку «{{name}}»?",
+    "restrictAccess": "Ограничить доступ",
+    "aclSubjectRole": "Роль",
+    "aclSubjectUser": "Пользователь",
+    "aclSubjectOrgUnit": "Подразделение",
+    "aclCanView": "Просмотр",
+    "aclCanEdit": "Редактирование",
+    "aclCanDownload": "Скачивание",
+    "aclInherit": "Наследуется дочерними папками",
+    "aclAddSubject": "+ Добавить субъект",
+    "aclLockedTooltip": "Доступ ограничен"
   },
   "status": {
     "active": "Активен",
@@ -92,6 +124,8 @@
     "searchDocument": "Найдите документ по названию или номеру...",
     "relationNotePlaceholder": "Комментарий (необязательно)",
     "noRelations": "Связей пока нет",
+    "removeRelationConfirm": "Удалить эту связь?",
+    "alsoExpireTarget": "Также сделать старый документ EXPIRED",
     "audit": "Аудит",
     "comingSoon": "Эта функция появится на следующем этапе",
     "current": "текущая",
@@ -119,6 +153,8 @@
     "modeWorkflow": "Процесс",
     "colorByStatus": "По статусу",
     "colorByType": "По типу",
+    "colorByOrgUnit": "По подразделению",
+    "orgUnitUnassigned": "Без подразделения",
     "allStatuses": "Все статусы",
     "allTypes": "Все типы",
     "isolatedToggle": "Одиночные",
@@ -150,7 +186,10 @@
   },
   "drawer": {
     "title": "Уведомления",
-    "markAllRead": "отметить все как прочитанные"
+    "markAllRead": "отметить все как прочитанные",
+    "unreadCount": "непрочитанных: {{count}}",
+    "empty": "Уведомлений нет",
+    "viewed": "Просмотрено"
   },
   "wizard": {
     "title": "Новый документ",
@@ -168,6 +207,7 @@
     "fieldApprovedDate": "Дата утверждения",
     "fieldDept": "Отдел",
     "fieldTags": "Теги",
+    "fieldTagsPlaceholder": "например: ЦБ, кредит",
     "relationsOptional": "Связи (необязательно)",
     "addRelationBtn": "+ Добавить связь",
     "noFolderSelected": "Сначала выберите папку",
@@ -195,7 +235,26 @@
     "edit": "Изменить",
     "delete": "Удалить",
     "deleteConfirm": "Действительно удалить этот тип?",
-    "accessDenied": "Эта страница только для администраторов"
+    "accessDenied": "Эта страница только для администраторов",
+    "trash": "Корзина",
+    "trashHint": "Удалённые документы и папки хранятся здесь 30 дней, затем удаляются безвозвратно.",
+    "trashEmpty": "Корзина пуста.",
+    "trashTypeDocument": "Документ",
+    "trashTypeFolder": "Папка",
+    "trashPurgeAt": "хранится до {{date}}",
+    "trashRestore": "Восстановить",
+    "trashRestored": "Восстановлено",
+    "auditLog": "Журнал аудита",
+    "auditLogHint": "История всех изменяющих действий в организации.",
+    "auditExportCsv": "Скачать CSV",
+    "auditAllActions": "Все действия",
+    "auditEntityTypePlaceholder": "Тип объекта (например: Document)",
+    "auditEmpty": "Записи не найдены.",
+    "tags": "Теги",
+    "tagsHint": "Теги, добавленные к документам — здесь можно переименовать или полностью удалить.",
+    "tagsEmpty": "Теги ещё не созданы.",
+    "tagDocCount": "документов: {{count}}",
+    "tagDeleteConfirm": "Удалить тег «{{name}}»? Будет убран со всех документов."
   },
   "common": {
     "uploading": "Загрузка...",
@@ -208,7 +267,9 @@
     "confirm": "Подтвердить",
     "download": "Скачать",
     "save": "Сохранить",
-    "current": "текущая"
+    "current": "текущая",
+    "edit": "Изменить",
+    "delete": "Удалить"
   },
   "bulkBar": {
     "selectedSuffix": "документов выбрано",
@@ -237,6 +298,11 @@
     "docsCount": "{{count}} док.",
     "empty": "В этом периоде документов нет"
   },
+  "workflow": {
+    "searchPlaceholder": "Поиск папки или документа...",
+    "empty": "Холст пуст — найдите слева и перетащите сюда",
+    "connectTitle": "Создать связь"
+  },
   "version": {
     "title": "Новая версия",
     "firstVersion": "первая версия (v1.0)",
@@ -256,5 +322,65 @@
     "save": "Сохранить",
     "saving": "Сохранение...",
     "created": "Версия {{label}} создана"
+  },
+  "errors": {
+    "folderCreate": "Ошибка при создании папки",
+    "folderRename": "Ошибка при переименовании папки",
+    "folderDelete": "Ошибка при удалении папки",
+    "foldersLoad": "Ошибка при загрузке папок",
+    "documentsLoad": "Ошибка при загрузке документов",
+    "docDetailLoad": "Ошибка при загрузке документа",
+    "relationAdd": "Ошибка при добавлении связи",
+    "generic": "Произошла ошибка",
+    "pdfOnly": "Принимаются только файлы PDF",
+    "docxOnly": "Принимаются только файлы DOCX",
+    "fileUpload": "Ошибка при загрузке файла",
+    "docSave": "Ошибка при сохранении документа",
+    "fileOpen": "Ошибка при открытии файла",
+    "docDelete": "Ошибка при удалении документа",
+    "bulkAction": "Ошибка при выполнении действия",
+    "templateRequest": "Ошибка при запросе шаблона",
+    "versionFileUpload": "Ошибка при загрузке файла",
+    "versionCreate": "Ошибка при создании версии",
+    "logoUpload": "Ошибка при загрузке логотипа",
+    "calendarLoad": "Ошибка при загрузке данных календаря",
+    "graphLoad": "Ошибка при загрузке графа",
+    "orgUnitCreate": "Ошибка при создании подразделения",
+    "orgUnitUpdate": "Ошибка при редактировании подразделения",
+    "orgUnitMove": "Ошибка при перемещении подразделения",
+    "orgUnitClose": "Ошибка при изменении статуса подразделения",
+    "permissionSave": "Ошибка при сохранении прав доступа"
+  },
+  "structure": {
+    "title": "Структура организации",
+    "hint": "Выберите подразделение слева — здесь появятся руководитель, привязанные папки и другие детали.",
+    "newUnit": "+ Новое подразделение",
+    "unitNamePlaceholder": "например: Юридический департамент",
+    "headLabel": "Руководитель",
+    "headNone": "Не назначен",
+    "noUnitsYet": "Подразделения ещё не созданы",
+    "unitCloseConfirm": "Закрыть подразделение «{{name}}»?",
+    "closeTooltip": "Закрыть",
+    "reopenTooltip": "Открыть снова",
+    "archiveFolderOffer": "Перенести привязанную папку(и) в «Архив структур»?",
+    "archiveFolderName": "Архив структур",
+    "folderMapping": "Привязанные папки",
+    "folderMappingEmpty": "Нет привязанных папок",
+    "remapWizardTitle": "Синхронизация папок",
+    "remapWizardHint": "После изменения структуры для привязанных папок предлагается новое расположение. Отметьте нужные строки и подтвердите.",
+    "remapEntryLabel": "новое расположение: {{path}}",
+    "remapApply": "Подтвердить и переместить",
+    "remapNoChanges": "Нет папок для синхронизации — всё на своих местах",
+    "snapshotViewerTitle": "История структуры",
+    "snapshotReadOnlyNote": "Только для просмотра — состояние структуры на выбранную дату, восстановление недоступно.",
+    "snapshotDatePicker": "Показать",
+    "snapshotEmpty": "Нет данных за эту дату",
+    "viewTree": "Дерево",
+    "viewCanvas": "Схема",
+    "canvasSearchPlaceholder": "Поиск непривязанной папки...",
+    "canvasUnlink": "Отвязать",
+    "canvasUnlinkedHint": "Ещё не привязана — протяните линию к подразделению",
+    "canvasLegendHierarchy": "Иерархия",
+    "canvasLegendLink": "Привязанная папка"
   }
 }

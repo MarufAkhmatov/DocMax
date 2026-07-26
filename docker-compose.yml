@@ -62,6 +62,79 @@ services:
       timeout: 5s
       retries: 10
 
+  # --- App qatlami (M10) — infra (yuqorida) bilan bir tarmoqda, ichki xizmat nomlari
+  # orqali gaplashadi (localhost emas). Faqat konteynerlashtirilgan holda ishlatish uchun;
+  # kundalik lokal ishlab chiqish `pnpm dev` bilan (HANDOFF.md §3) davom etadi.
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: docmax-api
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    environment:
+      # Jadval egasi — faqat migratsiya uchun (CMD ichida prisma migrate deploy)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-docmax}:${POSTGRES_PASSWORD:-docmax}@postgres:5432/${POSTGRES_DB:-docmax}
+      # Runtime — kam huquqli rol (CLAUDE.md 3-qoida, audit_logs REVOKE)
+      APP_DATABASE_URL: postgresql://docmax_app:docmax_app@postgres:5432/${POSTGRES_DB:-docmax}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      S3_ENDPOINT: http://minio:9000
+      # Presigned URL'lar shu manzil bilan generatsiya qilinadi — brauzer "minio" ichki
+      # xost nomini yecha olmaydi, shuning uchun host'dan ochiladigan manzil kerak.
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-docmax}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-docmax-secret}
+      S3_BUCKET: ${S3_BUCKET:-docmax}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: ${SMTP_FROM:-no-reply@docmax.local}
+      API_PORT: "3001"
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-almashtiring}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-almashtiring}
+    ports:
+      - "${API_HOST_PORT:-3001}:3001"
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: docmax-worker
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      api: { condition: service_healthy } # migratsiyalar api CMD'ida qo'llanadi
+    environment:
+      APP_DATABASE_URL: postgresql://docmax_app:docmax_app@postgres:5432/${POSTGRES_DB:-docmax}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-docmax}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-docmax-secret}
+      S3_BUCKET: ${S3_BUCKET:-docmax}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: ${SMTP_FROM:-no-reply@docmax.local}
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Brauzer ko'radigan manzil (docker tarmog'idagi "api" xost nomi emas) — build-vaqtida bundle'ga qotadi.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api/v1}
+    container_name: docmax-web
+    depends_on:
+      api: { condition: service_healthy }
+    ports:
+      - "${WEB_HOST_PORT:-3000}:80"
+
 volumes:
   postgres-data:
   minio-data:

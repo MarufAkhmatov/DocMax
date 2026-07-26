@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@docmax/db';
 import type { GraphData, GraphEdge, GraphNode, GraphQuery, RelationType } from '@docmax/shared';
+import { FolderAccessService } from '../folders/folder-access.service';
 import { TenantPrismaService } from '../prisma/tenant-prisma.service';
 
 /** TZ-2 §2.3 — bog'lanishlar grafi: hujjatlar (node) + relations (edge). Tenant-scoped. */
 @Injectable()
 export class GraphService {
-  constructor(private readonly tenant: TenantPrismaService) {}
+  constructor(
+    private readonly tenant: TenantPrismaService,
+    private readonly folderAccess: FolderAccessService,
+  ) {}
 
   async build(query: GraphQuery): Promise<GraphData> {
     const where: Prisma.DocumentWhereInput = { deletedAt: null };
@@ -14,17 +18,23 @@ export class GraphService {
     if (query.docTypeId) where.docTypeId = query.docTypeId;
     if (query.folderId) where.folderId = query.folderId;
 
+    // TZ-2 §2.5 — ACL'd papkadagi hujjatlar ruxsatsizga graf'da ham chiqmaydi.
+    const denied = await this.folderAccess.deniedFolderIds();
+    const finalWhere: Prisma.DocumentWhereInput = denied.length ? { AND: [where, { folderId: { notIn: denied } }] } : where;
+
     const docs = await this.tenant.client.document.findMany({
-      where,
+      where: finalWhere,
       select: {
         id: true,
         title: true,
         docNumber: true,
         status: true,
+        orgUnitId: true,
         docType: { select: { name: true } },
       },
     });
     const idSet = new Set(docs.map((d) => d.id));
+    const orgUnitNames = await this.orgUnitNamesFor(docs.map((d) => d.orgUnitId));
 
     // Faqat filtrga tushgan hujjatlar orasidagi bog'lanishlar (ikkala uchi ham to'plamda)
     const relations = await this.tenant.client.documentRelation.findMany({
@@ -49,6 +59,8 @@ export class GraphService {
       docTypeName: d.docType.name,
       status: d.status,
       degree: degree.get(d.id) ?? 0,
+      orgUnitId: d.orgUnitId,
+      orgUnitName: d.orgUnitId ? (orgUnitNames.get(d.orgUnitId) ?? null) : null,
     }));
 
     if (!query.includeIsolated) {
@@ -56,5 +68,19 @@ export class GraphService {
     }
 
     return { nodes, edges };
+  }
+
+  // documents.service.ts'dagi orgUnitNamesFor()ning aynan nusxasi — Document.orgUnitId'ga
+  // mos Prisma relation() yo'q (faqat FK ustuni), shuning uchun nom alohida so'rov bilan olinadi.
+  private async orgUnitNamesFor(orgUnitIds: (string | null)[]): Promise<Map<string, string>> {
+    const ids = [...new Set(orgUnitIds.filter((id): id is string => id !== null))];
+    if (!ids.length) {
+      return new Map();
+    }
+    const rows = await this.tenant.client.orgUnit.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true },
+    });
+    return new Map(rows.map((r) => [r.id, r.name]));
   }
 }

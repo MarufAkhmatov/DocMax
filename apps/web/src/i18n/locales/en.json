@@ -14,14 +14,16 @@
     "doc": "Document",
     "graph": "Graph",
     "mon": "Monitoring",
-    "cal": "Calendar"
+    "cal": "Calendar",
+    "struct": "Structure"
   },
   "breadcrumb": {
     "dash": "Home",
     "graph": "Relations",
     "mon": "Monitoring",
     "vaultRoot": "Vault",
-    "cal": "Calendar"
+    "cal": "Calendar",
+    "struct": "Structure"
   },
   "topbar": {
     "searchPlaceholder": "Search: by name, number, or meaning...",
@@ -36,7 +38,26 @@
     "statNewExternalActs": "New external acts",
     "statReviewSuggested": "Review suggested",
     "recentActivity": "Recent activity",
-    "needsAttention": "Needs attention"
+    "needsAttention": "Needs attention",
+    "todaySummary": "Today: {{newExternalActs}} new external acts, {{pendingApproval}} documents pending approval",
+    "totalPrefix": "Total",
+    "totalFolders": "{{count}} folders",
+    "pendingOverdue": "{{count}} overdue (5+ days)",
+    "monitoringPending": "Monitoring module not yet enabled",
+    "noActivity": "No activity yet",
+    "noAttention": "Nothing needs attention",
+    "viewNotification": "View →",
+    "entity": {
+      "Document": "Document",
+      "DocumentVersion": "Document version",
+      "DocumentRelation": "Relation"
+    },
+    "action": {
+      "CREATE": "created",
+      "UPDATE": "updated",
+      "DELETE": "deleted",
+      "RESTORE": "restored"
+    }
   },
   "vault": {
     "segmentTable": "Table",
@@ -71,7 +92,18 @@
     "tableTitle": "Documents",
     "treeFolders": "Folders",
     "savedFilters": "Saved filters",
-    "timelineUploadedAt": "upload date"
+    "timelineUploadedAt": "upload date",
+    "folderDeleteConfirm": "Delete folder \"{{name}}\"?",
+    "restrictAccess": "Restrict access",
+    "aclSubjectRole": "Role",
+    "aclSubjectUser": "User",
+    "aclSubjectOrgUnit": "Org unit",
+    "aclCanView": "View",
+    "aclCanEdit": "Edit",
+    "aclCanDownload": "Download",
+    "aclInherit": "Inherited by subfolders",
+    "aclAddSubject": "+ Add subject",
+    "aclLockedTooltip": "Access restricted"
   },
   "status": {
     "active": "Active",
@@ -92,6 +124,8 @@
     "searchDocument": "Search by document name or number...",
     "relationNotePlaceholder": "Note (optional)",
     "noRelations": "No relations yet",
+    "removeRelationConfirm": "Remove this relation?",
+    "alsoExpireTarget": "Also mark the old document as EXPIRED",
     "audit": "Audit",
     "comingSoon": "This feature will be added in a later stage",
     "current": "current",
@@ -119,6 +153,8 @@
     "modeWorkflow": "Workflow",
     "colorByStatus": "By status",
     "colorByType": "By type",
+    "colorByOrgUnit": "By department",
+    "orgUnitUnassigned": "No department",
     "allStatuses": "All statuses",
     "allTypes": "All types",
     "isolatedToggle": "Isolated",
@@ -150,7 +186,10 @@
   },
   "drawer": {
     "title": "Notifications",
-    "markAllRead": "mark all as read"
+    "markAllRead": "mark all as read",
+    "unreadCount": "{{count}} unread",
+    "empty": "No notifications",
+    "viewed": "Viewed"
   },
   "wizard": {
     "title": "New document",
@@ -168,6 +207,7 @@
     "fieldApprovedDate": "Approval date",
     "fieldDept": "Department",
     "fieldTags": "Tags",
+    "fieldTagsPlaceholder": "e.g. CBU, credit",
     "relationsOptional": "Relations (optional)",
     "addRelationBtn": "+ Add relation",
     "noFolderSelected": "Select a folder first",
@@ -195,7 +235,26 @@
     "edit": "Edit",
     "delete": "Delete",
     "deleteConfirm": "Really delete this type?",
-    "accessDenied": "This page is for administrators only"
+    "accessDenied": "This page is for administrators only",
+    "trash": "Trash",
+    "trashHint": "Deleted documents and folders are kept here for 30 days, then permanently removed.",
+    "trashEmpty": "Trash is empty.",
+    "trashTypeDocument": "Document",
+    "trashTypeFolder": "Folder",
+    "trashPurgeAt": "kept until {{date}}",
+    "trashRestore": "Restore",
+    "trashRestored": "Restored",
+    "auditLog": "Audit log",
+    "auditLogHint": "History of all mutating actions in the organization.",
+    "auditExportCsv": "Download CSV",
+    "auditAllActions": "All actions",
+    "auditEntityTypePlaceholder": "Entity type (e.g. Document)",
+    "auditEmpty": "No entries found.",
+    "tags": "Tags",
+    "tagsHint": "Tags added to documents — rename or fully delete them here.",
+    "tagsEmpty": "No tags created yet.",
+    "tagDocCount": "{{count}} documents",
+    "tagDeleteConfirm": "Delete tag \"{{name}}\"? It will be removed from all documents."
   },
   "common": {
     "uploading": "Uploading...",
@@ -208,7 +267,9 @@
     "confirm": "Confirm",
     "download": "Download",
     "save": "Save",
-    "current": "current"
+    "current": "current",
+    "edit": "Edit",
+    "delete": "Delete"
   },
   "bulkBar": {
     "selectedSuffix": "documents selected",
@@ -237,6 +298,11 @@
     "docsCount": "{{count}} docs",
     "empty": "No documents in this period"
   },
+  "workflow": {
+    "searchPlaceholder": "Search folder or document...",
+    "empty": "Canvas is empty — search on the left and drag here",
+    "connectTitle": "Create relation"
+  },
   "version": {
     "title": "New version",
     "firstVersion": "first version (v1.0)",
@@ -256,5 +322,65 @@
     "save": "Save",
     "saving": "Saving...",
     "created": "Version {{label}} created"
+  },
+  "errors": {
+    "folderCreate": "Something went wrong while creating the folder",
+    "folderRename": "Something went wrong while renaming the folder",
+    "folderDelete": "Something went wrong while deleting the folder",
+    "foldersLoad": "Something went wrong while loading folders",
+    "documentsLoad": "Something went wrong while loading documents",
+    "docDetailLoad": "Something went wrong while loading the document",
+    "relationAdd": "Something went wrong while adding the relation",
+    "generic": "Something went wrong",
+    "pdfOnly": "Only PDF files are accepted",
+    "docxOnly": "Only DOCX files are accepted",
+    "fileUpload": "Something went wrong while uploading the file",
+    "docSave": "Something went wrong while saving the document",
+    "fileOpen": "Something went wrong while opening the file",
+    "docDelete": "Something went wrong while deleting the document",
+    "bulkAction": "Something went wrong while performing the action",
+    "templateRequest": "Something went wrong while requesting the template",
+    "versionFileUpload": "Something went wrong while uploading the file",
+    "versionCreate": "Something went wrong while creating the version",
+    "logoUpload": "Something went wrong while uploading the logo",
+    "calendarLoad": "Something went wrong while loading calendar data",
+    "graphLoad": "Something went wrong while loading the graph",
+    "orgUnitCreate": "Something went wrong while creating the org unit",
+    "orgUnitUpdate": "Something went wrong while updating the org unit",
+    "orgUnitMove": "Something went wrong while moving the org unit",
+    "orgUnitClose": "Something went wrong while changing the org unit status",
+    "permissionSave": "Something went wrong while saving permissions"
+  },
+  "structure": {
+    "title": "Org structure",
+    "hint": "Select an org unit on the left — its head, mapped folders and other details will appear here.",
+    "newUnit": "+ New org unit",
+    "unitNamePlaceholder": "e.g. Legal department",
+    "headLabel": "Head",
+    "headNone": "Not assigned",
+    "noUnitsYet": "No org units yet",
+    "unitCloseConfirm": "Close org unit \"{{name}}\"?",
+    "closeTooltip": "Close",
+    "reopenTooltip": "Reopen",
+    "archiveFolderOffer": "Move its mapped folder(s) to \"Archive structures\"?",
+    "archiveFolderName": "Archive structures",
+    "folderMapping": "Mapped folders",
+    "folderMappingEmpty": "No mapped folders",
+    "remapWizardTitle": "Sync folders",
+    "remapWizardHint": "After a structure change, mapped folders get a proposed new location. Select the rows you want and confirm.",
+    "remapEntryLabel": "new location: {{path}}",
+    "remapApply": "Confirm and move",
+    "remapNoChanges": "Nothing to sync — everything is already in place",
+    "snapshotViewerTitle": "Structure history",
+    "snapshotReadOnlyNote": "Read-only — the structure state as of the selected date, no restore.",
+    "snapshotDatePicker": "View",
+    "snapshotEmpty": "No data for this date",
+    "viewTree": "Tree",
+    "viewCanvas": "Canvas",
+    "canvasSearchPlaceholder": "Search unlinked folders...",
+    "canvasUnlink": "Unlink",
+    "canvasUnlinkedHint": "Not linked yet — drag a line to a unit",
+    "canvasLegendHierarchy": "Hierarchy",
+    "canvasLegendLink": "Linked folder"
   }
 }

@@ -156,6 +156,13 @@ export class AuthController {
     return this.auth.me(user.sub);
   }
 
+  /** Org-unit rahbar tanlash (TZ-2 §2.4) va ACL USER-subject tanlash (§2.5) uchun. */
+  @Roles('ADMIN')
+  @Get('users')
+  listUsers(@CurrentUser() user: RequestUser) {
+    return this.auth.listUsers(user.orgId);
+  }
+
   @Patch('profile')
   async updateProfile(
     @CurrentUser() user: RequestUser,

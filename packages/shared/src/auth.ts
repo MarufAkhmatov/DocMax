@@ -70,3 +70,11 @@ export interface AuthUser {
   locale: string;
   theme: string;
 }
+
+/** Org-unit rahbar tanlash / ACL USER-subject tanlash uchun yengil ro'yxat elementi. */
+export interface UserSummary {
+  id: string;
+  fullName: string;
+  email: string;
+  role: (typeof ROLES)[number];
+}

@@ -17,7 +17,10 @@ export const TENANT_SCOPED_MODELS = [
   'Permission',
   'AuditLog',
   'Notification',
+  'UserCanvasLayout',
   'Embedding',
+  'OrgStructureSnapshot',
+  'OrgUnitCanvasLayout',
 ] as const;
 
 export type TenantScopedModel = (typeof TENANT_SCOPED_MODELS)[number];

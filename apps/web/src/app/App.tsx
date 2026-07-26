@@ -1,26 +1,46 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   LayoutDashboard, FolderOpen, Network, Activity, Settings,
   Sun, Moon, Bell, Search, Plus, Download, Upload, X, Lock,
-  FileText, Check, Eye, Clock, Shield, Tag, Move, Trash2,
-  ChevronRight, ChevronDown, GitBranch, Globe, BookOpen,
-  ArrowRight, MoreHorizontal, Zap, Command, Loader2, Pencil, CalendarDays
+  FileText, Check, Eye, Clock, Tag, Move, Trash2,
+  ChevronRight, ChevronDown, GitBranch,
+  Loader2, Pencil, CalendarDays
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as mammoth from "mammoth";
-import type { DocumentDetail, DocumentRelationSummary, DocumentSummary, DocumentTypeSummary, FileSummary, FolderNode, RelationType, VersionType } from "@docmax/shared";
-import { RELATION_TYPES, nextVersionLabel } from "@docmax/shared";
-import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, relationsApi, filesApi, ApiRequestError } from "@/lib/api";
+import type { AuditLogEntry, DashboardStats, DocumentDetail, DocumentRelationSummary, DocumentSummary, DocumentTypeSummary, FileSummary, FolderAccessResult, FolderNode, NotificationSummary, RelationType, UserSummary, VersionType } from "@docmax/shared";
+import { RELATION_TYPES, ROLES, nextVersionLabel } from "@docmax/shared";
+import { authApi, foldersApi, documentsApi, documentTypesApi, organizationsApi, orgUnitsApi, permissionsApi, relationsApi, filesApi, notificationsApi, statsApi, ApiRequestError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
 import Login from "./Login";
 import AdminPanel from "./AdminPanel";
 import CalendarView from "./CalendarView";
 import GraphView from "./GraphView";
+import PdfViewer from "./PdfViewer";
+import StructureView from "./StructureView";
+import WorkflowView from "./WorkflowView";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-type View = "dash" | "vault" | "doc" | "graph" | "mon" | "cal" | "admin";
+type View = "dash" | "vault" | "doc" | "graph" | "mon" | "cal" | "admin" | "struct";
 type DocTab = "pdf" | "word" | "diff" | "history";
+
+// ─── Router — view/hujjat/papka URL'da aks etadi (M10 texnik qarz) ────────────
+// "doc" bundan mustasno — o'z yo'liga id qo'shib navigate qilinadi (openDocument orqali).
+const VIEW_TO_PATH: Record<Exclude<View, "doc">, string> = {
+  dash: "/", vault: "/vault", graph: "/graph", mon: "/monitoring", cal: "/calendar", admin: "/admin", struct: "/structure",
+};
+function pathToView(pathname: string): View {
+  if (pathname.startsWith("/document/")) return "doc";
+  const entry = (Object.entries(VIEW_TO_PATH) as [View, string][]).find(([, p]) => p === pathname);
+  return entry?.[0] ?? "dash";
+}
+/** react-router `<Routes>` daraxti yo'q (bitta-sahifali view-switching, useParams() ishlamaydi) —
+ * shuning uchun pathToView bilan bir xil naqshda pathname'dan qo'lda ajratib olinadi. */
+function docIdFromPath(pathname: string): string | null {
+  return pathname.startsWith("/document/") ? decodeURIComponent(pathname.slice("/document/".length)) : null;
+}
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 interface FolderCardData {
@@ -105,6 +125,25 @@ export function FileTypeIcon({ kind, size = 26 }: { kind: "pdf" | "docx"; size?:
         {label}
       </text>
     </svg>
+  );
+}
+
+// ─── TZ-2 §2.5 — "yuklab olish taqiqlangan" preview qatlami (foydalanuvchi email'i) ──
+function WatermarkOverlay({ email }: { email: string }) {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden select-none" style={{ zIndex: 5 }}>
+      <div style={{
+        position: "absolute", inset: "-20%",
+        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 48,
+        transform: "rotate(-28deg)",
+      }}>
+        {Array.from({ length: 24 }).map((_, i) => (
+          <span key={i} style={{ fontSize: 13, fontWeight: 800, color: "rgba(140,150,155,.28)", whiteSpace: "nowrap" }}>
+            {email}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -232,6 +271,184 @@ function FolderCard({ folder, onClick }: { folder: FolderCardData; onClick: () =
   );
 }
 
+// ─── Papka ACL (TZ-2 §2.5) — "Kirishni cheklash" modali ───────────────────────
+async function fetchAllOrgUnitsFlat(): Promise<{ id: string; name: string; depth: number }[]> {
+  const result: { id: string; name: string; depth: number }[] = [];
+  async function walk(parentId: string | null, depth: number) {
+    const children = await orgUnitsApi.tree({ parentId });
+    for (const c of children) {
+      result.push({ id: c.id, name: c.name, depth });
+      if (c.hasChildren) await walk(c.id, depth + 1);
+    }
+  }
+  await walk(null, 0);
+  return result;
+}
+
+type AclEntryDraft = {
+  subjectType: "ROLE" | "USER" | "ORG_UNIT";
+  subjectId: string;
+  canView: boolean;
+  canEdit: boolean;
+  canDownload: boolean;
+  inherit: boolean;
+};
+
+function FolderAclModal({
+  folderId, folderName, onClose, toast,
+  lime, txt, txt2, txt3, panel, panelBorder, isDark,
+}: {
+  folderId: string;
+  folderName: string;
+  onClose: () => void;
+  toast: (msg: string) => void;
+  lime: string; txt: string; txt2: string; txt3: string; panel: string; panelBorder: string; isDark: boolean;
+}) {
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [entries, setEntries] = useState<AclEntryDraft[]>([]);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [orgUnits, setOrgUnits] = useState<{ id: string; name: string; depth: number }[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([permissionsApi.get(folderId), authApi.listUsers().catch(() => []), fetchAllOrgUnitsFlat().catch(() => [])])
+      .then(([summary, u, ou]) => {
+        if (cancelled) return;
+        setEnabled(summary.aclEnabled);
+        setEntries(summary.entries.map((e) => ({
+          subjectType: e.subjectType, subjectId: e.subjectId,
+          canView: e.canView, canEdit: e.canEdit, canDownload: e.canDownload, inherit: e.inherit,
+        })));
+        setUsers(u);
+        setOrgUnits(ou);
+      })
+      .catch((err) => toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic")))
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderId]);
+
+  const addEntry = () => setEntries((prev) => [
+    ...prev,
+    { subjectType: "ROLE", subjectId: "VIEWER", canView: true, canEdit: false, canDownload: false, inherit: true },
+  ]);
+  const removeEntry = (idx: number) => setEntries((prev) => prev.filter((_, i) => i !== idx));
+  const updateEntry = (idx: number, patch: Partial<AclEntryDraft>) =>
+    setEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await permissionsApi.set(folderId, { enabled, entries });
+      onClose();
+    } catch (err) {
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.permissionSave"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectStyle: React.CSSProperties = { background: panel, border: `1px solid ${panelBorder}`, color: txt };
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-start justify-center overflow-auto"
+      style={{ background: isDark ? "rgba(0,6,14,.55)" : "rgba(20,40,32,.3)", backdropFilter: "blur(6px)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="my-[6vh] overflow-hidden" style={{ width: "min(640px, 94vw)", background: isDark ? "#1E1E1E" : "#fff", border: `1px solid ${panelBorder}`, borderRadius: 20, boxShadow: "0 32px 80px rgba(0,0,0,.55)", padding: 26 }}>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-['Sora'] text-[17px] font-semibold" style={{ color: txt }}>{t("vault.restrictAccess")}</h2>
+          <button onClick={onClose} style={{ color: txt3, fontSize: 20, background: "none", border: "none", cursor: "pointer" }}>✕</button>
+        </div>
+        <p className="text-[12px] font-semibold mb-4" style={{ color: txt2 }}>{folderName}</p>
+
+        {loading ? (
+          <div style={{ padding: 24, textAlign: "center", color: txt3 }}><Loader2 size={20} className="animate-spin" /></div>
+        ) : (
+          <>
+            <label className="flex items-center gap-2 mb-4 cursor-pointer">
+              <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+              <span className="text-[13px] font-bold" style={{ color: txt }}>{t("vault.restrictAccess")}</span>
+            </label>
+
+            {enabled && (
+              <div className="space-y-2 mb-4">
+                {entries.map((entry, idx) => (
+                  <div key={idx} className="rounded-[13px] p-3" style={{ border: `1px solid ${panelBorder}` }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <select value={entry.subjectType}
+                        onChange={(e) => updateEntry(idx, { subjectType: e.target.value as AclEntryDraft["subjectType"], subjectId: "" })}
+                        className="text-[12px] font-bold rounded-lg px-2 py-1.5" style={selectStyle}>
+                        <option value="ROLE">{t("vault.aclSubjectRole")}</option>
+                        <option value="USER">{t("vault.aclSubjectUser")}</option>
+                        <option value="ORG_UNIT">{t("vault.aclSubjectOrgUnit")}</option>
+                      </select>
+
+                      {entry.subjectType === "ROLE" && (
+                        <select value={entry.subjectId} onChange={(e) => updateEntry(idx, { subjectId: e.target.value })}
+                          className="flex-1 text-[12px] font-bold rounded-lg px-2 py-1.5" style={selectStyle}>
+                          {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      )}
+                      {entry.subjectType === "USER" && (
+                        <select value={entry.subjectId} onChange={(e) => updateEntry(idx, { subjectId: e.target.value })}
+                          className="flex-1 text-[12px] font-bold rounded-lg px-2 py-1.5" style={selectStyle}>
+                          <option value="">—</option>
+                          {users.map((u) => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+                        </select>
+                      )}
+                      {entry.subjectType === "ORG_UNIT" && (
+                        <select value={entry.subjectId} onChange={(e) => updateEntry(idx, { subjectId: e.target.value })}
+                          className="flex-1 text-[12px] font-bold rounded-lg px-2 py-1.5" style={selectStyle}>
+                          <option value="">—</option>
+                          {orgUnits.map((u) => <option key={u.id} value={u.id}>{"— ".repeat(u.depth)}{u.name}</option>)}
+                        </select>
+                      )}
+
+                      <button onClick={() => removeEntry(idx)} style={{ color: "#F07A6B", background: "none", border: "none", cursor: "pointer" }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {([["canView", t("vault.aclCanView")], ["canEdit", t("vault.aclCanEdit")], ["canDownload", t("vault.aclCanDownload")], ["inherit", t("vault.aclInherit")]] as const).map(([key, label]) => (
+                        <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={entry[key]} onChange={(e) => updateEntry(idx, { [key]: e.target.checked } as Partial<AclEntryDraft>)} />
+                          <span className="text-[11.5px] font-bold" style={{ color: txt2 }}>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <button onClick={addEntry}
+                  className="text-[12px] font-bold px-3.5 py-2 rounded-[11px] cursor-pointer flex items-center gap-1.5"
+                  style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                  <Plus size={13} /> {t("vault.aclAddSubject")}
+                </button>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button onClick={onClose}
+                className="text-[12.5px] font-bold px-4 py-2.5 rounded-[12px] cursor-pointer"
+                style={{ background: "transparent", border: `1px solid ${panelBorder}`, color: txt2 }}>
+                {t("common.cancel")}
+              </button>
+              <button onClick={handleSave} disabled={saving}
+                className="text-[12.5px] font-bold px-4 py-2.5 rounded-[12px] cursor-pointer flex items-center gap-1.5"
+                style={{ background: lime, border: "none", color: "#0A1600", opacity: saving ? 0.6 : 1 }}>
+                {saving && <Loader2 size={13} className="animate-spin" />}
+                {t("common.save")}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Folder Tree Node (chap paneldagi "Papkalar" — real backend, rekursiv "+") ─
 type FolderPathEntry = { id: string | null; name: string | null };
 
@@ -250,6 +467,7 @@ function FolderTreeNode({
   toast: (msg: string) => void;
   lime: string; txt: string; txt2: string; txt3: string; panel: string; panelBorder: string; isDark: boolean;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<FolderNode[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -260,6 +478,7 @@ function FolderTreeNode({
   const [editName, setEditName] = useState(folder.name);
   const [editSaving, setEditSaving] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [aclOpen, setAclOpen] = useState(false);
 
   const path = [...ancestors, { id: folder.id, name: folder.name }];
 
@@ -285,7 +504,7 @@ function FolderTreeNode({
       if (!expanded) setExpanded(true);
       loadChildren();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papka yaratishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderCreate"));
     } finally {
       setSaving(false);
     }
@@ -300,19 +519,19 @@ function FolderTreeNode({
       setEditOpen(false);
       onChanged();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papkani tahrirlashda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderRename"));
       setEditSaving(false);
     }
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(`"${folder.name}" papkasini o'chirasizmi?`)) return;
+    if (!window.confirm(t("vault.folderDeleteConfirm", { name: folder.name }))) return;
     try {
       await foldersApi.remove(folder.id);
       onChanged();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papkani o'chirishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderDelete"));
     }
   };
 
@@ -337,6 +556,7 @@ function FolderTreeNode({
           {folder.hasChildren || children ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : null}
         </span>
         <FolderOpen size={15} className="flex-shrink-0" />
+        {folder.locked && <Lock size={12} className="flex-shrink-0" style={{ color: txt3 }} title={t("vault.aclLockedTooltip")} />}
         {editOpen ? (
           <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
             onClick={(e) => e.stopPropagation()}
@@ -351,17 +571,22 @@ function FolderTreeNode({
         {showActions ? (
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <span onClick={(e) => { e.stopPropagation(); if (!expanded) { setExpanded(true); if (children === null) loadChildren(); } setCreateOpen((o) => !o); }}
-              title="+ Yangi papka"
+              title={t("vault.newFolder")}
               style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
               <Plus size={13} />
             </span>
             <span onClick={(e) => { e.stopPropagation(); setEditName(folder.name); setEditOpen(true); }}
-              title="Tahrirlash"
+              title={t("common.edit")}
               style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
               <Pencil size={12} />
             </span>
+            <span onClick={(e) => { e.stopPropagation(); setAclOpen(true); }}
+              title={t("vault.restrictAccess")}
+              style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: txt3 }}>
+              <Settings size={12} />
+            </span>
             <span onClick={handleDelete}
-              title="O'chirish"
+              title={t("common.delete")}
               style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 6, color: "#F07A6B" }}>
               <Trash2 size={12} />
             </span>
@@ -371,11 +596,16 @@ function FolderTreeNode({
         )}
       </div>
 
+      {aclOpen && (
+        <FolderAclModal folderId={folder.id} folderName={folder.name} onClose={() => setAclOpen(false)} toast={toast}
+          lime={lime} txt={txt} txt2={txt2} txt3={txt3} panel={panel} panelBorder={panelBorder} isDark={isDark} />
+      )}
+
       {createOpen && (
         <div style={{ marginLeft: 20 + depth * 14, marginTop: 4, marginBottom: 4 }} onClick={(e) => e.stopPropagation()}>
           <input autoFocus value={createName} onChange={(e) => setCreateName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreateOpen(false); }}
-            placeholder="Papka nomi"
+            placeholder={t("vault.folderNamePlaceholder")}
             className="w-full outline-none rounded-lg text-[12px] font-semibold px-2.5 py-1.5"
             style={inputStyle} disabled={saving} />
         </div>
@@ -405,8 +635,11 @@ export default function App() {
   const user = useAuthStore((s) => s.user);
   const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+  const view = useMemo(() => pathToView(location.pathname), [location.pathname]);
+
   const [isDark, setIsDark] = useState(true);
-  const [view, setView] = useState<View>("dash");
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [wizOpen, setWizOpen] = useState(false);
@@ -424,8 +657,13 @@ export default function App() {
   const [bulkMoveFolders, setBulkMoveFolders] = useState<{ id: string; name: string; depth: number }[]>([]);
   const [vaultSeg, setVaultSeg] = useState<"table" | "card" | "timeline">("table");
   const [monFilter, setMonFilter] = useState("all");
-  const [treeOpen, setTreeOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [graphMode, setGraphMode] = useState<"graph" | "workflow">("graph");
+
+  // ── Dashboard statistikasi + bildirishnomalar (TZ-2 §2.7 — real, avval mock edi) ──
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [notifications, setNotifications] = useState<NotificationSummary[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // ── Papkalar (real backend — TZ-1 §1.2, foldersApi.tree) ──────────────────
   // name: null → ildiz daraja, breadcrumb'da t('breadcrumb.vaultRoot') orqali reaktiv tarjima qilinadi
@@ -436,6 +674,49 @@ export default function App() {
   const [foldersLoading, setFoldersLoading] = useState(false);
   const [foldersError, setFoldersError] = useState<string | null>(null);
   const currentFolder = folderStack[folderStack.length - 1];
+  const [folderSearchParams] = useSearchParams();
+
+  // Deep-link (`/vault?folder=X` to'g'ridan-to'g'ri ochilganda) — breadcrumb'ni ota-bola
+  // zanjiri bo'yicha yuqoriga yurib qayta quradi. FolderTreeNode'ning `path` qurish
+  // naqshiga mos (yuqorida, `[...ancestors, {id, name}]`) — tizim papkalari (masalan
+  // "Barcha hujjatlar") ham ODDIY papka sifatida zanjirga kiradi, alohida holat emas.
+  useEffect(() => {
+    const folderId = folderSearchParams.get("folder");
+    if (!folderId) return;
+    let cancelled = false;
+    (async () => {
+      const chain: { id: string; name: string }[] = [];
+      let current: string | null = folderId;
+      const seen = new Set<string>();
+      while (current && !seen.has(current)) {
+        seen.add(current);
+        try {
+          const folder = await foldersApi.getById(current);
+          chain.unshift({ id: folder.id, name: folder.name });
+          current = folder.parentId;
+        } catch {
+          break;
+        }
+      }
+      if (!cancelled && chain.length > 0) {
+        setFolderStack([{ id: null, name: null }, ...chain]);
+      }
+    })();
+    return () => { cancelled = true; };
+    // Faqat mount'da — foydalanuvchi keyinchalik navigatsiya qilganda folderStack o'zi manba.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Joriy (eng oxirgi) papka id'i URL query'da saqlanadi — refresh/link ulashish uchun
+  // (docFilters'dagi mavjud naqshga o'xshash, lekin history push/pop to'g'ri ishlashi uchun
+  // react-router'ning o'z navigate()i orqali, xom history.replaceState emas).
+  useEffect(() => {
+    if (view !== "vault") return;
+    const qs = currentFolder.id ? `?folder=${currentFolder.id}` : "";
+    if (location.pathname === "/vault" && location.search === qs) return;
+    navigate(`/vault${qs}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, currentFolder.id]);
 
   // Yangi papka yaratish (faqat ADMIN/SUPER_ADMIN, backend @Roles('ADMIN') bilan mos)
   const [folderCreateOpen, setFolderCreateOpen] = useState(false);
@@ -469,7 +750,7 @@ export default function App() {
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeSummary[]>([]);
   const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
 
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const selectedDocId = useMemo(() => docIdFromPath(location.pathname), [location.pathname]);
   const [docDetail, setDocDetail] = useState<DocumentDetail | null>(null);
   const [docDetailLoading, setDocDetailLoading] = useState(false);
   const [docDetailError, setDocDetailError] = useState<string | null>(null);
@@ -510,6 +791,7 @@ export default function App() {
   const [relationType, setRelationType] = useState<RelationType>("RELATED");
   const [relationNote, setRelationNote] = useState("");
   const [relationSaving, setRelationSaving] = useState(false);
+  const [relationExpireTarget, setRelationExpireTarget] = useState(false);
 
   // Yuklash wizard'i — haqiqiy fayl/hujjat holati
   const [pdfUpload, setPdfUpload] = useState<FileSummary | null>(null);
@@ -522,7 +804,6 @@ export default function App() {
 
   const lime = isDark ? "#C6F24E" : "#2FA45B";
   const bg = isDark ? "#0D0D0D" : "#EFF2EE";
-  const cardBg = isDark ? "#1A1A1A" : "#FFFFFF";
   const panel = isDark ? "rgba(255,255,255,.055)" : "rgba(255,255,255,.75)";
   const panelBorder = isDark ? "rgba(255,255,255,.09)" : "rgba(10,30,20,.09)";
   const txt = isDark ? "#EDF3F0" : "#0B1A16";
@@ -611,6 +892,29 @@ export default function App() {
     organizationsApi.branding().then(b => setOrgLogoUrl(b.logoUrl)).catch(() => {});
   }, [user]);
 
+  // Dashboard statistikasi (TZ-2 §2.7 — real, avval hardcoded 482/396 raqamlar edi)
+  useEffect(() => {
+    if (!user) { setDashboardStats(null); return; }
+    statsApi.dashboard().then(setDashboardStats).catch(() => {});
+  }, [user]);
+
+  // Bildirishnomalar markazi (TZ-2 §2.7 — drawer avval to'liq mock edi)
+  const refetchNotifications = useCallback(() => {
+    notificationsApi.list().then((res) => { setNotifications(res.items); setUnreadCount(res.unreadCount); }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!user) { setNotifications([]); setUnreadCount(0); return; }
+    refetchNotifications();
+  }, [user, refetchNotifications]);
+
+  const handleMarkNotificationRead = useCallback((id: string) => {
+    notificationsApi.markRead(id).then(refetchNotifications).catch(() => {});
+  }, [refetchNotifications]);
+
+  const handleMarkAllNotificationsRead = useCallback(() => {
+    notificationsApi.markAllRead().then(refetchNotifications).catch(() => {});
+  }, [refetchNotifications]);
+
   // Chap paneldagi "Papkalar" daraxti (real backend) — login qilingach ildiz darajasi yuklanadi
   const refetchSidebarRoots = useCallback(() => {
     foldersApi.tree({}).then(setSidebarRoots).catch(() => {});
@@ -632,7 +936,7 @@ export default function App() {
       .then((data) => { if (!cancelled) setFolders(data); })
       .catch((err) => {
         if (!cancelled) {
-          setFoldersError(err instanceof ApiRequestError ? err.body.message : "Papkalarni yuklashda xato yuz berdi");
+          setFoldersError(err instanceof ApiRequestError ? err.body.message : t("errors.foldersLoad"));
         }
       })
       .finally(() => { if (!cancelled) setFoldersLoading(false); });
@@ -659,7 +963,7 @@ export default function App() {
       .then((res) => { if (!cancelled) { setDocuments(res.items); setDocumentsTotal(res.total); } })
       .catch((err) => {
         if (!cancelled) {
-          setDocumentsError(err instanceof ApiRequestError ? err.body.message : "Hujjatlarni yuklashda xato yuz berdi");
+          setDocumentsError(err instanceof ApiRequestError ? err.body.message : t("errors.documentsLoad"));
         }
       })
       .finally(() => { if (!cancelled) setDocumentsLoading(false); });
@@ -704,12 +1008,22 @@ export default function App() {
       .then((data) => { if (!cancelled) setDocDetail(data); })
       .catch((err) => {
         if (!cancelled) {
-          setDocDetailError(err instanceof ApiRequestError ? err.body.message : "Hujjatni yuklashda xato yuz berdi");
+          setDocDetailError(err instanceof ApiRequestError ? err.body.message : t("errors.docDetailLoad"));
         }
       })
       .finally(() => { if (!cancelled) setDocDetailLoading(false); });
     return () => { cancelled = true; };
   }, [selectedDocId]);
+
+  // TZ-2 §2.5 — hujjat papkasidagi effektiv huquqlar (yuklab olish taqiqlangan rejim uchun).
+  const [docFolderAccess, setDocFolderAccess] = useState<FolderAccessResult | null>(null);
+  useEffect(() => {
+    if (!docDetail?.folderId) { setDocFolderAccess(null); return; }
+    let cancelled = false;
+    foldersApi.access(docDetail.folderId).then((res) => { if (!cancelled) setDocFolderAccess(res); }).catch(() => { if (!cancelled) setDocFolderAccess(null); });
+    return () => { cancelled = true; };
+  }, [docDetail?.folderId]);
+  const downloadBlocked = docFolderAccess !== null && !docFolderAccess.canDownload;
 
   // Bog'lanishlar — tanlangan hujjat o'zgarganda yuklanadi va qo'shish formasi tozalanadi
   const refetchRelations = useCallback(() => {
@@ -727,6 +1041,13 @@ export default function App() {
     setRelationNote("");
     setRelationType("RELATED");
   }, [selectedDocId, refetchRelations]);
+
+  // DocDetail audit paneli (TZ-2 §2.7 — avval mock edi)
+  const [docAuditLog, setDocAuditLog] = useState<AuditLogEntry[]>([]);
+  useEffect(() => {
+    if (!selectedDocId) { setDocAuditLog([]); return; }
+    documentsApi.audit(selectedDocId).then((res) => setDocAuditLog(res.items)).catch(() => setDocAuditLog([]));
+  }, [selectedDocId]);
 
   // Bog'lanish qo'shish formasida hujjat nomi/raqami bo'yicha qidiruv
   useEffect(() => {
@@ -764,13 +1085,17 @@ export default function App() {
       setFolderCreateName("");
       refetchFolders();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papka yaratishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderCreate"));
     } finally {
       setFolderCreateSaving(false);
     }
   }, [folderCreateName, currentFolder.id, refetchFolders, toast]);
 
-  const goView = (v: View) => { setView(v); window.scrollTo({ top: 0 }); };
+  const goView = (v: View) => {
+    if (v === "doc") return; // "doc" faqat openDocument orqali (id kerak)
+    navigate(VIEW_TO_PATH[v]);
+    window.scrollTo({ top: 0 });
+  };
 
   const handleSidebarNavigate = useCallback((path: FolderPathEntry[]) => {
     setFolderStack(path);
@@ -787,7 +1112,7 @@ export default function App() {
       setSidebarCreateName("");
       refetchSidebarRoots();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Papka yaratishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.folderCreate"));
     } finally {
       setSidebarCreateSaving(false);
     }
@@ -797,7 +1122,12 @@ export default function App() {
     if (!selectedDocId || !relationTargetId) return;
     setRelationSaving(true);
     try {
-      await relationsApi.create(selectedDocId, { targetDocumentId: relationTargetId, type: relationType, note: relationNote.trim() || null });
+      await relationsApi.create(selectedDocId, {
+        targetDocumentId: relationTargetId,
+        type: relationType,
+        note: relationNote.trim() || null,
+        alsoExpireTarget: relationType === "REPLACES" ? relationExpireTarget : undefined,
+      });
       setRelationAddOpen(false);
       setRelationSearch("");
       setRelationSearchResults([]);
@@ -805,31 +1135,34 @@ export default function App() {
       setRelationTargetTitle("");
       setRelationNote("");
       setRelationType("RELATED");
+      setRelationExpireTarget(false);
       refetchRelations();
+      refetchDocuments();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Bog'lanish qo'shishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.relationAdd"));
     } finally {
       setRelationSaving(false);
     }
-  }, [selectedDocId, relationTargetId, relationType, relationNote, refetchRelations, toast]);
+  }, [selectedDocId, relationTargetId, relationType, relationNote, relationExpireTarget, refetchRelations, refetchDocuments, toast]);
 
   const handleRemoveRelation = useCallback(async (relationId: string) => {
     if (!selectedDocId) return;
+    if (!window.confirm(t("docDetail.removeRelationConfirm"))) return;
     try {
       await relationsApi.remove(selectedDocId, relationId);
       refetchRelations();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     }
-  }, [selectedDocId, refetchRelations, toast]);
+  }, [selectedDocId, refetchRelations, toast, t]);
 
   const toggleDoc = (id: string) =>
-    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+    setSelected(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; });
 
   const toggleAll = () =>
     setSelected(selected.size === documents.length ? new Set() : new Set(documents.map(d => d.id)));
 
-  const openDocument = (id: string) => { setSelectedDocId(id); goView("doc"); };
+  const openDocument = (id: string) => { navigate(`/document/${id}`); window.scrollTo({ top: 0 }); };
 
   // ── Wizard handlerlari (real upload + hujjat yaratish, TZ-1 §1.3) ─────────
   const openWizard = useCallback(() => {
@@ -854,7 +1187,7 @@ export default function App() {
       ? "application/pdf"
       : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     if (file.type !== expectedMime) {
-      setWizError(kind === "pdf" ? "Faqat PDF fayl qabul qilinadi" : "Faqat DOCX fayl qabul qilinadi");
+      setWizError(kind === "pdf" ? t("errors.pdfOnly") : t("errors.docxOnly"));
       return;
     }
     const setUploading = kind === "pdf" ? setPdfUploading : setDocxUploading;
@@ -865,7 +1198,7 @@ export default function App() {
       const result = await filesApi.upload(file);
       setUpload(result);
     } catch (err) {
-      setWizError(err instanceof ApiRequestError ? err.body.message : "Faylni yuklashda xato yuz berdi");
+      setWizError(err instanceof ApiRequestError ? err.body.message : t("errors.fileUpload"));
     } finally {
       setUploading(false);
     }
@@ -890,7 +1223,7 @@ export default function App() {
       refetchDocuments();
       openDocument(created.id);
     } catch (err) {
-      setWizError(err instanceof ApiRequestError ? err.body.message : "Hujjatni saqlashda xato yuz berdi");
+      setWizError(err instanceof ApiRequestError ? err.body.message : t("errors.docSave"));
     } finally {
       setWizSaving(false);
     }
@@ -908,7 +1241,7 @@ export default function App() {
       setDocDetail(updated);
       refetchDocuments();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     }
   }, [docDetail, refetchDocuments, toast]);
 
@@ -927,7 +1260,7 @@ export default function App() {
       setStatusChangeNote("");
       setStatusChangeDate("");
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.generic"));
     } finally {
       setStatusChangeSaving(false);
     }
@@ -961,7 +1294,7 @@ export default function App() {
       refetchDocuments();
       setDocEditOpen(false);
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Hujjatni saqlashda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.docSave"));
     } finally {
       setDocEditSaving(false);
     }
@@ -974,7 +1307,7 @@ export default function App() {
       const { url } = await filesApi.downloadUrl(fileId, disposition);
       window.open(url, "_blank", "noopener");
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Faylni ochishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.fileOpen"));
     }
   }, [toast]);
 
@@ -1000,7 +1333,7 @@ export default function App() {
       refetchFolders();
       refetchSidebarRoots();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Hujjatni o'chirishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.docDelete"));
     }
   }, [t, toast, refetchDocuments, refetchFolders, refetchSidebarRoots]);
 
@@ -1014,7 +1347,7 @@ export default function App() {
       refetchFolders();
       refetchSidebarRoots();
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Amalni bajarishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.bulkAction"));
     } finally {
       setBulkBusy(false);
     }
@@ -1139,7 +1472,7 @@ export default function App() {
       tplTimer.current = window.setTimeout(poll, 1200);
     } catch (err) {
       setTplState("failed");
-      toast(err instanceof ApiRequestError ? err.body.message : "Shablon so'rovida xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.templateRequest"));
     }
   }
 
@@ -1151,7 +1484,7 @@ export default function App() {
       else if (kind === "docx") setVerDocx(summary);
       else setVerDiff(summary);
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Fayl yuklashda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.versionFileUpload"));
     } finally {
       setVerUploading(null);
     }
@@ -1173,7 +1506,7 @@ export default function App() {
       closeVersionModal();
       toast(t("version.created", { label: updated.currentVersionLabel ?? "" }));
     } catch (err) {
-      toast(err instanceof ApiRequestError ? err.body.message : "Versiya yaratishda xato yuz berdi");
+      toast(err instanceof ApiRequestError ? err.body.message : t("errors.versionCreate"));
     } finally {
       setVerSaving(false);
     }
@@ -1205,6 +1538,7 @@ export default function App() {
     mon: t("breadcrumb.mon"),
     cal: t("breadcrumb.cal"),
     admin: t("admin.title"),
+    struct: t("breadcrumb.struct"),
   };
 
   // Glass card style helper
@@ -1231,7 +1565,7 @@ export default function App() {
     { id: "graph", icon: <Network size={19} /> },
     { id: "mon", icon: <Activity size={19} />, pip: true },
     { id: "cal", icon: <CalendarDays size={19} /> },
-    { icon: <GitBranch size={19} /> },
+    { id: "struct", icon: <GitBranch size={19} /> },
   ];
 
   // ── Sidebar (Rail + Papkalar paneli birlashgan holda, tepasida umumiy brend header) ──
@@ -1393,7 +1727,7 @@ export default function App() {
       <button onClick={() => setDrawerOpen(true)}
         className="relative flex items-center gap-2 font-bold text-[12.5px] transition-all cursor-pointer"
         style={{ background: panel, border: `1px solid ${panelBorder}`, borderRadius: 13, padding: "9px 14px", color: txt2 }}>
-        <span className="absolute top-[7px] right-[9px] w-[7px] h-[7px] rounded-full" style={{ background: "#F07A6B" }} />
+        {unreadCount > 0 && <span className="absolute top-[7px] right-[9px] w-[7px] h-[7px] rounded-full" style={{ background: "#F07A6B" }} />}
         <Bell size={16} />
       </button>
 
@@ -1429,6 +1763,17 @@ export default function App() {
   );
 
   // ── DASHBOARD ─────────────────────────────────────────────────────────────
+  const activityEntityLabel = (entityType: string): string => {
+    const key = `dashboard.entity.${entityType}`;
+    const translated = t(key);
+    return translated === key ? entityType : translated;
+  };
+  const activityActionLabel = (action: string): string => {
+    const key = `dashboard.action.${action}`;
+    const translated = t(key);
+    return translated === key ? action : translated;
+  };
+
   const Dashboard = (
     <div>
       <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
@@ -1437,7 +1782,10 @@ export default function App() {
             {t("dashboard.welcome")}{user ? `, ${user.fullName}` : ""}
           </h1>
           <p className="text-sm mt-1" style={{ color: txt2 }}>
-            Bugun: 2 ta yangi tashqi akt, 1 hujjat tasdiq kutmoqda
+            {t("dashboard.todaySummary", {
+              newExternalActs: dashboardStats?.newExternalActs ?? 0,
+              pendingApproval: dashboardStats?.pendingApproval ?? 0,
+            })}
           </p>
         </div>
       </div>
@@ -1446,7 +1794,7 @@ export default function App() {
       <div className="relative mb-6 overflow-hidden" style={{ height: 220, borderRadius: 20, background: isDark ? "rgba(255,255,255,.025)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}` }}>
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 text-[11.5px] font-bold whitespace-nowrap"
           style={{ background: panel, border: `1px solid ${panelBorder}`, borderRadius: 12, padding: "7px 14px", backdropFilter: "blur(14px)", color: txt2 }}>
-          Jami <strong style={{ color: lime }}>482 hujjat</strong> · 14 papka
+          {t("dashboard.totalPrefix")} <strong style={{ color: lime }}>{t("vault.folderMetaPlain", { count: dashboardStats?.totalDocuments ?? 0 })}</strong> · {t("dashboard.totalFolders", { count: dashboardStats?.totalFolders ?? 0 })}
         </div>
         <div className="absolute inset-x-0 bottom-4 flex items-end justify-center gap-[-20px]"
           style={{ paddingLeft: 32, paddingRight: 32 }}>
@@ -1484,10 +1832,24 @@ export default function App() {
       {/* Stat cards grid */}
       <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
         {[
-          { label: t("dashboard.statActiveDocs"), num: "396", sub: "+12 shu oyda", dotColor: lime, subAccent: true },
-          { label: t("dashboard.statPendingApproval"), num: "7", sub: "3 tasi 5 kundan oshdi", dotColor: "#F0C24B" },
-          { label: t("dashboard.statNewExternalActs"), num: "2", sub: "cbu.uz · lex.uz, bugun", dotColor: "#6BB4F5" },
-          { label: t("dashboard.statReviewSuggested"), num: "4", sub: "yangi aktlarga aloqador", dotColor: "#F07A6B" },
+          {
+            label: t("dashboard.statActiveDocs"), num: String(dashboardStats?.activeDocuments ?? 0),
+            sub: <><strong style={{ color: lime }}>+{dashboardStats?.activeDocumentsThisMonth ?? 0}</strong> {t("dashboard.statThisMonth")}</>,
+            dotColor: lime,
+          },
+          {
+            label: t("dashboard.statPendingApproval"), num: String(dashboardStats?.pendingApproval ?? 0),
+            sub: t("dashboard.pendingOverdue", { count: dashboardStats?.pendingApprovalOverdue ?? 0 }),
+            dotColor: "#F0C24B",
+          },
+          {
+            label: t("dashboard.statNewExternalActs"), num: String(dashboardStats?.newExternalActs ?? 0),
+            sub: "cbu.uz · lex.uz", dotColor: "#6BB4F5",
+          },
+          {
+            label: t("dashboard.statReviewSuggested"), num: "0",
+            sub: t("dashboard.monitoringPending"), dotColor: "#F07A6B",
+          },
         ].map((stat, i) => (
           <div key={i} style={{ ...glass(), padding: "18px 20px" }}>
             <div className="flex items-center gap-2 mb-2">
@@ -1495,9 +1857,7 @@ export default function App() {
               <span className="text-[11px] font-extrabold uppercase tracking-wide" style={{ color: txt3 }}>{stat.label}</span>
             </div>
             <p className="font-['Sora'] text-[28px] font-semibold tracking-tight" style={{ color: txt }}>{stat.num}</p>
-            <p className="text-[11.5px] font-semibold mt-1" style={{ color: txt2 }}>
-              {stat.subAccent ? <><strong style={{ color: lime }}>+12</strong> {t("dashboard.statThisMonth")}</> : stat.sub}
-            </p>
+            <p className="text-[11.5px] font-semibold mt-1" style={{ color: txt2 }}>{stat.sub}</p>
           </div>
         ))}
       </div>
@@ -1507,42 +1867,50 @@ export default function App() {
         {/* Activity feed */}
         <div style={{ ...glass(), padding: "20px 22px" }}>
           <h2 className="font-['Sora'] text-[15px] font-semibold mb-4" style={{ color: txt }}>{t("dashboard.recentActivity")}</h2>
-          {[
-            { icon: <Plus size={15} />, iconBg: `${lime}22`, iconColor: lime, bold: "Kredit berish tartibi N-12", rest: " — v2.0 yangi versiya", who: "A. Karimov · taqqoslama biriktirildi", when: "12 daq" },
-            { icon: <Activity size={15} />, iconBg: "rgba(107,180,245,.13)", iconColor: "#6BB4F5", bold: "CBU qarori № 145/2026", rest: " aniqlandi", who: "Monitoring · 4 aloqador ichki hujjat", when: "1 soat" },
-            { icon: <Clock size={15} />, iconBg: "rgba(240,194,75,.13)", iconColor: "#F0C24B", bold: "Axborot xavfsizligi siyosati S-03", rest: " tasdiq kutmoqda", who: "D. Rahimova yubordi · 6 kun", when: "kecha" },
-            { icon: <Check size={15} />, iconBg: `${lime}22`, iconColor: lime, bold: "Ichki nazorat reglamenti R-07", rest: " tasdiqlandi", who: "Sh. Tosheva · ACTIVE holatga o'tdi", when: "kecha" },
-          ].map((row, i) => (
-            <div key={i} className="flex gap-3 py-2.5 items-start" style={{ borderBottom: i < 3 ? `1px solid ${panelBorder}` : "none", fontSize: 12.5 }}>
-              <div className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
-                style={{ background: row.iconBg, color: row.iconColor }}>
-                {row.icon}
+          {dashboardStats?.recentActivity.length ? dashboardStats.recentActivity.map((row, i) => {
+            const iconByAction: Record<string, { icon: JSX.Element; bg: string; color: string }> = {
+              CREATE: { icon: <Plus size={15} />, bg: `${lime}22`, color: lime },
+              UPDATE: { icon: <Clock size={15} />, bg: "rgba(240,194,75,.13)", color: "#F0C24B" },
+              DELETE: { icon: <Trash2 size={15} />, bg: "rgba(240,122,107,.13)", color: "#F07A6B" },
+              RESTORE: { icon: <Check size={15} />, bg: `${lime}22`, color: lime },
+            };
+            const cfg = iconByAction[row.action] ?? { icon: <Activity size={15} />, bg: "rgba(107,180,245,.13)", color: "#6BB4F5" };
+            return (
+              <div key={row.id} className="flex gap-3 py-2.5 items-start" style={{ borderBottom: i < dashboardStats.recentActivity.length - 1 ? `1px solid ${panelBorder}` : "none", fontSize: 12.5 }}>
+                <div className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: cfg.bg, color: cfg.color }}>
+                  {cfg.icon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p style={{ color: txt }}><strong>{activityEntityLabel(row.entityType)}</strong> {activityActionLabel(row.action)}</p>
+                  {row.userName && <p className="mt-0.5 font-semibold" style={{ color: txt2 }}>{row.userName}</p>}
+                </div>
+                <span className="text-[11px] font-bold whitespace-nowrap flex-shrink-0" style={{ color: txt3 }}>{formatDate(row.createdAt)}</span>
               </div>
-              <div className="min-w-0 flex-1">
-                <p style={{ color: txt }}><strong>{row.bold}</strong>{row.rest}</p>
-                <p className="mt-0.5 font-semibold" style={{ color: txt2 }}>{row.who}</p>
-              </div>
-              <span className="text-[11px] font-bold whitespace-nowrap flex-shrink-0" style={{ color: txt3 }}>{row.when}</span>
-            </div>
-          ))}
+            );
+          }) : (
+            <p className="text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("dashboard.noActivity")}</p>
+          )}
         </div>
 
-        {/* Attention cards */}
+        {/* Attention cards — joriy user'ning o'qilmagan bildirishnomalari */}
         <div style={{ ...glass(), padding: "20px 22px" }}>
           <h2 className="font-['Sora'] text-[15px] font-semibold mb-4" style={{ color: txt }}>{t("dashboard.needsAttention")}</h2>
-          {[
-            { warn: true, title: "Lex.uz: yangi qonun O'RQ-812", body: '"Elektron hujjat aylanishi to\'g\'risida"gi qonunga o\'zgartirishlar. 3 ta ichki hujjat bilan yuqori o\'xshashlik.', go: "Monitoring'da ochish →", goAction: () => goView("mon") },
-            { warn: false, title: "Taqqoslama shablon tayyor", body: "N-12 v2.0 uchun avtomatik shablon generatsiya qilindi — yuklab olib to'ldirishingiz mumkin.", go: "Yuklab olish →", goAction: () => toast("Shablon yuklab olinmoqda...") },
-          ].map((notif, i) => (
-            <div key={i} className="rounded-[13px] mb-2.5 text-[12.5px]"
+          {notifications.filter(n => !n.isRead).length === 0 ? (
+            <p className="text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("dashboard.noAttention")}</p>
+          ) : notifications.filter(n => !n.isRead).slice(0, 5).map((notif) => (
+            <div key={notif.id} className="rounded-[13px] mb-2.5 text-[12.5px]"
               style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}`, padding: "12px 14px" }}>
               <p className="flex items-center gap-2 font-bold mb-1" style={{ color: txt }}>
-                <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: notif.warn ? "#F0C24B" : lime }} />
+                <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: lime }} />
                 {notif.title}
               </p>
               <p className="font-semibold leading-relaxed" style={{ color: txt2 }}>{notif.body}</p>
-              <span onClick={notif.goAction} className="inline-block mt-2 text-[11px] font-extrabold cursor-pointer" style={{ color: lime }}>
-                {notif.go}
+              <span onClick={() => {
+                handleMarkNotificationRead(notif.id);
+                const docId = notif.meta.documentId;
+                if (typeof docId === "string") openDocument(docId);
+              }} className="inline-block mt-2 text-[11px] font-extrabold cursor-pointer" style={{ color: lime }}>
+                {t("dashboard.viewNotification")}
               </span>
             </div>
           ))}
@@ -1690,7 +2058,7 @@ export default function App() {
                 ? t("vault.folderMetaWithChildren", { count: f.documentCount })
                 : t("vault.folderMetaPlain", { count: f.documentCount }),
               accent: false,
-              locked: false,
+              locked: f.locked,
             }} onClick={() => setFolderStack(s => [...s, { id: f.id, name: f.name }])} />
           ))}
         </div>
@@ -1989,7 +2357,7 @@ export default function App() {
                   <div>
                     <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t("wizard.fieldTags")}</label>
                     <input value={docEditForm.tagsRaw} onChange={e => setDocEditForm(f => ({ ...f, tagsRaw: e.target.value }))}
-                      placeholder="CBU, Moliya, ..."
+                      placeholder={t("wizard.fieldTagsPlaceholder")}
                       className="w-full outline-none rounded-lg text-[13px] font-semibold px-3 py-2"
                       style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
                   </div>
@@ -2010,11 +2378,13 @@ export default function App() {
               )}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => currentVersion && handleFileOpen(currentVersion.pdf.id, "attachment")}
-                className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
-                style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
-                <Download size={14} /> {t("docDetail.download")}
-              </button>
+              {!downloadBlocked && (
+                <button onClick={() => currentVersion && handleFileOpen(currentVersion.pdf.id, "attachment")}
+                  className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
+                  style={{ background: panel, border: `1px solid ${panelBorder}`, color: txt2 }}>
+                  <Download size={14} /> {t("docDetail.download")}
+                </button>
+              )}
               {canEditDocuments && (
                 <button onClick={openDocEdit}
                   className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-2 rounded-[13px] cursor-pointer"
@@ -2054,10 +2424,12 @@ export default function App() {
             })}
           </div>
 
-          {/* PDF preview — brauzer native PDF renderi orqali */}
+          {/* PDF preview — pdf.js orqali (sahifama-sahifa + zoom) */}
           {docTab === "pdf" && currentVersion && (
-            <div className="mx-6 my-5 rounded-xl overflow-hidden" style={{ height: 600, border: `1px solid ${panelBorder}` }}>
-              <iframe src={currentVersion.pdf.downloadUrl} title="PDF" style={{ width: "100%", height: "100%", border: "none" }} />
+            <div className="mx-6 my-5">
+              <PdfViewer url={currentVersion.pdf.downloadUrl} height={600}
+                panel={panel} panelBorder={panelBorder} txt2={txt2} txt3={txt3} isDark={isDark}
+                overlay={downloadBlocked && user?.email ? <WatermarkOverlay email={user.email} /> : undefined} />
             </div>
           )}
 
@@ -2068,9 +2440,12 @@ export default function App() {
             ) : wordLoading ? (
               <div className="mx-6 my-5" style={{ height: 200, borderRadius: 12, background: panel }} />
             ) : (
-              <div className="mx-6 my-5 rounded-xl p-6 text-[13px]"
-                style={{ background: "#F4F7F5", color: "#1a1a1a", maxHeight: 600, overflowY: "auto" }}
-                dangerouslySetInnerHTML={{ __html: wordHtml ?? "" }} />
+              <div className="relative mx-6 my-5 rounded-xl overflow-hidden" style={{ maxHeight: 600 }}>
+                <div className="p-6 text-[13px]"
+                  style={{ background: "#F4F7F5", color: "#1a1a1a", maxHeight: 600, overflowY: "auto" }}
+                  dangerouslySetInnerHTML={{ __html: wordHtml ?? "" }} />
+                {downloadBlocked && user?.email && <WatermarkOverlay email={user.email} />}
+              </div>
             )
           )}
 
@@ -2171,6 +2546,12 @@ export default function App() {
                       placeholder={t("docDetail.relationNotePlaceholder")}
                       className="w-full outline-none rounded-lg text-[12.5px] font-semibold px-3 py-2 mb-2"
                       style={{ background: isDark ? "rgba(255,255,255,.05)" : "#fff", border: `1px solid ${panelBorder}`, color: txt }} />
+                    {relationType === "REPLACES" && (
+                      <label className="flex items-center gap-2 text-[12px] font-semibold mb-2 cursor-pointer" style={{ color: txt2 }}>
+                        <input type="checkbox" checked={relationExpireTarget} onChange={(e) => setRelationExpireTarget(e.target.checked)} />
+                        {t("docDetail.alsoExpireTarget")}
+                      </label>
+                    )}
                     <div className="flex gap-2 justify-end">
                       <button onClick={() => setRelationAddOpen(false)}
                         className="text-[11.5px] font-bold px-3 py-1.5 rounded-lg cursor-pointer"
@@ -2192,11 +2573,14 @@ export default function App() {
             {relations.length === 0 ? (
               <p className="text-[12px] font-semibold" style={{ color: txt3 }}>{t("docDetail.noRelations")}</p>
             ) : (
-              relations.map((rel) => (
-                <div key={rel.id} className="flex items-center gap-2.5 py-2 text-[12.5px] font-semibold" style={{ color: txt2 }}>
+              RELATION_TYPES.filter((rt) => relations.some((r) => r.type === rt)).map((rt) => (
+              <div key={rt} className="mb-2.5 last:mb-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-wide mb-1" style={{ color: txt3 }}>{t(`relationType.${rt}`)}</p>
+                {relations.filter((r) => r.type === rt).map((rel) => (
+                <div key={rel.id} className="flex items-center gap-2.5 py-1.5 text-[12.5px] font-semibold" style={{ color: txt2 }}>
                   <span className="text-[9.5px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-[6px] flex-shrink-0 whitespace-nowrap"
                     style={{ background: RELATION_TYPE_STYLE[rel.type].bg, color: RELATION_TYPE_STYLE[rel.type].color }}>
-                    {rel.direction === "INCOMING" ? "← " : ""}{t(`relationType.${rel.type}`)}
+                    {rel.direction === "INCOMING" ? "←" : "→"}
                   </span>
                   <span onClick={() => openDocument(rel.document.id)} className="flex-1 cursor-pointer truncate">{rel.document.title}</span>
                   {canEditDocuments && (
@@ -2205,22 +2589,22 @@ export default function App() {
                     </span>
                   )}
                 </div>
+                ))}
+              </div>
               ))
             )}
           </div>
 
-          {/* Audit — mock (audit ko'rish UI'si TZ-1 §1.3 doirasida emas) */}
+          {/* Audit — real (TZ-2 §2.7, avval mock edi) */}
           <div style={{ ...glass(), padding: 20 }}>
             <h3 className="font-['Sora'] text-[13px] font-semibold mb-3.5" style={{ color: txt }}>{t("docDetail.audit")}</h3>
-            {[
-              { action: "A. Karimov v2.0 yukladi", when: "bugun 11:42" },
-              { action: "S. Nazarov PDF yuklab oldi", when: "bugun 09:15" },
-              { action: "Sh. Tosheva ochib ko'rdi", when: "kecha" },
-            ].map((a, i, arr) => (
-              <div key={i} className="flex justify-between gap-2.5 py-1.5 text-[11.5px] font-semibold"
+            {docAuditLog.length === 0 ? (
+              <p className="text-[11.5px] font-semibold" style={{ color: txt3 }}>{t("dashboard.noActivity")}</p>
+            ) : docAuditLog.map((a, i, arr) => (
+              <div key={a.id} className="flex justify-between gap-2.5 py-1.5 text-[11.5px] font-semibold"
                 style={{ borderBottom: i < arr.length - 1 ? `1px dashed ${panelBorder}` : "none", color: txt2 }}>
-                <span>{a.action}</span>
-                <span className="flex-shrink-0" style={{ color: txt3 }}>{a.when}</span>
+                <span>{a.userName ?? "—"} · {activityActionLabel(a.action)}</span>
+                <span className="flex-shrink-0" style={{ color: txt3 }}>{formatDate(a.createdAt)}</span>
               </div>
             ))}
           </div>
@@ -2557,23 +2941,26 @@ export default function App() {
         <button onClick={() => setDrawerOpen(false)} style={{ color: txt3, fontSize: 20, background: "none", border: "none", cursor: "pointer" }}>✕</button>
       </div>
       <p className="text-[11.5px] font-bold mb-4" style={{ color: txt3 }}>
-        2 o'qilmagan · <span className="cursor-pointer" style={{ color: lime }}>{t("drawer.markAllRead")}</span>
+        {t("drawer.unreadCount", { count: unreadCount })} ·{" "}
+        <span className="cursor-pointer" style={{ color: lime }} onClick={handleMarkAllNotificationsRead}>{t("drawer.markAllRead")}</span>
       </p>
-      {[
-        { warn: true, title: "CBU qarori № 145/2026 aniqlandi", body: "4 ta ichki hujjat bilan yuqori o'xshashlik. N-12 (91%) birinchi o'rinda.", go: "Monitoring'da ochish →", goAction: () => { setDrawerOpen(false); goView("mon"); } },
-        { warn: true, title: "Lex.uz: O'RQ-812 o'zgartirishlar", body: "S-03 va R-07 hujjatlaringizga aloqador bo'lishi mumkin.", go: "Ko'rish →", goAction: () => { setDrawerOpen(false); goView("mon"); } },
-        { warn: false, title: "Taqqoslama shablon tayyor", body: "N-12 v2.0 uchun shablon generatsiya qilindi (14 band).", go: "Yuklab olish →", goAction: () => toast("Shablon yuklab olinmoqda...") },
-        { warn: false, title: "S-03 tasdiq kutmoqda", body: "D. Rahimova 6 kun oldin yuborgan. Siz tasdiqlovchisiz.", go: "Ko'rib chiqish →", goAction: () => goView("doc") },
-        { warn: false, title: "R-07 tasdiqlandi", body: "Sh. Tosheva tasdiqladi, hujjat ACTIVE holatga o'tdi.", go: "", goAction: () => {} },
-      ].map((n, i) => (
-        <div key={i} className="rounded-[13px] mb-2.5 text-[12.5px]"
-          style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}`, padding: "12px 14px" }}>
+      {notifications.length === 0 ? (
+        <p className="text-[12.5px] font-semibold" style={{ color: txt3 }}>{t("drawer.empty")}</p>
+      ) : notifications.map((n) => (
+        <div key={n.id} className="rounded-[13px] mb-2.5 text-[12.5px]"
+          style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.02)", border: `1px solid ${panelBorder}`, padding: "12px 14px", opacity: n.isRead ? 0.6 : 1 }}>
           <p className="flex items-center gap-2 font-bold mb-1" style={{ color: txt }}>
-            <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: n.warn ? "#F0C24B" : lime }} />
+            <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: n.isRead ? txt3 : lime }} />
             {n.title}
           </p>
           <p className="font-semibold leading-relaxed" style={{ color: txt2 }}>{n.body}</p>
-          {n.go && <span onClick={n.goAction} className="inline-block mt-2 text-[11px] font-extrabold cursor-pointer" style={{ color: lime }}>{n.go}</span>}
+          <span onClick={() => {
+            handleMarkNotificationRead(n.id);
+            const docId = n.meta.documentId;
+            if (typeof docId === "string") { setDrawerOpen(false); openDocument(docId); }
+          }} className="inline-block mt-2 text-[11px] font-extrabold cursor-pointer" style={{ color: lime }}>
+            {n.isRead ? t("drawer.viewed") : t("dashboard.viewNotification")}
+          </span>
         </div>
       ))}
     </div>
@@ -2667,7 +3054,7 @@ export default function App() {
             <div>
               <label className="block text-[11px] font-extrabold uppercase tracking-wide mb-1.5" style={{ color: txt3 }}>{t("wizard.fieldTags")}</label>
               <input value={docForm.tagsRaw} onChange={e => setDocForm(f => ({ ...f, tagsRaw: e.target.value }))}
-                placeholder="CBU, kredit" className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
+                placeholder={t("wizard.fieldTagsPlaceholder")} className="w-full outline-none rounded-xl text-[13px] font-semibold px-3.5 py-3"
                 style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${panelBorder}`, color: txt, fontFamily: "Manrope" }} />
             </div>
           </div>
@@ -2817,6 +3204,7 @@ export default function App() {
         { v: "graph" as View, label: t("viewbar.graph") },
         { v: "mon" as View, label: t("viewbar.mon") },
         { v: "cal" as View, label: t("viewbar.cal") },
+        { v: "struct" as View, label: t("viewbar.struct") },
       ].map(item => (
         <button key={item.v} onClick={() => goView(item.v)}
           className="text-[12px] font-extrabold px-4 py-2.5 rounded-full cursor-pointer transition-all whitespace-nowrap"
@@ -2860,7 +3248,25 @@ export default function App() {
             {view === "dash" && Dashboard}
             {view === "vault" && Vault}
             {view === "doc" && DocDetail}
-            {view === "graph" && <GraphView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} docTypes={documentTypes} onOpenDocument={openDocument} />}
+            {view === "graph" && (
+              <div>
+                <div className="flex p-1 gap-0.5 rounded-[10px] mb-3 w-fit"
+                  style={{ background: isDark ? "rgba(26,26,26,.92)" : "rgba(255,255,255,.95)", border: `1px solid ${panelBorder}` }}>
+                  {([["graph", t("graph.modeGraph")], ["workflow", t("graph.modeWorkflow")]] as const).map(([m, label]) => (
+                    <span key={m} onClick={() => setGraphMode(m)}
+                      className="text-[11px] font-extrabold px-3 py-[5px] rounded-lg cursor-pointer"
+                      style={graphMode === m ? { background: isDark ? "rgba(255,255,255,.12)" : "#fff", color: txt } : { color: txt3 }}>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                {graphMode === "graph" ? (
+                  <GraphView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} docTypes={documentTypes} onOpenDocument={openDocument} />
+                ) : (
+                  <WorkflowView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} onOpenDocument={openDocument} />
+                )}
+              </div>
+            )}
             {view === "mon" && Monitoring}
             {view === "cal" && (
               <CalendarView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} onOpenDocument={openDocument} />
@@ -2874,6 +3280,10 @@ export default function App() {
               ) : (
                 <div style={{ padding: 48, textAlign: "center", color: txt2 }}>{t("admin.accessDenied")}</div>
               )
+            )}
+            {view === "struct" && (
+              <StructureView theme={{ isDark, lime, panel, panelBorder, txt, txt2, txt3 }} toast={toast}
+                isAdmin={user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"} />
             )}
           </div>
         </main>

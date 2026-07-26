@@ -9,7 +9,7 @@ import { tap } from 'rxjs';
 import type { Prisma } from '@docmax/db';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedRequest } from '../auth/types';
-import { getAuditContext } from './audit-context';
+import { getAuditContexts } from './audit-context';
 
 /**
  * Mutatsion endpointlar audit_log'ni avtomatik yozadi (CLAUDE.md 3-qoida) —
@@ -28,27 +28,29 @@ export class AuditInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap(() => {
-        const ctx = getAuditContext(request);
-        if (!ctx) {
+        const contexts = getAuditContexts(request);
+        if (!contexts.length) {
           return;
         }
-        this.prisma.auditLog
-          .create({
-            data: {
-              orgId: ctx.orgId,
-              userId: ctx.userId,
-              action: ctx.action,
-              entityType: ctx.entityType,
-              entityId: ctx.entityId,
-              meta: (ctx.meta ?? {}) as Prisma.InputJsonValue,
-              ip: request.ip,
-              userAgent: request.headers['user-agent'],
-            },
-          })
-          .catch((err: unknown) => {
-            // Audit yozib bo'lmasligi asosiy so'rov natijasini to'xtatmasin.
-            this.logger.error(`Audit yozib bo'lmadi: ${String(err)}`);
-          });
+        Promise.all(
+          contexts.map((ctx) =>
+            this.prisma.auditLog.create({
+              data: {
+                orgId: ctx.orgId,
+                userId: ctx.userId,
+                action: ctx.action,
+                entityType: ctx.entityType,
+                entityId: ctx.entityId,
+                meta: (ctx.meta ?? {}) as Prisma.InputJsonValue,
+                ip: request.ip,
+                userAgent: request.headers['user-agent'],
+              },
+            }),
+          ),
+        ).catch((err: unknown) => {
+          // Audit yozib bo'lmasligi asosiy so'rov natijasini to'xtatmasin.
+          this.logger.error(`Audit yozib bo'lmadi: ${String(err)}`);
+        });
       }),
     );
   }

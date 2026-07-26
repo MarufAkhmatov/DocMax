@@ -4,6 +4,7 @@ import type {
   AuthUser,
   BulkDocumentsInput,
   BulkDocumentsResult,
+  CanvasLayout,
   ComparisonTemplateInput,
   ComparisonTemplateJob,
   ComparisonTemplateStatus,
@@ -12,30 +13,53 @@ import type {
   CreateDocumentRelationInput,
   CreateDocumentVersionInput,
   CreateDocumentTypeInput,
+  CloseOrgUnitInput,
   CreateFolderInput,
+  CreateOrgUnitInput,
+  DashboardStats,
   DocumentDetail,
   DocumentRelationSummary,
   DocumentTypeSummary,
   FileDownloadResult,
+  FolderAccessResult,
+  FolderPermissionsSummary,
   GraphData,
   GraphQuery,
   FileSummary,
   FolderNode,
   ForgotPasswordInput,
   InviteInput,
+  ListAuditLogsQuery,
   ListDocumentsQuery,
   LoginInput,
   MoveFolderInput,
+  MoveOrgUnitInput,
+  NotificationsList,
   OrganizationBranding,
+  OrgCanvasLayout,
+  OrgStructureSnapshotDetail,
+  OrgStructureSnapshotSummary,
+  OrgUnitNode,
+  PaginatedAuditLogs,
   PaginatedDocuments,
   PresignFileInput,
   PresignResult,
+  RemapApplyInput,
+  RemapPreviewEntry,
   ResetPasswordInput,
+  SaveCanvasLayoutInput,
+  SaveOrgCanvasLayoutInput,
+  SetFolderPermissionsInput,
   SetupInput,
+  TagSummary,
+  TrashItem,
   UpdateDocumentInput,
   UpdateDocumentTypeInput,
   UpdateFolderInput,
+  UpdateOrgUnitInput,
   UpdateProfileInput,
+  UpdateTagInput,
+  UserSummary,
 } from '@docmax/shared';
 import { useAuthStore } from '@/stores/auth';
 
@@ -51,7 +75,7 @@ export class ApiRequestError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
   /** Refresh muvaffaqiyatsiz bo'lsa qayta urinmaslik (refresh so'rovining o'zi uchun) */
   skipAuthRetry?: boolean;
@@ -174,6 +198,9 @@ export const authApi = {
       body: input,
       skipAuthRetry: true,
     }),
+
+  /** Org-unit rahbar tanlash (TZ-2 §2.4) va ACL USER-subject tanlash (§2.5) uchun. */
+  listUsers: () => apiFetch<UserSummary[]>('/auth/users'),
 };
 
 export const foldersApi = {
@@ -185,6 +212,9 @@ export const foldersApi = {
     return apiFetch<FolderNode[]>(`/folders/tree${qs ? `?${qs}` : ''}`);
   },
 
+  /** Deep-link breadcrumb qayta qurish uchun (URL'dan `?folder=id`) — bitta papka. */
+  getById: (id: string) => apiFetch<FolderNode>(`/folders/${id}`),
+
   create: (input: CreateFolderInput) =>
     apiFetch<FolderNode>('/folders', { method: 'POST', body: input }),
 
@@ -195,6 +225,66 @@ export const foldersApi = {
     apiFetch<FolderNode>(`/folders/${id}/move`, { method: 'POST', body: input }),
 
   remove: (id: string) => apiFetch<void>(`/folders/${id}`, { method: 'DELETE' }),
+
+  /** TZ-2 §2.5 — joriy foydalanuvchining shu papkadagi effektiv huquqlari (drawer/preview). */
+  access: (id: string) => apiFetch<FolderAccessResult>(`/folders/${id}/access`),
+};
+
+export const permissionsApi = {
+  get: (folderId: string) => apiFetch<FolderPermissionsSummary>(`/folders/${folderId}/permissions`),
+
+  set: (folderId: string, input: SetFolderPermissionsInput) =>
+    apiFetch<FolderPermissionsSummary>(`/folders/${folderId}/permissions`, { method: 'PUT', body: input }),
+};
+
+export const orgUnitsApi = {
+  tree: (params: { parentId?: string | null; q?: string } = {}) => {
+    const search = new URLSearchParams();
+    if (params.parentId) search.set('parentId', params.parentId);
+    if (params.q) search.set('q', params.q);
+    const qs = search.toString();
+    return apiFetch<OrgUnitNode[]>(`/org-units/tree${qs ? `?${qs}` : ''}`);
+  },
+
+  create: (input: CreateOrgUnitInput) => apiFetch<OrgUnitNode>('/org-units', { method: 'POST', body: input }),
+
+  update: (id: string, input: UpdateOrgUnitInput) =>
+    apiFetch<OrgUnitNode>(`/org-units/${id}`, { method: 'PATCH', body: input }),
+
+  move: (id: string, input: MoveOrgUnitInput) =>
+    apiFetch<OrgUnitNode>(`/org-units/${id}/move`, { method: 'POST', body: input }),
+
+  close: (id: string, input: CloseOrgUnitInput) =>
+    apiFetch<OrgUnitNode>(`/org-units/${id}/close`, { method: 'POST', body: input }),
+
+  reopen: (id: string) => apiFetch<OrgUnitNode>(`/org-units/${id}/reopen`, { method: 'POST' }),
+
+  remapPreview: (id: string) => apiFetch<RemapPreviewEntry[]>(`/org-units/${id}/remap-preview`),
+
+  remapApply: (id: string, input: RemapApplyInput) =>
+    apiFetch<void>(`/org-units/${id}/remap-apply`, { method: 'POST', body: input }),
+
+  snapshots: (params: { page?: number; limit?: number } = {}) => {
+    const search = new URLSearchParams();
+    if (params.page) search.set('page', String(params.page));
+    if (params.limit) search.set('limit', String(params.limit));
+    const qs = search.toString();
+    return apiFetch<{ items: OrgStructureSnapshotSummary[]; total: number }>(`/org-units/snapshots${qs ? `?${qs}` : ''}`);
+  },
+
+  snapshotAt: (date: string) => apiFetch<OrgStructureSnapshotDetail | null>(`/org-units/snapshots/at?date=${date}`),
+
+  /** Canvas (n8n-uslubidagi vizualizatsiya) uchun BUTUN struktura bir so'rovda. */
+  treeAll: () => apiFetch<OrgUnitNode[]>('/org-units/tree?all=true'),
+
+  /** Papkani org-unit'ga bog'lash (`orgUnitId`) yoki uzish (`null`) — canvas'da chiziq tortish/o'chirish. */
+  setFolderLink: (folderId: string, orgUnitId: string | null) =>
+    apiFetch<void>(`/org-units/folders/${folderId}/link`, { method: 'PATCH', body: { orgUnitId } }),
+
+  getCanvasLayout: () => apiFetch<OrgCanvasLayout>('/org-units/canvas-layout'),
+
+  saveCanvasLayout: (input: SaveOrgCanvasLayoutInput) =>
+    apiFetch<OrgCanvasLayout>('/org-units/canvas-layout', { method: 'PUT', body: input }),
 };
 
 /** Fayl bayt'laridan sha256 hex — dedup uchun (TZ-1 §1.3 qabul mezoni). */
@@ -286,6 +376,9 @@ export const documentsApi = {
 
   templateJobStatus: (jobId: string) =>
     apiFetch<ComparisonTemplateStatus>(`/documents/template-jobs/${jobId}`),
+
+  /** TZ-2 §2.7 — DocDetail audit paneli (org-darajasidagi to'liq /audit-logs'dan farqli, ADMIN cheklovsiz). */
+  audit: (id: string) => apiFetch<PaginatedAuditLogs>(`/documents/${id}/audit`),
 };
 
 export const graphApi = {
@@ -328,4 +421,73 @@ export const relationsApi = {
 
   remove: (documentId: string, relationId: string) =>
     apiFetch<void>(`/documents/${documentId}/relations/${relationId}`, { method: 'DELETE' }),
+};
+
+export const notificationsApi = {
+  list: (unreadOnly = false) =>
+    apiFetch<NotificationsList>(`/notifications${unreadOnly ? '?unreadOnly=true' : ''}`),
+
+  markRead: (id: string) => apiFetch<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
+
+  markAllRead: () => apiFetch<void>('/notifications/read-all', { method: 'PATCH' }),
+};
+
+export const statsApi = {
+  dashboard: () => apiFetch<DashboardStats>('/stats/dashboard'),
+};
+
+export const trashApi = {
+  list: () => apiFetch<TrashItem[]>('/trash'),
+
+  restoreDocument: (id: string) => apiFetch<void>(`/trash/documents/${id}/restore`, { method: 'POST' }),
+
+  restoreFolder: (id: string) => apiFetch<void>(`/trash/folders/${id}/restore`, { method: 'POST' }),
+};
+
+export const auditLogsApi = {
+  list: (query: Partial<ListAuditLogsQuery> = {}) => {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, String(value));
+      }
+    }
+    const qs = search.toString();
+    return apiFetch<PaginatedAuditLogs>(`/audit-logs${qs ? `?${qs}` : ''}`);
+  },
+
+  /** Bearer auth kerak bo'lgani uchun to'g'ridan-to'g'ri href emas — blob sifatida olib,
+   * clientda vaqtinchalik <a download> orqali saqlanadi. */
+  exportCsv: async (query: Partial<ListAuditLogsQuery> = {}): Promise<Blob> => {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, String(value));
+      }
+    }
+    const qs = search.toString();
+    const accessToken = useAuthStore.getState().accessToken;
+    const res = await fetch(`${API_URL}/audit-logs/export.csv${qs ? `?${qs}` : ''}`, {
+      credentials: 'include',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    });
+    if (!res.ok) {
+      throw new Error('CSV eksportida xato yuz berdi');
+    }
+    return res.blob();
+  },
+};
+
+export const tagsApi = {
+  list: () => apiFetch<TagSummary[]>('/tags'),
+
+  update: (id: string, input: UpdateTagInput) => apiFetch<TagSummary>(`/tags/${id}`, { method: 'PATCH', body: input }),
+
+  remove: (id: string) => apiFetch<void>(`/tags/${id}`, { method: 'DELETE' }),
+};
+
+export const workflowApi = {
+  getLayout: () => apiFetch<CanvasLayout>('/workflow/layout'),
+
+  saveLayout: (input: SaveCanvasLayoutInput) => apiFetch<CanvasLayout>('/workflow/layout', { method: 'PUT', body: input }),
 };

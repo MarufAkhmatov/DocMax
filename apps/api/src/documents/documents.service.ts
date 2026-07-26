@@ -16,10 +16,13 @@ import type {
   FileSummary,
   ListDocumentsQuery,
   PaginatedDocuments,
+  Role,
   UpdateDocumentInput,
 } from '@docmax/shared';
 import { nextVersionLabel } from '@docmax/shared';
-import { badRequest, conflict, notFound } from '../common/api-error';
+import { badRequest, conflict, forbidden, notFound } from '../common/api-error';
+import { FolderAccessService } from '../folders/folder-access.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantPrismaService } from '../prisma/tenant-prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -77,6 +80,8 @@ export class DocumentsService {
     private readonly tenant: TenantPrismaService,
     private readonly storage: StorageService,
     private readonly queue: QueueService,
+    private readonly notifications: NotificationsService,
+    private readonly folderAccess: FolderAccessService,
   ) {}
 
   private get document() {
@@ -117,19 +122,33 @@ export class DocumentsService {
       : 'approvedAt') as (typeof SORTABLE_FIELDS)[number];
     const orderBy: Prisma.DocumentOrderByWithRelationInput = { [sortField]: query.order };
 
+    // TZ-2 §2.5 qabul mezoni: ACL'd papkadagi hujjatlar ruxsatsizga list/qidiruvda chiqmaydi.
+    const denied = await this.folderAccess.deniedFolderIds();
+    const finalWhere: Prisma.DocumentWhereInput = denied.length ? { AND: [where, { folderId: { notIn: denied } }] } : where;
+
     const [rows, total] = await Promise.all([
       this.document.findMany({
-        where,
+        where: finalWhere,
         include: DOCUMENT_LIST_INCLUDE,
         orderBy,
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
-      this.document.count({ where }),
+      this.document.count({ where: finalWhere }),
     ]);
 
     const orgUnitNames = await this.orgUnitNamesFor(rows.map((r) => r.orgUnitId));
     return { items: rows.map((r) => toSummary(r, orgUnitNames)), total, page: query.page, limit: query.limit };
+  }
+
+  /** DocDetail audit paneli (`GET /documents/:id/audit`) ACL tekshiruvi uchun — hujjatning
+   * o'zini to'liq yuklamasdan faqat ko'rish huquqini tasdiqlaydi. */
+  async assertVisible(id: string): Promise<void> {
+    const doc = await this.document.findFirst({ where: { id, deletedAt: null }, select: { folderId: true } });
+    if (!doc) {
+      throw notFound('Hujjat topilmadi');
+    }
+    await this.folderAccess.assertView(doc.folderId);
   }
 
   async getById(orgId: string, id: string): Promise<DocumentDetail> {
@@ -140,6 +159,7 @@ export class DocumentsService {
     if (!doc) {
       throw notFound('Hujjat topilmadi');
     }
+    await this.folderAccess.assertView(doc.folderId);
     const orgUnitNames = await this.orgUnitNamesFor([doc.orgUnitId]);
 
     // document_versions org_id ustuniga ega emas (tenant-scope.ts) — documentId
@@ -182,6 +202,7 @@ export class DocumentsService {
     if (!doc) {
       throw notFound('Hujjat topilmadi');
     }
+    await this.folderAccess.assertEdit(doc.folderId);
 
     // Set — bitta fayl ikki rolda kelishi mumkin (masalan to'ldirilgan taqqoslama ham docx, ham diff)
     const fileIds = [
@@ -244,6 +265,15 @@ export class DocumentsService {
       throw err;
     }
 
+    if (doc.authorUserId !== userId) {
+      await this.notifications.notifyUsers(orgId, [doc.authorUserId], {
+        type: 'VERSION_UPDATED',
+        title: `${doc.title} — ${versionLabel}`,
+        body: `Yangi versiya yaratildi (${versionLabel})`,
+        meta: { documentId },
+      });
+    }
+
     return this.getById(orgId, documentId);
   }
 
@@ -258,6 +288,7 @@ export class DocumentsService {
     if (!doc) {
       throw notFound('Hujjat topilmadi');
     }
+    await this.folderAccess.assertEdit(doc.folderId);
     const current = await this.prisma.documentVersion.findFirst({
       where: { documentId, isCurrent: true },
     });
@@ -315,6 +346,7 @@ export class DocumentsService {
     if (!folder) {
       throw notFound('Papka topilmadi');
     }
+    await this.folderAccess.assertEdit(input.folderId);
     if (!pdfFile) {
       throw notFound('PDF fayl topilmadi');
     }
@@ -370,10 +402,30 @@ export class DocumentsService {
     return this.getById(orgId, documentId);
   }
 
-  async update(orgId: string, id: string, input: UpdateDocumentInput): Promise<DocumentDetail> {
+  /** TZ-2 §2.7 — CONTRIBUTOR faqat o'z DRAFT hujjatini tahrirlaydi va faqat IN_REVIEW'ga
+   * yuboradi (ACTIVE/EXPIRED qila olmaydi — EDITOR/ADMIN tasdiqlaydi). */
+  async update(
+    orgId: string,
+    actorUserId: string,
+    actorRole: Role,
+    id: string,
+    input: UpdateDocumentInput,
+  ): Promise<DocumentDetail> {
     const existing = await this.document.findFirst({ where: { id, deletedAt: null } });
     if (!existing) {
       throw notFound('Hujjat topilmadi');
+    }
+    await this.folderAccess.assertEdit(existing.folderId);
+    if (actorRole === 'CONTRIBUTOR') {
+      if (existing.authorUserId !== actorUserId) {
+        throw forbidden("Faqat o'zingiz yuklagan hujjatni tahrirlay olasiz");
+      }
+      if (existing.status !== 'DRAFT') {
+        throw forbidden("Faqat DRAFT holatidagi hujjatni tahrirlay olasiz");
+      }
+      if (input.status && input.status !== 'DRAFT' && input.status !== 'IN_REVIEW') {
+        throw forbidden("Faqat tasdiq uchun yuborish (IN_REVIEW) mumkin — ACTIVE/EXPIRED EDITOR/ADMIN tomonidan belgilanadi");
+      }
     }
     if (input.status === 'EXPIRED' && (!input.effectiveTo || !input.statusChangeNote)) {
       throw badRequest("EXPIRED holatiga o'tkazishda kuchga to'xtash sanasi va izoh majburiy");
@@ -409,7 +461,37 @@ export class DocumentsService {
       ]);
     }
 
+    if (input.status && input.status !== existing.status) {
+      await this.notifyStatusChange(orgId, actorUserId, existing.authorUserId, existing.title, input.status);
+    }
+
     return this.getById(orgId, id);
+  }
+
+  private async notifyStatusChange(
+    orgId: string,
+    actorUserId: string,
+    authorUserId: string,
+    title: string,
+    newStatus: string,
+  ): Promise<void> {
+    if (newStatus === 'IN_REVIEW') {
+      const approvers = await this.tenant.client.user.findMany({
+        where: { role: { in: ['ADMIN', 'EDITOR'] }, id: { not: actorUserId }, isActive: true },
+        select: { id: true },
+      });
+      await this.notifications.notifyUsers(
+        orgId,
+        approvers.map((a) => a.id),
+        { type: 'APPROVAL_PENDING', title, body: 'Tasdiq kutmoqda' },
+      );
+    } else if ((newStatus === 'ACTIVE' || newStatus === 'EXPIRED') && authorUserId !== actorUserId) {
+      await this.notifications.notifyUsers(orgId, [authorUserId], {
+        type: 'STATUS_CHANGED',
+        title,
+        body: newStatus === 'ACTIVE' ? 'ACTIVE holatga o\'tdi' : 'Kuchini yo\'qotdi',
+      });
+    }
   }
 
   async remove(id: string): Promise<void> {
@@ -417,6 +499,7 @@ export class DocumentsService {
     if (!existing) {
       throw notFound('Hujjat topilmadi');
     }
+    await this.folderAccess.assertEdit(existing.folderId);
     await this.document.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
@@ -426,12 +509,16 @@ export class DocumentsService {
     // Faqat shu org'ga tegishli va o'chirilmagan hujjatlar (tenant client filtrlaydi)
     const docs = await this.document.findMany({
       where: { id: { in: input.documentIds }, deletedAt: null },
-      select: { id: true },
+      select: { id: true, folderId: true },
     });
     const ids = docs.map((d) => d.id);
     if (ids.length === 0) {
       return { affected: 0 };
     }
+    // TZ-2 §2.5 — har manba papka uchun tahrirlash huquqi (bitta joyda tekshiruv talabi
+    // bulk amallarni ham qamrab olishi kerak).
+    const sourceFolderIds = [...new Set(docs.map((d) => d.folderId))];
+    await Promise.all(sourceFolderIds.map((folderId) => this.folderAccess.assertEdit(folderId)));
 
     if (input.action === 'delete') {
       await this.document.updateMany({ where: { id: { in: ids } }, data: { deletedAt: new Date() } });
@@ -445,6 +532,7 @@ export class DocumentsService {
       if (!folder) {
         throw notFound('Papka topilmadi');
       }
+      await this.folderAccess.assertEdit(input.folderId!);
       await this.document.updateMany({ where: { id: { in: ids } }, data: { folderId: input.folderId! } });
       return { affected: ids.length };
     }

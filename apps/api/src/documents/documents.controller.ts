@@ -8,6 +8,7 @@ import {
   updateDocumentSchema,
 } from '@docmax/shared';
 import { setAuditContext } from '../audit/audit-context';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest, RequestUser } from '../auth/types';
@@ -18,7 +19,10 @@ import { DocumentsService } from './documents.service';
 /** O'qish barcha rollarga ochiq, mutatsiyalar ADMIN+EDITOR (TZ-1 §1.1 ruxsat matritsasi). */
 @Controller('documents')
 export class DocumentsController {
-  constructor(private readonly documents: DocumentsService) {}
+  constructor(
+    private readonly documents: DocumentsService,
+    private readonly auditLogs: AuditLogsService,
+  ) {}
 
   @Get()
   list(@CurrentUser() user: RequestUser, @Query(new ZodValidationPipe(listDocumentsQuerySchema)) query: unknown) {
@@ -58,6 +62,14 @@ export class DocumentsController {
     return this.documents.getById(user.orgId, id);
   }
 
+  /** TZ-2 §2.7 — DocDetail audit paneli: shu hujjatga oid faoliyat, hujjatni ko'ra oladigan
+   * har kimga ochiq (org-darajasidagi to'liq /audit-logs ADMIN'ga cheklangan, bu esa torroq). */
+  @Get(':id/audit')
+  async documentAudit(@Param('id', new UuidParamPipe()) id: string) {
+    await this.documents.assertVisible(id);
+    return this.auditLogs.list({ entityType: 'Document', entityId: id, page: 1, limit: 10, order: 'desc' });
+  }
+
   /** TZ-1 §1.4 — yangi versiya (tranzaksiyada, race'siz raqamlash). */
   @Roles('ADMIN', 'EDITOR')
   @Post(':id/versions')
@@ -91,7 +103,7 @@ export class DocumentsController {
     return this.documents.requestComparisonTemplate(user.orgId, user.sub, id, body as never);
   }
 
-  @Roles('ADMIN', 'EDITOR')
+  @Roles('ADMIN', 'EDITOR', 'CONTRIBUTOR')
   @Post()
   async create(
     @CurrentUser() user: RequestUser,
@@ -109,7 +121,7 @@ export class DocumentsController {
     return result;
   }
 
-  @Roles('ADMIN', 'EDITOR')
+  @Roles('ADMIN', 'EDITOR', 'CONTRIBUTOR')
   @Patch(':id')
   async update(
     @CurrentUser() user: RequestUser,
@@ -117,7 +129,7 @@ export class DocumentsController {
     @Body(new ZodValidationPipe(updateDocumentSchema)) body: unknown,
     @Req() req: AuthenticatedRequest,
   ) {
-    const result = await this.documents.update(user.orgId, id, body as never);
+    const result = await this.documents.update(user.orgId, user.sub, user.role, id, body as never);
     setAuditContext(req, {
       orgId: user.orgId,
       userId: user.sub,

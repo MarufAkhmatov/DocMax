@@ -1,0 +1,30 @@
+# Docker build context — DocMax barcha app'lari uchun umumiy (root'dan build qilinadi,
+# har bir Dockerfile o'ziga kerakli qismini COPY orqali oladi).
+
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+**/.turbo
+
+.git
+.gitignore
+
+.env
+.env.*
+!.env.example
+
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+.vscode
+.idea
+.claude
+
+**/*.test.ts
+**/*.spec.ts
+
+docker-compose.yml
+docker/

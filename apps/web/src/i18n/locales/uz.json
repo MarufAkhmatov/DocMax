@@ -14,14 +14,16 @@
     "doc": "Hujjat",
     "graph": "Graf",
     "mon": "Monitoring",
-    "cal": "Kalendar"
+    "cal": "Kalendar",
+    "struct": "Struktura"
   },
   "breadcrumb": {
     "dash": "Bosh sahifa",
     "graph": "Bog'lanishlar",
     "mon": "Monitoring",
     "vaultRoot": "Vault",
-    "cal": "Kalendar"
+    "cal": "Kalendar",
+    "struct": "Struktura"
   },
   "topbar": {
     "searchPlaceholder": "Qidirish: nom, raqam yoki ma'no bo'yicha...",
@@ -36,7 +38,26 @@
     "statNewExternalActs": "Yangi tashqi aktlar",
     "statReviewSuggested": "Tekshirish tavsiya",
     "recentActivity": "Oxirgi faollik",
-    "needsAttention": "E'tibor talab qiladi"
+    "needsAttention": "E'tibor talab qiladi",
+    "todaySummary": "Bugun: {{newExternalActs}} ta yangi tashqi akt, {{pendingApproval}} hujjat tasdiq kutmoqda",
+    "totalPrefix": "Jami",
+    "totalFolders": "{{count}} papka",
+    "pendingOverdue": "{{count}} tasi 5 kundan oshdi",
+    "monitoringPending": "Monitoring moduli hali yoqilmagan",
+    "noActivity": "Hali faollik yo'q",
+    "noAttention": "E'tibor talab qiladigan narsa yo'q",
+    "viewNotification": "Ko'rish →",
+    "entity": {
+      "Document": "Hujjat",
+      "DocumentVersion": "Hujjat versiyasi",
+      "DocumentRelation": "Bog'lanish"
+    },
+    "action": {
+      "CREATE": "yaratildi",
+      "UPDATE": "yangilandi",
+      "DELETE": "o'chirildi",
+      "RESTORE": "tiklandi"
+    }
   },
   "vault": {
     "segmentTable": "Jadval",
@@ -71,7 +92,18 @@
     "tableTitle": "Hujjatlar",
     "treeFolders": "Papkalar",
     "savedFilters": "Saqlangan filtrlar",
-    "timelineUploadedAt": "yuklangan sana"
+    "timelineUploadedAt": "yuklangan sana",
+    "folderDeleteConfirm": "\"{{name}}\" papkasini o'chirasizmi?",
+    "restrictAccess": "Kirishni cheklash",
+    "aclSubjectRole": "Rol",
+    "aclSubjectUser": "Foydalanuvchi",
+    "aclSubjectOrgUnit": "Bo'linma",
+    "aclCanView": "Ko'rish",
+    "aclCanEdit": "Tahrirlash",
+    "aclCanDownload": "Yuklab olish",
+    "aclInherit": "Pastki papkalarga o'tadi",
+    "aclAddSubject": "+ Subyekt qo'shish",
+    "aclLockedTooltip": "Kirish cheklangan"
   },
   "status": {
     "active": "Aktiv",
@@ -92,6 +124,8 @@
     "searchDocument": "Hujjat nomi yoki raqami bo'yicha qidiring...",
     "relationNotePlaceholder": "Izoh (ixtiyoriy)",
     "noRelations": "Hali bog'lanishlar yo'q",
+    "removeRelationConfirm": "Bu bog'lanishni o'chirasizmi?",
+    "alsoExpireTarget": "Eski hujjatni ham EXPIRED qilish",
     "audit": "Audit",
     "comingSoon": "Bu funksiya keyingi bosqichda qo'shiladi",
     "current": "joriy",
@@ -119,6 +153,8 @@
     "modeWorkflow": "Workflow",
     "colorByStatus": "Holat bo'yicha",
     "colorByType": "Tur bo'yicha",
+    "colorByOrgUnit": "Bo'linma bo'yicha",
+    "orgUnitUnassigned": "Bo'linmasiz",
     "allStatuses": "Barcha holatlar",
     "allTypes": "Barcha turlar",
     "isolatedToggle": "Yolg'izlar",
@@ -150,7 +186,10 @@
   },
   "drawer": {
     "title": "Xabarnomalar",
-    "markAllRead": "hammasini o'qilgan qilish"
+    "markAllRead": "hammasini o'qilgan qilish",
+    "unreadCount": "{{count}} o'qilmagan",
+    "empty": "Bildirishnomalar yo'q",
+    "viewed": "Ko'rildi"
   },
   "wizard": {
     "title": "Yangi hujjat",
@@ -168,6 +207,7 @@
     "fieldApprovedDate": "Tasdiqlangan sana",
     "fieldDept": "Bo'lim",
     "fieldTags": "Teglar",
+    "fieldTagsPlaceholder": "masalan: CBU, kredit",
     "relationsOptional": "Bog'lanishlar (ixtiyoriy)",
     "addRelationBtn": "+ Bog'lanish qo'shish",
     "noFolderSelected": "Avval papkani tanlang",
@@ -195,7 +235,26 @@
     "edit": "Tahrirlash",
     "delete": "O'chirish",
     "deleteConfirm": "Rostdan ham shu turni o'chirasizmi?",
-    "accessDenied": "Bu sahifa faqat administratorlar uchun"
+    "accessDenied": "Bu sahifa faqat administratorlar uchun",
+    "trash": "Chiqindilar qutisi",
+    "trashHint": "O'chirilgan hujjat va papkalar 30 kun shu yerda saqlanadi, keyin butunlay o'chiriladi.",
+    "trashEmpty": "Chiqindilar qutisi bo'sh.",
+    "trashTypeDocument": "Hujjat",
+    "trashTypeFolder": "Papka",
+    "trashPurgeAt": "{{date}}gacha saqlanadi",
+    "trashRestore": "Tiklash",
+    "trashRestored": "Tiklandi",
+    "auditLog": "Audit log",
+    "auditLogHint": "Tashkilotdagi barcha mutatsion amallar tarixi.",
+    "auditExportCsv": "CSV yuklab olish",
+    "auditAllActions": "Barcha amallar",
+    "auditEntityTypePlaceholder": "Obyekt turi (masalan: Document)",
+    "auditEmpty": "Yozuvlar topilmadi.",
+    "tags": "Teglar",
+    "tagsHint": "Hujjatlarga qo'shilgan teglar — bu yerda nomini o'zgartirish yoki butunlay o'chirish mumkin.",
+    "tagsEmpty": "Hali teg yaratilmagan.",
+    "tagDocCount": "{{count}} hujjat",
+    "tagDeleteConfirm": "\"{{name}}\" tegini o'chirasizmi? Barcha hujjatlardan olib tashlanadi."
   },
   "common": {
     "uploading": "Yuklanmoqda...",
@@ -208,7 +267,9 @@
     "confirm": "Tasdiqlash",
     "download": "Yuklab olish",
     "save": "Saqlash",
-    "current": "joriy"
+    "current": "joriy",
+    "edit": "Tahrirlash",
+    "delete": "O'chirish"
   },
   "bulkBar": {
     "selectedSuffix": "hujjat tanlandi",
@@ -237,6 +298,11 @@
     "docsCount": "{{count}} hujjat",
     "empty": "Bu davrda hujjatlar yo'q"
   },
+  "workflow": {
+    "searchPlaceholder": "Papka yoki hujjat qidiring...",
+    "empty": "Canvas bo'sh — chap paneldan qidirib, sudrab qo'shing",
+    "connectTitle": "Bog'lanish yaratish"
+  },
   "version": {
     "title": "Yangi versiya",
     "firstVersion": "birinchi versiya (v1.0)",
@@ -256,5 +322,65 @@
     "save": "Saqlash",
     "saving": "Saqlanmoqda...",
     "created": "{{label}} versiyasi yaratildi"
+  },
+  "errors": {
+    "folderCreate": "Papka yaratishda xato yuz berdi",
+    "folderRename": "Papkani tahrirlashda xato yuz berdi",
+    "folderDelete": "Papkani o'chirishda xato yuz berdi",
+    "foldersLoad": "Papkalarni yuklashda xato yuz berdi",
+    "documentsLoad": "Hujjatlarni yuklashda xato yuz berdi",
+    "docDetailLoad": "Hujjatni yuklashda xato yuz berdi",
+    "relationAdd": "Bog'lanish qo'shishda xato yuz berdi",
+    "generic": "Xato yuz berdi",
+    "pdfOnly": "Faqat PDF fayl qabul qilinadi",
+    "docxOnly": "Faqat DOCX fayl qabul qilinadi",
+    "fileUpload": "Faylni yuklashda xato yuz berdi",
+    "docSave": "Hujjatni saqlashda xato yuz berdi",
+    "fileOpen": "Faylni ochishda xato yuz berdi",
+    "docDelete": "Hujjatni o'chirishda xato yuz berdi",
+    "bulkAction": "Amalni bajarishda xato yuz berdi",
+    "templateRequest": "Shablon so'rovida xato yuz berdi",
+    "versionFileUpload": "Fayl yuklashda xato yuz berdi",
+    "versionCreate": "Versiya yaratishda xato yuz berdi",
+    "logoUpload": "Logotipni yuklashda xato yuz berdi",
+    "calendarLoad": "Kalendar ma'lumotini yuklashda xato",
+    "graphLoad": "Grafni yuklashda xato",
+    "orgUnitCreate": "Bo'linma yaratishda xato yuz berdi",
+    "orgUnitUpdate": "Bo'linmani tahrirlashda xato yuz berdi",
+    "orgUnitMove": "Bo'linmani ko'chirishda xato yuz berdi",
+    "orgUnitClose": "Bo'linma holatini o'zgartirishda xato yuz berdi",
+    "permissionSave": "Ruxsatlarni saqlashda xato yuz berdi"
+  },
+  "structure": {
+    "title": "Korxona strukturasi",
+    "hint": "Chapdan bo'linma tanlang — rahbar, papka mapping va boshqa tafsilotlar shu yerda ko'rinadi.",
+    "newUnit": "+ Yangi bo'linma",
+    "unitNamePlaceholder": "masalan: Yuridik departament",
+    "headLabel": "Rahbar",
+    "headNone": "Tayinlanmagan",
+    "noUnitsYet": "Hali bo'linma yaratilmagan",
+    "unitCloseConfirm": "\"{{name}}\" bo'linmasini yopasizmi?",
+    "closeTooltip": "Yopish",
+    "reopenTooltip": "Qayta ochish",
+    "archiveFolderOffer": "Bu bo'linmaga bog'langan papka(lar)ni \"Arxiv strukturalar\"ga ko'chirasizmi?",
+    "archiveFolderName": "Arxiv strukturalar",
+    "folderMapping": "Bog'langan papkalar",
+    "folderMappingEmpty": "Bog'langan papka yo'q",
+    "remapWizardTitle": "Papkalarni sinxronlashtirish",
+    "remapWizardHint": "Struktura o'zgargach, bog'langan papkalar yangi joyga taklif qilinadi. Kerakli qatorlarni tanlab tasdiqlang.",
+    "remapEntryLabel": "yangi joy: {{path}}",
+    "remapApply": "Tasdiqlash va ko'chirish",
+    "remapNoChanges": "Sinxronlash uchun papka yo'q — hammasi joyida",
+    "snapshotViewerTitle": "Struktura tarixi",
+    "snapshotReadOnlyNote": "Faqat o'qish uchun — tanlangan sanadagi struktura holati, tiklash imkoni yo'q.",
+    "snapshotDatePicker": "Ko'rish",
+    "snapshotEmpty": "Bu sana uchun ma'lumot yo'q",
+    "viewTree": "Daraxt",
+    "viewCanvas": "Sxema",
+    "canvasSearchPlaceholder": "Bog'lanmagan papka qidiring...",
+    "canvasUnlink": "Bog'lanishni uzish",
+    "canvasUnlinkedHint": "Hali bog'lanmagan — unit'ga chiziq torting",
+    "canvasLegendHierarchy": "Ierarxiya",
+    "canvasLegendLink": "Bog'langan papka"
   }
 }

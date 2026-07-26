@@ -65,6 +65,30 @@ export class DocumentRelationsService {
     });
   }
 
+  /** PARENT_CHILD sikl tekshiruvi (DFS, TZ-2 §2.1): `newTargetId`dan boshlab mavjud
+   * PARENT_CHILD chiziqlarini yurib, `newSourceId`ga qaytib kelinsa — sikl bo'ladi. */
+  private async wouldCreateCycle(newSourceId: string, newTargetId: string): Promise<boolean> {
+    const visited = new Set<string>([newTargetId]);
+    const stack = [newTargetId];
+    while (stack.length) {
+      const current = stack.pop()!;
+      if (current === newSourceId) {
+        return true;
+      }
+      const children = await this.relation.findMany({
+        where: { sourceDocumentId: current, type: 'PARENT_CHILD' },
+        select: { targetDocumentId: true },
+      });
+      for (const c of children) {
+        if (!visited.has(c.targetDocumentId)) {
+          visited.add(c.targetDocumentId);
+          stack.push(c.targetDocumentId);
+        }
+      }
+    }
+    return false;
+  }
+
   async create(orgId: string, userId: string, documentId: string, input: CreateDocumentRelationInput): Promise<DocumentRelationSummary> {
     if (documentId === input.targetDocumentId) {
       throw badRequest("Hujjatni o'zi bilan bog'lash mumkin emas");
@@ -84,6 +108,9 @@ export class DocumentRelationsService {
     });
     if (existing) {
       throw conflict("Bu turdagi bog'lanish allaqachon mavjud");
+    }
+    if (input.type === 'PARENT_CHILD' && (await this.wouldCreateCycle(documentId, input.targetDocumentId))) {
+      throw badRequest("Bu bog'lanish PARENT_CHILD siklini hosil qiladi");
     }
 
     const created = await this.relation.create({

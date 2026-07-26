@@ -7,6 +7,7 @@ import type {
   PresignResult,
 } from '@docmax/shared';
 import { badRequest, notFound } from '../common/api-error';
+import { FolderAccessService } from '../folders/folder-access.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantPrismaService } from '../prisma/tenant-prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -21,6 +22,7 @@ export class FilesService {
     private readonly tenant: TenantPrismaService,
     private readonly storage: StorageService,
     private readonly queue: QueueService,
+    private readonly folderAccess: FolderAccessService,
   ) {}
 
   private get file() {
@@ -86,17 +88,36 @@ export class FilesService {
     return this.toSummary(created);
   }
 
-  /** Jadval chip'lari bosilganda yangi presigned URL beradi (VIEW/DOWNLOAD auditi controller'da). */
+  /** Jadval chip'lari bosilganda yangi presigned URL beradi (VIEW/DOWNLOAD auditi controller'da).
+   * TZ-2 §2.5: `inline` (preview) — canView yetarli; `attachment` (haqiqiy yuklab olish) —
+   * canDownload talab qilinadi (403 aks holda) — "yuklab olish taqiqlangan rejim". */
   async downloadUrl(id: string, inline: boolean): Promise<FileDownloadResult> {
     const file = await this.file.findFirst({ where: { id } });
     if (!file) {
       throw notFound('Fayl topilmadi');
+    }
+    const folderId = await this.resolveFolderId(id);
+    if (folderId) {
+      if (inline) {
+        await this.folderAccess.assertView(folderId);
+      } else {
+        await this.folderAccess.assertDownload(folderId);
+      }
     }
     const url = await this.storage.getPresignedDownloadUrl(file.objectKey, PRESIGN_TTL_SECONDS, {
       filename: file.originalName,
       inline,
     });
     return { url, expiresIn: PRESIGN_TTL_SECONDS };
+  }
+
+  /** Avatar/logotip fayllarining hujjat/papkasi yo'q — bunday hollarda null (cheklovsiz). */
+  private async resolveFolderId(fileId: string): Promise<string | null> {
+    const version = await this.prisma.documentVersion.findFirst({
+      where: { OR: [{ pdfFileId: fileId }, { docxFileId: fileId }, { diffFileId: fileId }] },
+      select: { document: { select: { folderId: true } } },
+    });
+    return version?.document.folderId ?? null;
   }
 
   private async toSummary(file: {
