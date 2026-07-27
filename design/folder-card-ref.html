@@ -18,16 +18,16 @@
     til (tab)             : y 0..37, chapda; o'ng qirrasi kubik-Bezier bilan
                             korpusning yuqori qirrasiga x=201 da qo'shiladi
     tab burchak radiusi   : 41 (yuqori-chap)
-    korpus gradienti      : tik (180deg)
-                            0.0%  #adafff   <- 2 px yorug' qirra
-                            1.4%  #8180f5
-                            100%  #2221ec
-    orqa panel / til rangi: #6161f3 -> #4342e6  (korpusdan quyuqroq)
+    korpus gradienti      : tik (180deg), uch to'xtash:
+                            0.0%  edge     <- 2 px yorug' qirra
+                            1.4%  top
+                            100%  bottom
+    orqa panel            : backTop -> backBottom  (korpusdan quyuqroq)
 
   MATN VA IKONKALAR (bir xil koordinata tizimida)
     "Projects"  : monoshirina, 25 px, chapdan 42, cap-top 79
-    "58 notes"  : monoshirina, 18.5 px, rgba(255,255,255,.60), top 114
-    ikonkalar   : 27x27, oq kontur, fonsiz; o'ngdan 38, orasi 17, top 76
+    "58 notes"  : monoshirina, 18.5 px, ink-soft, top 114
+    ikonkalar   : 27x27, kontur (currentColor = ink), o'ngdan 38, orasi 17, top 76
 
   OCHILISH (k = 0 yopiq ... 1 ochiq) &mdash; hammasi bitta k soniga bog'liq:
     SIDE = 44
@@ -42,6 +42,13 @@
     blanka      : qo'zg'almaydi (chetlardan 66, top 70, faqat yuqori burchaklari
                   yumaloq). Cho'ntak pastga siljigani sari ostidan ochiladi &mdash;
                   ya'ni chinakam varaqdek chiqib keladi.
+
+  RANG SXEMALARI
+    Har bir sxema 9 ta qiymat: edge / top / bottom (korpus gradienti),
+    backTop / backBottom (orqa panel), ink / inkSoft (matn), shadowRgb,
+    pill + pillBg (blankadagi soat yorlig'i) va accent (belgilash katakchasi).
+    THEMES obyektiga yangi qator qo'shsangiz, yangi rang o'zi paydo bo'ladi.
+    Och fonli sxemalarda (sariq, light grey) matn quyuq &mdash; oq matn o'qilmaydi.
 
   O'lchamni o'zgartirish: .pf ustida --fw ni bering, qolgani nisbatda ketadi.
   ============================================================================
@@ -71,6 +78,11 @@
   .stage-inner{ display:flex; align-items:flex-start; justify-content:center; gap:56px;
     padding:64px 40px; min-width:max-content; }
   .stage-inner.solo{ padding:56px 40px; }
+  /* rang qatori sig'masa yangi qatorga o'tadi, gorizontal aylantirish kerak emas */
+  .stage-inner.grid{ flex-wrap:wrap; min-width:0; gap:34px 28px; padding:48px 32px; }
+
+  .swatch{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .swatch figcaption{ font-size:12px; color:#5c6070; letter-spacing:.01em; }
 
   .caption{ color:var(--muted); font-size:12.5px; line-height:1.6; margin:14px 0 0; }
   .caption code{ font-size:12px; }
@@ -79,11 +91,14 @@
   /* ======================================================================
      .pf &mdash; papka kartochkasi
      Uch qatlam: orqa panel + til | blanka | old cho'ntak
+     Ranglar CSS o'zgaruvchilari orqali; standarti &mdash; asl indigo.
      ====================================================================== */
   .pf{ --u:calc(var(--fw) / 523); width:var(--fw); aspect-ratio:523 / 475; position:relative;
+       --ink:#fff; --ink-soft:rgba(255,255,255,.60); --shadow-rgb:28,28,140;
+       --pill:#4b48d8; --pill-bg:#e9e8fb; --accent:#5b5bf0;
        font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
-       filter:drop-shadow(0 calc(16*var(--u)) calc(20*var(--u)) rgba(28,28,140,.20))
-              drop-shadow(0 calc(4*var(--u)) calc(6*var(--u)) rgba(28,28,140,.14)); }
+       filter:drop-shadow(0 calc(16*var(--u)) calc(20*var(--u)) rgba(var(--shadow-rgb),.20))
+              drop-shadow(0 calc(4*var(--u)) calc(6*var(--u)) rgba(var(--shadow-rgb),.14)); }
   /* SVG ildizi &mdash; oddiy element qutisi kabi &mdash; butun to'rtburchak bo'ylab bosishni
      ushlab qoladi va ostidagi blanka tugmasini to'sadi. Shakl qatlamlari bosilmaydi. */
   .pf-shape{ position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; }
@@ -94,11 +109,11 @@
   .pf-title,.pf-sub,.pf-icons{ z-index:4; }
 
   .pf-title{ position:absolute; left:calc(42*var(--u)); top:calc(79*var(--u));
-    font-size:calc(25*var(--u)); line-height:1; color:#fff; letter-spacing:calc(-0.2*var(--u)); }
+    font-size:calc(25*var(--u)); line-height:1; color:var(--ink); letter-spacing:calc(-0.2*var(--u)); }
   .pf-sub{ position:absolute; left:calc(42*var(--u)); top:calc(114*var(--u));
-    font-size:calc(18.5*var(--u)); line-height:1; color:rgba(255,255,255,.60); }
+    font-size:calc(18.5*var(--u)); line-height:1; color:var(--ink-soft); }
   .pf-icons{ position:absolute; right:calc(38*var(--u)); top:calc(76*var(--u));
-    display:flex; gap:calc(17*var(--u)); }
+    display:flex; gap:calc(17*var(--u)); color:var(--ink); }
   .pf-icons svg{ width:calc(27*var(--u)); height:calc(27*var(--u)); display:block; }
 
   /* Blanka: orqa panel bilan old cho'ntak orasidan chiqib turadi. Faqat yuqori
@@ -109,7 +124,7 @@
     padding:0 calc(26*var(--u)); box-shadow:0 calc(7*var(--u)) calc(15*var(--u)) rgba(20,20,90,.20); }
   .pf-note .nrow{ height:calc(72*var(--u)); display:flex; align-items:center; justify-content:space-between; }
   .pf-note .nd{ font-size:calc(19*var(--u)); color:#1b1c22; white-space:nowrap; }
-  .pf-note .np{ font-size:calc(19*var(--u)); color:#4b48d8; background:#e9e8fb;
+  .pf-note .np{ font-size:calc(19*var(--u)); color:var(--pill); background:var(--pill-bg);
     border-radius:calc(6*var(--u)); padding:calc(3*var(--u)) calc(8*var(--u)); margin-left:calc(10*var(--u)); }
 
   /* "..." tugmasi &mdash; statik namunalarda oddiy belgi, interaktivda bosiladigan.
@@ -123,11 +138,13 @@
   /* ======================================================================
      .fx &mdash; interaktiv variant: bitta kartochka, uch holat
      ====================================================================== */
-  .fx{ position:relative; transition:height .42s cubic-bezier(.4,0,.2,1); }
+  .fx{ position:relative; --accent:#5b5bf0;
+       transition:height .42s cubic-bezier(.4,0,.2,1); }
   .fx .pf{ position:absolute; left:0; top:0; }
   .fx .dots{ cursor:pointer; border-radius:99px; transition:color .15s, background .15s; }
-  .fx .dots:hover{ color:#4b48d8; background:rgba(75,72,216,.10); }
-  .fx .dots:focus-visible{ outline:2px solid #4b48d8; outline-offset:2px; }
+  .fx .dots:hover{ color:var(--accent);
+    background:color-mix(in srgb, var(--accent) 13%, transparent); }
+  .fx .dots:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
   .fx-folder{ transition:opacity .26s ease, transform .34s cubic-bezier(.4,0,.2,1); }
   .fx-card{ position:absolute; left:0; opacity:0; pointer-events:none;
@@ -136,6 +153,17 @@
 
   .fx[data-state="card"] .fx-folder{ opacity:0; transform:scale(.96); pointer-events:none; }
   .fx[data-state="card"] .fx-card{ opacity:1; pointer-events:auto; transform:none; }
+
+  /* rang tanlagich */
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px; }
+  .chips button{ display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+    font:inherit; font-size:12.5px; color:var(--ink);
+    background:var(--page); border:1px solid var(--line); border-radius:99px; padding:5px 12px 5px 6px;
+    transition:border-color .15s, background .15s; }
+  .chips button:hover{ border-color:var(--muted); }
+  .chips button[aria-pressed="true"]{ border-color:currentColor; }
+  .chips i{ width:18px; height:18px; border-radius:6px; display:block;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.10); }
 
   @media (prefers-reduced-motion: reduce){
     .fx, .fx-folder, .fx-card{ transition-duration:1ms; }
@@ -160,14 +188,24 @@
     2 px <code>#a8aaff</code> yorug'lik; shrift monoshirina 25 / 18,5.
   </p>
 
+  <h2>Ranglar &mdash; <span>bir xil geometriya, besh sxema</span></h2>
+  <div class="stage"><div class="stage-inner grid" id="stageColors"></div></div>
+  <p class="caption">
+    Har sxema 9 ta qiymatdan iborat: korpus gradienti (<code>edge / top / bottom</code>),
+    orqa panel (<code>backTop / backBottom</code>), matn (<code>ink / inkSoft</code>), soya rangi,
+    blankadagi soat yorlig'i va belgilash katakchasi. <b>Sariq va light grey&rsquo;da matn quyuq</b> &mdash;
+    och fonda oq matn o'qilmaydi. Yangi rang qo'shish uchun <code>THEMES</code> ga bitta qator yetarli.
+  </p>
+
   <h2>Interaktiv &mdash; <span>bitta kartochka, uch holat</span></h2>
+  <div class="chips" id="chips"></div>
   <div class="stage"><div class="stage-inner solo" id="stageFx"></div></div>
   <p class="caption">
     <b>Kursorni papka ustiga olib boring</b> &mdash; cho'ntak pastga siljiydi va blanka ostidan chiqadi.
     <b>Blankadagi &laquo;...&raquo; ni bosing</b> &mdash; blanka to'liq ochiladi.
     <b>Ochilgan blankadagi &laquo;...&raquo;</b> papkaga qaytaradi.
     Ochilish bitta <code>k</code> soniga bog'langan (0 &rarr; 1), shakl har kadrda qaytadan
-    hisoblanadi &mdash; shuning uchun harakat uzluksiz.
+    hisoblanadi &mdash; shuning uchun harakat uzluksiz. Yuqoridagi rangni almashtirib ham ko'ring.
   </p>
 </div>
 
@@ -180,6 +218,47 @@
 
   var reduceMotion = window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
+
+  /* ---------------------------------- ranglar ---------------------------------- */
+  var THEMES = [
+    { id:'indigo', name:'Indigo (asl)',
+      edge:'#adafff', top:'#8180f5', bottom:'#2221ec', backTop:'#6161f3', backBottom:'#4342e6',
+      ink:'#fff', inkSoft:'rgba(255,255,255,.60)', shadowRgb:'28,28,140',
+      pill:'#4b48d8', pillBg:'#e9e8fb', accent:'#5b5bf0' },
+
+    { id:'amber', name:'Sariq',
+      edge:'#ffeab0', top:'#fbc63f', bottom:'#e08a00', backTop:'#eeb42c', backBottom:'#d69410',
+      ink:'#4a3408', inkSoft:'rgba(74,52,8,.62)', shadowRgb:'150,100,10',
+      pill:'#8a5a00', pillBg:'#fbeecb', accent:'#d59200' },
+
+    { id:'light', name:'Light grey',
+      edge:'#ffffff', top:'#edeff4', bottom:'#b4bac6', backTop:'#dee1e9', backBottom:'#c6cbd6',
+      ink:'#23262e', inkSoft:'rgba(35,38,46,.60)', shadowRgb:'70,76,92',
+      pill:'#4b5060', pillBg:'#e6e8ee', accent:'#6b7180' },
+
+    { id:'dark', name:'Dark grey',
+      edge:'#868b98', top:'#5d626e', bottom:'#2a2d35', backTop:'#4a4e59', backBottom:'#35383f',
+      ink:'#fff', inkSoft:'rgba(255,255,255,.62)', shadowRgb:'20,22,30',
+      pill:'#4b5060', pillBg:'#e6e8ee', accent:'#565b67' },
+
+    { id:'black', name:'Black',
+      edge:'#55585f', top:'#2c2e34', bottom:'#07080a', backTop:'#202227', backBottom:'#131418',
+      ink:'#fff', inkSoft:'rgba(255,255,255,.58)', shadowRgb:'0,0,0',
+      pill:'#33363d', pillBg:'#e6e7ea', accent:'#2b2d33' }
+  ];
+  function themeById(id){
+    for (var i = 0; i < THEMES.length; i++) if (THEMES[i].id === id) return THEMES[i];
+    return THEMES[0];
+  }
+  /* CSS o'zgaruvchilari &mdash; SVG gradientidan tashqari hamma narsa shundan oziqlanadi */
+  function applyVars(el, t){
+    el.style.setProperty('--ink', t.ink);
+    el.style.setProperty('--ink-soft', t.inkSoft);
+    el.style.setProperty('--shadow-rgb', t.shadowRgb);
+    el.style.setProperty('--pill', t.pill);
+    el.style.setProperty('--pill-bg', t.pillBg);
+    el.style.setProperty('--accent', t.accent);
+  }
 
   /* To'rtburchakni berilgan radius bilan yumaloqlaydi. To'g'ri burchak shart emas,
      shuning uchun qiya yonli trapetsiya ham to'g'ri chiqadi. K &mdash; aylanani Bezier
@@ -207,13 +286,13 @@
   }
 
   var ICON_ARCHIVE =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
       '<rect x="3.2" y="4.4" width="17.6" height="5" rx="2"/>' +
       '<path d="M5 9.4v8.2c0 1.2 1 2.2 2.2 2.2h9.6c1.2 0 2.2-1 2.2-2.2V9.4"/>' +
       '<path d="M9.8 13.2h4.4"/>' +
     '</svg>';
   var ICON_GEAR =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
       '<circle cx="12" cy="12" r="3.1"/>' +
       '<path d="M19.3 14.6a1.5 1.5 0 00.3 1.65l.06.06a1.82 1.82 0 11-2.58 2.58l-.06-.06a1.5 1.5 0 00-1.65-.3 1.5 1.5 0 00-.91 1.37v.17a1.82 1.82 0 11-3.64 0v-.09a1.5 1.5 0 00-.98-1.37 1.5 1.5 0 00-1.65.3l-.06.06a1.82 1.82 0 11-2.58-2.58l.06-.06a1.5 1.5 0 00.3-1.65 1.5 1.5 0 00-1.37-.91h-.17a1.82 1.82 0 110-3.64h.09a1.5 1.5 0 001.37-.98 1.5 1.5 0 00-.3-1.65l-.06-.06a1.82 1.82 0 112.58-2.58l.06.06a1.5 1.5 0 001.65.3h.07a1.5 1.5 0 00.91-1.37v-.17a1.82 1.82 0 113.64 0v.09a1.5 1.5 0 00.91 1.37 1.5 1.5 0 001.65-.3l.06-.06a1.82 1.82 0 112.58 2.58l-.06.06a1.5 1.5 0 00-.3 1.65v.07a1.5 1.5 0 001.37.91h.17a1.82 1.82 0 110 3.64h-.09a1.5 1.5 0 00-1.37.91z"/>' +
     '</svg>';
@@ -221,8 +300,10 @@
   var DOTS = '&bull;&bull;&bull;';
 
   /* --------------------------------------------------------------------
-     Papka kartochkasi. paint(k) &mdash; k=0 yopiq, k=1 ochiq; oraliq qiymat ham
-     to'g'ri chiziladi, shuning uchun animatsiya shu bitta funksiya bilan bo'ladi.
+     Papka kartochkasi.
+       paint(k)     &mdash; k=0 yopiq, k=1 ochiq; oraliq qiymat ham to'g'ri chiziladi,
+                     shuning uchun animatsiya shu bitta funksiya bilan bo'ladi.
+       setTheme(t)  &mdash; SVG gradient to'xtashlari + CSS o'zgaruvchilari
      -------------------------------------------------------------------- */
   function createFolder(uid, opts){
     var el = document.createElement('div');
@@ -233,7 +314,7 @@
       /* 1-qatlam: til + orqa panel */
       '<svg class="pf-shape pf-back" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">' +
         '<defs><linearGradient id="t' + uid + '" x1="0" y1="0" x2="0" y2="130" gradientUnits="userSpaceOnUse">' +
-          '<stop offset="0" stop-color="#6161f3"/><stop offset="1" stop-color="#4342e6"/>' +
+          '<stop offset="0"/><stop offset="1"/>' +
         '</linearGradient></defs>' +
         '<g><path d="' + TAB_D + '" fill="url(#t' + uid + ')"/></g>' +
         '<rect x="0" y="37" width="' + W + '" height="' + (H - 37) + '" rx="' + R + '" fill="url(#t' + uid + ')"/>' +
@@ -246,9 +327,7 @@
       /* 3-qatlam: old cho'ntak */
       '<svg class="pf-shape pf-front" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">' +
         '<defs><linearGradient id="b' + uid + '" x1="0" y1="37" x2="0" y2="' + H + '" gradientUnits="userSpaceOnUse">' +
-          '<stop offset="0" stop-color="#adafff"/>' +
-          '<stop offset="0.014" stop-color="#8180f5"/>' +
-          '<stop offset="1" stop-color="#2221ec"/>' +
+          '<stop offset="0"/><stop offset="0.014"/><stop offset="1"/>' +
         '</linearGradient></defs>' +
         '<path fill="url(#b' + uid + ')"/>' +
       '</svg>' +
@@ -256,14 +335,16 @@
       '<div class="pf-sub">' + opts.meta + '</div>' +
       '<div class="pf-icons">' + ICON_ARCHIVE + ICON_GEAR + '</div>';
 
-    var tabG      = el.querySelector('.pf-back g'),
-        backRect  = el.querySelector('.pf-back rect'),
-        backGrad  = el.querySelector('.pf-back linearGradient'),
-        frontPath = el.querySelector('.pf-front path'),
-        frontGrad = el.querySelector('.pf-front linearGradient'),
-        title     = el.querySelector('.pf-title'),
-        sub       = el.querySelector('.pf-sub'),
-        icons     = el.querySelector('.pf-icons');
+    var tabG       = el.querySelector('.pf-back g'),
+        backRect   = el.querySelector('.pf-back rect'),
+        backGrad   = el.querySelector('.pf-back linearGradient'),
+        backStops  = el.querySelectorAll('.pf-back stop'),
+        frontPath  = el.querySelector('.pf-front path'),
+        frontGrad  = el.querySelector('.pf-front linearGradient'),
+        frontStops = el.querySelectorAll('.pf-front stop'),
+        title      = el.querySelector('.pf-title'),
+        sub        = el.querySelector('.pf-sub'),
+        icons      = el.querySelector('.pf-icons');
 
     function paint(k){
       var s = SIDE * k, top = 37 + DROP * k;
@@ -280,15 +361,26 @@
       icons.style.top = 'calc(' + (76 + DROP * k) + '*var(--u))';
     }
 
+    function setTheme(t){
+      frontStops[0].setAttribute('stop-color', t.edge);
+      frontStops[1].setAttribute('stop-color', t.top);
+      frontStops[2].setAttribute('stop-color', t.bottom);
+      backStops[0].setAttribute('stop-color', t.backTop);
+      backStops[1].setAttribute('stop-color', t.backBottom);
+      applyVars(el, t);
+    }
+
+    setTheme(opts.theme || THEMES[0]);
     paint(opts.open ? 1 : 0);
-    return { el: el, paint: paint };
+    return { el: el, paint: paint, setTheme: setTheme };
   }
 
   /* --------------------------------------------------------------------
      Ochilgan blanka &mdash; papkadan chiqarib olingan holat
      -------------------------------------------------------------------- */
-  function createNoteSheet(width){
+  function createNoteSheet(width, theme){
     var u = width / 523;
+    var t = theme || THEMES[0];
     var el = document.createElement('div');
     el.style.cssText =
       'width:' + width + 'px;' +
@@ -303,18 +395,20 @@
       ['Work on miniKIT', false],
       ['Work on flielist', false]
     ];
-    var rows = items.map(function(it){
-      var box = it[1]
-        ? '<span style="width:' + (26 * u) + 'px;height:' + (26 * u) + 'px;border-radius:' + (7 * u) + 'px;background:#5b5bf0;' +
-          'display:inline-flex;align-items:center;justify-content:center;flex:none">' +
-          '<svg width="' + (16 * u) + '" height="' + (16 * u) + '" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.4l3 3 6-6.5"/></svg>' +
-          '</span>'
-        : '<span style="width:' + (26 * u) + 'px;height:' + (26 * u) + 'px;border-radius:' + (7 * u) + 'px;border:' + (2.2 * u) + 'px solid #cfcfd6;flex:none"></span>';
-      var txt = it[1]
-        ? '<span style="color:#a2a2aa;text-decoration:line-through">' + it[0] + '</span>'
-        : '<span style="color:#26262c">' + it[0] + '</span>';
-      return '<div style="display:flex;align-items:center;gap:' + (14 * u) + 'px;font-size:' + (19 * u) + 'px;margin-bottom:' + (20 * u) + 'px">' + box + txt + '</div>';
-    }).join('');
+    function rowsFor(th){
+      return items.map(function(it){
+        var box = it[1]
+          ? '<span class="cbx" style="width:' + (26 * u) + 'px;height:' + (26 * u) + 'px;border-radius:' + (7 * u) + 'px;background:' + th.accent + ';' +
+            'display:inline-flex;align-items:center;justify-content:center;flex:none">' +
+            '<svg width="' + (16 * u) + '" height="' + (16 * u) + '" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.4l3 3 6-6.5"/></svg>' +
+            '</span>'
+          : '<span style="width:' + (26 * u) + 'px;height:' + (26 * u) + 'px;border-radius:' + (7 * u) + 'px;border:' + (2.2 * u) + 'px solid #cfcfd6;flex:none"></span>';
+        var txt = it[1]
+          ? '<span style="color:#a2a2aa;text-decoration:line-through">' + it[0] + '</span>'
+          : '<span style="color:#26262c">' + it[0] + '</span>';
+        return '<div style="display:flex;align-items:center;gap:' + (14 * u) + 'px;font-size:' + (19 * u) + 'px;margin-bottom:' + (20 * u) + 'px">' + box + txt + '</div>';
+      }).join('');
+    }
 
     el.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:' + (10 * u) + 'px ' + (16 * u) + 'px ' + (20 * u) + 'px">' +
@@ -327,11 +421,17 @@
       '</div>' +
       '<div style="background:#fdfdfe;border-radius:' + (26 * u) + 'px;padding:' + (30 * u) + 'px ' + (28 * u) + 'px ' + (12 * u) + 'px">' +
         '<div style="font-size:' + (19 * u) + 'px;letter-spacing:' + (1.4 * u) + 'px;color:#26262c;margin-bottom:' + (26 * u) + 'px">THINGS TO DO TODAY</div>' +
-        rows +
+        rowsFor(t) +
         '<div style="display:flex;align-items:center;gap:' + (14 * u) + 'px;font-size:' + (19 * u) + 'px;color:#9a9aa4;padding-bottom:' + (10 * u) + 'px">' +
           '<span style="width:' + (26 * u) + 'px;text-align:center;flex:none">+</span><span>Add new</span>' +
         '</div>' +
       '</div>';
+
+    /* belgilash katakchalari papka rangiga ergashadi */
+    el.setTheme = function(th){
+      var boxes = el.querySelectorAll('.cbx');
+      for (var i = 0; i < boxes.length; i++) boxes[i].style.background = th.accent;
+    };
     return el;
   }
 
@@ -351,12 +451,13 @@
     var folder = createFolder('fx', opts);
     folder.el.classList.add('fx-folder');
 
-    var card = createNoteSheet(opts.width);
+    var card = createNoteSheet(opts.width, opts.theme);
     card.className = 'fx-card';
     card.style.top = (70 * u) + 'px';
 
     wrap.appendChild(folder.el);
     wrap.appendChild(card);
+    applyVars(wrap, opts.theme || THEMES[0]);
 
     var folderH = 475 * u, cardH = 0;
     wrap.style.height = folderH + 'px';
@@ -404,19 +505,55 @@
       if (wrap.dataset.state === 'folder' && !hasHover) tweenTo(k > 0.5 ? 0 : 1);
     });
 
+    wrap.setTheme = function(t){
+      folder.setTheme(t);
+      card.setTheme(t);
+      applyVars(wrap, t);
+    };
     return wrap;
   }
 
   /* ---------------------------------- montaj ---------------------------------- */
   var base = { title:'Projects', meta:'58 notes', noteDate:'Wed, 07 May 2025', noteTime:'16:34', width:300 };
-  function opts(extra){ var o = {}; for (var key in base) o[key] = base[key]; for (key in extra) o[key] = extra[key]; return o; }
+  function opts(extra){ var o = {}, key; for (key in base) o[key] = base[key]; for (key in extra) o[key] = extra[key]; return o; }
 
+  /* 1 &mdash; statik uchlik */
   var stage = document.getElementById('stage');
   stage.appendChild(createFolder('a', opts({ open:false })).el);
   stage.appendChild(createFolder('b', opts({ open:true })).el);
   stage.appendChild(createNoteSheet(300));
 
-  document.getElementById('stageFx').appendChild(createInteractive(opts({ open:false })));
+  /* 2 &mdash; rang variantlari */
+  var colors = document.getElementById('stageColors');
+  THEMES.forEach(function(t, i){
+    var fig = document.createElement('figure');
+    fig.className = 'swatch';
+    fig.style.margin = '0';
+    fig.appendChild(createFolder('c' + i, opts({ open:true, width:210, theme:t })).el);
+    var cap = document.createElement('figcaption');
+    cap.textContent = t.name;
+    fig.appendChild(cap);
+    colors.appendChild(fig);
+  });
+
+  /* 3 &mdash; interaktiv + rang tanlagich */
+  var fx = createInteractive(opts({ open:false, theme:THEMES[0] }));
+  document.getElementById('stageFx').appendChild(fx);
+
+  var chips = document.getElementById('chips');
+  THEMES.forEach(function(t){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', t.id === 'indigo' ? 'true' : 'false');
+    b.innerHTML = '<i style="background:linear-gradient(180deg,' + t.top + ',' + t.bottom + ')"></i>' + t.name;
+    b.addEventListener('click', function(){
+      fx.setTheme(t);
+      var all = chips.querySelectorAll('button');
+      for (var i = 0; i < all.length; i++) all[i].setAttribute('aria-pressed', 'false');
+      b.setAttribute('aria-pressed', 'true');
+    });
+    chips.appendChild(b);
+  });
 })();
 </script>
 </body>
