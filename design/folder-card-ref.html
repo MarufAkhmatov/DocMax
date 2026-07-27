@@ -30,10 +30,16 @@
     ikonkalar   : 27x27, oq kontur, fonsiz; o'ngdan 38, orasi 17, top 76
 
   OCHIQ HOLAT (blanka chiqib turgani)
-    orqa panel  : to'liq 0..523 / 37..475
-    blanka      : chetlardan 32, top 70, faqat yuqori burchaklari yumaloq (22);
-                  pastki qismi old panel ortiga o'tib ketadi
-    old panel   : yon tomondan 15 ichkariga surilgan, top 140 (ya'ni +103)
+    SIDE = 44   <- orqa panelning yon chekinishi
+    orqa panel  : x SIDE..523-SIDE, y 37..475, rx 48   (tili ham SIDE ga suriladi)
+    blanka      : chetlardan 66 (orqa panel ichida), top 70, faqat yuqori
+                  burchaklari yumaloq (22);
+                  pastki qismi old cho'ntak ortiga o'tib ketadi
+    old cho'ntak: trapetsiya, burchak radiusi 48 (orqa panelnikiday)
+                  tepasi  0..523        (orqa paneldan 2*SIDE kengroq)
+                  pastki  SIDE..523-SIDE  (orqa panelning pastki burchaklari
+                                           bilan aynan ustma-ust tushadi)
+                  top 140 (ya'ni +103)
 
   O'lchamni o'zgartirish: .pf ustida --fw ni bering, qolgani nisbatda ketadi.
   ============================================================================
@@ -87,7 +93,7 @@
 
   /* Blanka: orqa panel bilan old cho'ntak orasidan chiqib turadi. Faqat yuqori
      burchaklari yumaloq &mdash; qolgani cho'ntak ortiga o'tib ketadi. */
-  .pf-note{ position:absolute; left:calc(32*var(--u)); right:calc(32*var(--u));
+  .pf-note{ position:absolute; left:calc(66*var(--u)); right:calc(66*var(--u));
     top:calc(70*var(--u)); height:calc(280*var(--u)); background:#fff;
     border-radius:calc(22*var(--u)) calc(22*var(--u)) 0 0;
     padding:0 calc(26*var(--u)); box-shadow:0 calc(7*var(--u)) calc(15*var(--u)) rgba(20,20,90,.20); }
@@ -119,38 +125,70 @@
 
 <script>
 (function(){
-  var H = 475;
+  var W = 523, H = 475, R = 48;
+  var SIDE = 44;   /* ochiq holatda orqa panelning yon chekinishi */
   var TAB_D = 'M0 120 L0 42 A41 41 0 0 1 43 1 L118 0 C140 3 175 22 201 37 L201 120 Z';
 
   function svgOpen(cls){
-    return '<svg class="pf-shape ' + cls + '" viewBox="0 0 523 ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+    return '<svg class="pf-shape ' + cls + '" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
   }
 
-  /* 1-qatlam: til + orqa panel. Ochiq holatda panel to'liq balandlikda &mdash; blanka
-     unga suyanib turadi. */
+  /* To'rtburchakni berilgan radius bilan yumaloqlaydi. To'g'ri burchak shart emas,
+     shuning uchun qiya yonli trapetsiya ham to'g'ri chiqadi. K &mdash; aylanani Bezier
+     bilan yaqinlashtirish koeffitsienti, shu bois radius rect'ning rx'i bilan bir xil
+     og'irlikda ko'rinadi. */
+  function roundedPoly(pts, r){
+    var K = 0.5523, n = pts.length, A = [], B = [], i, d = '';
+    function sub(a,b){ return [a[0]-b[0], a[1]-b[1]]; }
+    function len(v){ return Math.sqrt(v[0]*v[0] + v[1]*v[1]); }
+    function along(p, q, dist){ var v = sub(q,p), l = len(v); return [p[0]+v[0]/l*dist, p[1]+v[1]/l*dist]; }
+    function f(p){ return p[0].toFixed(2) + ',' + p[1].toFixed(2); }
+    for (i = 0; i < n; i++) {
+      var p = pts[i], prev = pts[(i+n-1)%n], next = pts[(i+1)%n];
+      var rr = Math.min(r, len(sub(prev,p))/2, len(sub(next,p))/2);
+      A[i] = along(p, prev, rr);   /* kiruvchi qirradagi nuqta */
+      B[i] = along(p, next, rr);   /* chiquvchi qirradagi nuqta */
+    }
+    for (i = 0; i < n; i++) {
+      var c = pts[i];
+      var c1 = [A[i][0] + (c[0]-A[i][0])*K, A[i][1] + (c[1]-A[i][1])*K];
+      var c2 = [B[i][0] + (c[0]-B[i][0])*K, B[i][1] + (c[1]-B[i][1])*K];
+      d += (i === 0 ? 'M ' : ' L ') + f(A[i]) + ' C ' + f(c1) + ' ' + f(c2) + ' ' + f(B[i]);
+    }
+    return d + ' Z';
+  }
+
+  /* 1-qatlam: til + orqa panel. Ochiq holatda panel to'liq balandlikda (blanka unga
+     suyanib turadi) va yon tomondan SIDE ga chekingan &mdash; shuning uchun old cho'ntak
+     tepada undan kengroq ko'rinadi. */
   function pfBack(uid, open){
-    var backEnd = open ? H : 130;
+    var backEnd = open ? H : 130,
+        x = open ? SIDE : 0,
+        w = W - x * 2;
     return svgOpen('pf-back') +
       '<defs><linearGradient id="t' + uid + '" x1="0" y1="0" x2="0" y2="' + backEnd + '" gradientUnits="userSpaceOnUse">' +
         '<stop offset="0" stop-color="#6161f3"/><stop offset="1" stop-color="#4342e6"/>' +
       '</linearGradient></defs>' +
-      '<path d="' + TAB_D + '" fill="url(#t' + uid + ')"/>' +
-      (open ? '<rect x="0" y="37" width="523" height="438" rx="48" fill="url(#t' + uid + ')"/>' : '') +
+      '<g transform="translate(' + x + ',0)"><path d="' + TAB_D + '" fill="url(#t' + uid + ')"/></g>' +
+      (open ? '<rect x="' + x + '" y="37" width="' + w + '" height="' + (H - 37) + '" rx="' + R + '" fill="url(#t' + uid + ')"/>' : '') +
     '</svg>';
   }
 
   /* 3-qatlam: old cho'ntak. Oxirgi bo'lib chiziladi, shuning uchun blanka uning
-     ortiga kirib ketadi. */
+     ortiga kirib ketadi.
+     Ochiq holatda trapetsiya: tepasi to'liq kenglikda (orqa paneldan 2*SIDE kengroq),
+     pastki ikki burchagi esa orqa panelning pastki burchaklari bilan aynan ustma-ust. */
   function pfFront(uid, open){
-    var top = open ? 140 : 37, inset = open ? 15 : 0;
+    var top = open ? 140 : 37;
+    var shape = open
+      ? '<path d="' + roundedPoly([[0,top],[W,top],[W-SIDE,H],[SIDE,H]], R) + '" fill="url(#b' + uid + ')"/>'
+      : '<rect x="0" y="' + top + '" width="' + W + '" height="' + (H - top) + '" rx="' + R + '" fill="url(#b' + uid + ')"/>';
     return svgOpen('pf-front') +
       '<defs><linearGradient id="b' + uid + '" x1="0" y1="' + top + '" x2="0" y2="' + H + '" gradientUnits="userSpaceOnUse">' +
         '<stop offset="0" stop-color="#adafff"/>' +
         '<stop offset="0.014" stop-color="#8180f5"/>' +
         '<stop offset="1" stop-color="#2221ec"/>' +
-      '</linearGradient></defs>' +
-      '<rect x="' + inset + '" y="' + top + '" width="' + (523 - inset * 2) + '" height="' + (H - top) +
-        '" rx="48" fill="url(#b' + uid + ')"/>' +
+      '</linearGradient></defs>' + shape +
     '</svg>';
   }
 
